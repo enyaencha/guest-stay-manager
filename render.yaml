@@ -1,0 +1,8 @@
+static_sites:
+  - name: guest-stay-manager
+    buildCommand: npm ci && npm run build
+    publishDir: dist
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_VERSION
+        value: 18
