@@ -1,6 +1,6 @@
 static_sites:
   - name: guest-stay-manager
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     publishDir: dist
     pullRequestPreviewsEnabled: true
     envVars:
