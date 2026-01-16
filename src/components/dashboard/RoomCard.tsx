@@ -146,7 +146,7 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
           <span className="text-xs text-muted-foreground">+{room.amenities.length - 4}</span>
         )}
         <div className="ml-auto text-right">
-          <p className="text-sm font-semibold">${room.basePrice}</p>
+          <p className="text-sm font-semibold">Ksh {room.basePrice}</p>
           <p className="text-xs text-muted-foreground">/night</p>
         </div>
       </div>
