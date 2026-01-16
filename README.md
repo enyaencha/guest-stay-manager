@@ -64,6 +64,17 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
 
+### Deploy on Render
+
+If you want to share the app with customers via a public URL, you can deploy it on Render as a static site:
+
+1. Create a new **Static Site** in Render and connect this repository.
+2. Keep the build command as `npm ci && npm run build`.
+3. Set the publish directory to `dist`.
+4. Save and deploy — Render will build the app and host it for you.
+
+This repo includes a `render.yaml` so you can also use Render's Blueprint flow to create the service automatically.
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
