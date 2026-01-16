@@ -80,6 +80,27 @@ export function TaskCard({ task, onStatusChange }: TaskCardProps) {
               {task.notes}
             </p>
           )}
+
+          {task.amenities && task.amenities.length > 0 && (
+            <div className="rounded border border-dashed border-border/70 bg-muted/30 p-2 text-xs">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Amenities to add
+              </p>
+              <ul className="mt-1 space-y-1 text-muted-foreground">
+                {task.amenities.map((amenity) => (
+                  <li key={amenity.name} className="flex items-center justify-between">
+                    <span>{amenity.name}</span>
+                    <span className="font-medium text-foreground">x{amenity.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+              {task.restockNotes && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Cleaner add: {task.restockNotes}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {task.status !== 'completed' && (

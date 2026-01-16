@@ -11,6 +11,11 @@ export interface HousekeepingTask {
   status: TaskStatus;
   assignedTo?: string;
   notes?: string;
+  amenities?: Array<{
+    name: string;
+    quantity: number;
+  }>;
+  restockNotes?: string;
   createdAt: string;
   completedAt?: string;
   estimatedMinutes: number;
