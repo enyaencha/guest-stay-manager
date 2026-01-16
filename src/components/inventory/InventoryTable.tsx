@@ -99,7 +99,7 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
                   </div>
                 </TableCell>
                 <TableCell className="text-sm">
-                  ${item.unitCost.toFixed(2)} / {item.unit.slice(0, -1) || item.unit}
+                  Ksh {item.unitCost.toFixed(2)} / {item.unit.slice(0, -1) || item.unit}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {item.lastRestocked 
