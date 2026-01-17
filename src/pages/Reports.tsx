@@ -28,6 +28,7 @@ import {
   Calendar
 } from "lucide-react";
 import { useState } from "react";
+import { formatKsh } from "@/lib/formatters";
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState("7d");
@@ -68,7 +69,7 @@ const Reports = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Revenue"
-            value={`$${stats.totalRevenue.toLocaleString()}`}
+            value={formatKsh(stats.totalRevenue)}
             icon={DollarSign}
             trend={{ value: 12.5, isPositive: true }}
             description="vs. previous period"

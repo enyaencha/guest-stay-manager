@@ -11,6 +11,7 @@ import {
   Legend
 } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { formatKsh } from "@/lib/formatters";
 
 interface RevenueChartProps {
   data: RevenueData[];
@@ -37,7 +38,7 @@ export const RevenueChart = ({ data }: RevenueChartProps) => {
                 borderColor: "hsl(var(--border))",
                 borderRadius: "8px"
               }}
-              formatter={(value: number) => [`$${value}`, ""]}
+              formatter={(value: number) => [formatKsh(value), ""]}
             />
             <Legend />
             <Area 

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Smartphone, DoorOpen } from "lucide-react";
 import { useState } from "react";
+import { formatKsh } from "@/lib/formatters";
 
 interface CartPanelProps {
   items: CartItem[];
@@ -63,7 +64,7 @@ export const CartPanel = ({
                 <div key={item.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">${item.price} each</p>
+                    <p className="text-sm text-muted-foreground">{formatKsh(item.price)} each</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button 
@@ -99,15 +100,15 @@ export const CartPanel = ({
             <div className="space-y-3 border-t pt-4">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatKsh(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Tax (10%)</span>
-                <span>${tax.toFixed(2)}</span>
+                <span>{formatKsh(tax)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatKsh(total)}</span>
               </div>
 
               <div className="space-y-2">
