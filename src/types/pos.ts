@@ -1,0 +1,30 @@
+export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'room-charge';
+export type TransactionStatus = 'pending' | 'completed' | 'refunded' | 'cancelled';
+
+export interface POSItem {
+  id: string;
+  name: string;
+  category: 'services' | 'food-beverage' | 'amenities' | 'experiences' | 'packages';
+  price: number;
+  description: string;
+  available: boolean;
+  image?: string;
+}
+
+export interface CartItem extends POSItem {
+  quantity: number;
+}
+
+export interface Transaction {
+  id: string;
+  roomNumber: string;
+  guestName: string;
+  items: { name: string; quantity: number; price: number }[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  paymentMethod: PaymentMethod;
+  status: TransactionStatus;
+  createdAt: string;
+  staffName: string;
+}

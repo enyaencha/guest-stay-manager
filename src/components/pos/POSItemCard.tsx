@@ -1,0 +1,49 @@
+import { POSItem } from "@/types/pos";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
+
+interface POSItemCardProps {
+  item: POSItem;
+  onAddToCart: (item: POSItem) => void;
+}
+
+const categoryLabels: Record<POSItem["category"], string> = {
+  services: "Service",
+  "food-beverage": "F&B",
+  amenities: "Amenity",
+  experiences: "Experience",
+  packages: "Package",
+};
+
+export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
+  return (
+    <Card className={`hover:shadow-md transition-shadow ${!item.available ? "opacity-50" : ""}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h3 className="font-medium">{item.name}</h3>
+            <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+          </div>
+          <Badge variant="secondary" className="shrink-0 ml-2">
+            {categoryLabels[item.category]}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-lg font-bold text-primary">
+            {item.price === 0 ? "Free" : `$${item.price}`}
+          </span>
+          <Button 
+            size="sm" 
+            disabled={!item.available}
+            onClick={() => onAddToCart(item)}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
