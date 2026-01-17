@@ -10,6 +10,7 @@ import POS from "./pages/POS";
 import Housekeeping from "./pages/Housekeeping";
 import Maintenance from "./pages/Maintenance";
 import Inventory from "./pages/Inventory";
+import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/housekeeping" element={<Housekeeping />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
