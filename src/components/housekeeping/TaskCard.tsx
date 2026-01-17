@@ -2,12 +2,16 @@ import { HousekeepingTask } from '@/types/housekeeping';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Clock, User, BedDouble, Play, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
   task: HousekeepingTask;
   onStatusChange?: (taskId: string, status: HousekeepingTask['status']) => void;
+  onAmenitiesUpdate?: (taskId: string, amenities: NonNullable<HousekeepingTask['actualAdded']>) => void;
+  onActualNotesUpdate?: (taskId: string, notes: string) => void;
 }
 
 const priorityConfig = {
@@ -30,9 +34,30 @@ const typeLabels = {
   'turnover': 'Turnover',
 };
 
-export function TaskCard({ task, onStatusChange }: TaskCardProps) {
+export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNotesUpdate }: TaskCardProps) {
   const priority = priorityConfig[task.priority];
   const status = statusConfig[task.status];
+  const plannedAmenities = task.amenities ?? [];
+  const actualAdded = task.actualAdded ?? [];
+  const requiresAdded = plannedAmenities.length > 0;
+  const hasAllAdded = !requiresAdded || plannedAmenities.every((amenity) => {
+    const added = actualAdded.find((item) => item.name === amenity.name);
+    return added && added.quantity > 0;
+  });
+
+  const handleAmenityChange = (name: string, value: string) => {
+    const parsedValue = Number(value);
+    const quantity = Number.isFinite(parsedValue) ? Math.max(parsedValue, 0) : 0;
+    const nextAmenities = plannedAmenities.map((amenity) => {
+      const existing = actualAdded.find((item) => item.name === amenity.name);
+      return {
+        name: amenity.name,
+        unit: amenity.unit,
+        quantity: amenity.name === name ? quantity : (existing?.quantity ?? 0),
+      };
+    });
+    onAmenitiesUpdate?.(task.id, nextAmenities);
+  };
 
   return (
     <Card className="shadow-card hover:shadow-card-hover transition-shadow">
@@ -81,22 +106,88 @@ export function TaskCard({ task, onStatusChange }: TaskCardProps) {
             </p>
           )}
 
-          {task.amenities && task.amenities.length > 0 && (
+          {plannedAmenities.length > 0 && (
             <div className="rounded border border-dashed border-border/70 bg-muted/30 p-2 text-xs">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Amenities to add
+                Planned amenities
               </p>
               <ul className="mt-1 space-y-1 text-muted-foreground">
-                {task.amenities.map((amenity) => (
+                {plannedAmenities.map((amenity) => (
                   <li key={amenity.name} className="flex items-center justify-between">
                     <span>{amenity.name}</span>
-                    <span className="font-medium text-foreground">x{amenity.quantity}</span>
+                    <span className="font-medium text-foreground">
+                      {amenity.quantity} {amenity.unit}
+                    </span>
                   </li>
                 ))}
               </ul>
               {task.restockNotes && (
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Cleaner add: {task.restockNotes}
+                  Requested: {task.restockNotes}
+                </p>
+              )}
+            </div>
+          )}
+
+          {task.status === 'in-progress' && plannedAmenities.length > 0 && (
+            <div className="rounded border border-border/70 bg-background p-2 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Added by cleaner
+                </p>
+                <span className="text-[11px] text-muted-foreground">Required before completion</span>
+              </div>
+              <div className="space-y-2">
+                {plannedAmenities.map((amenity) => {
+                  const added = actualAdded.find((item) => item.name === amenity.name);
+                  return (
+                    <div key={amenity.name} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <p className="text-[11px] font-medium text-foreground">{amenity.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Planned: {amenity.quantity} {amenity.unit}
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        className="h-8 w-20 text-xs"
+                        value={added?.quantity ?? ''}
+                        onChange={(event) => handleAmenityChange(amenity.name, event.target.value)}
+                        placeholder="0"
+                      />
+                      <span className="text-[11px] text-muted-foreground">{amenity.unit}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <Textarea
+                value={task.actualAddedNotes ?? ''}
+                onChange={(event) => onActualNotesUpdate?.(task.id, event.target.value)}
+                placeholder="Extra items added by cleaner (optional)"
+                className="min-h-[64px] text-xs"
+              />
+            </div>
+          )}
+
+          {task.status === 'completed' && actualAdded.length > 0 && (
+            <div className="rounded border border-border/70 bg-muted/40 p-2 text-xs">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Added by cleaner
+              </p>
+              <ul className="mt-1 space-y-1 text-muted-foreground">
+                {actualAdded.map((amenity) => (
+                  <li key={amenity.name} className="flex items-center justify-between">
+                    <span>{amenity.name}</span>
+                    <span className="font-medium text-foreground">
+                      {amenity.quantity} {amenity.unit}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {task.actualAddedNotes && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Extra added: {task.actualAddedNotes}
                 </p>
               )}
             </div>
@@ -121,6 +212,7 @@ export function TaskCard({ task, onStatusChange }: TaskCardProps) {
                 size="sm"
                 className="flex-1 text-xs bg-status-available hover:bg-status-available/90"
                 onClick={() => onStatusChange?.(task.id, 'completed')}
+                disabled={!hasAllAdded}
               >
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Complete

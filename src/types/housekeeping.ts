@@ -14,8 +14,15 @@ export interface HousekeepingTask {
   amenities?: Array<{
     name: string;
     quantity: number;
+    unit: string;
+  }>;
+  actualAdded?: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
   }>;
   restockNotes?: string;
+  actualAddedNotes?: string;
   createdAt: string;
   completedAt?: string;
   estimatedMinutes: number;
