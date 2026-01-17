@@ -12,6 +12,7 @@ interface StatCardProps {
     isPositive: boolean;
   };
   variant?: 'default' | 'accent' | 'success' | 'warning';
+  iconClassName?: string;
 }
 
 export function StatCard({ 
@@ -21,7 +22,8 @@ export function StatCard({
   description, 
   icon: Icon, 
   trend,
-  variant = 'default' 
+  variant = 'default',
+  iconClassName
 }: StatCardProps) {
   const displaySubtitle = subtitle || description;
   const variantStyles = {
@@ -61,9 +63,9 @@ export function StatCard({
         </div>
         <div className={cn(
           "p-2.5 rounded-lg",
-          iconStyles[variant]
+          iconClassName || iconStyles[variant]
         )}>
-          <Icon className="h-5 w-5" />
+          <Icon className={cn("h-5 w-5", iconClassName)} />
         </div>
       </div>
     </div>

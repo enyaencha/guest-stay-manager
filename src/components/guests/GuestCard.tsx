@@ -2,6 +2,7 @@ import { Guest } from "@/types/guest";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatKsh } from "@/lib/formatters";
 import { 
   User, 
   Mail, 
@@ -108,7 +109,9 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
         <div className="flex items-center justify-between pt-3 border-t">
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">${guest.paidAmount} / ${guest.totalAmount}</span>
+            <span className="font-medium">
+              {formatKsh(guest.paidAmount)} / {formatKsh(guest.totalAmount)}
+            </span>
           </div>
           <Badge className={paymentColor}>{paymentStatus}</Badge>
         </div>

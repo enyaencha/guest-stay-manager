@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingBag } from "lucide-react";
+import { formatKsh } from "@/lib/formatters";
 
 interface TopItemsTableProps {
   data: TopItem[];
@@ -47,7 +48,7 @@ export const TopItemsTable = ({ data }: TopItemsTableProps) => {
                   <Badge variant="secondary">{item.category}</Badge>
                 </TableCell>
                 <TableCell className="text-center">{item.quantity}</TableCell>
-                <TableCell className="text-right font-medium">${item.revenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right font-medium">{formatKsh(item.revenue)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

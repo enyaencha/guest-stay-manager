@@ -2,6 +2,7 @@ import { Transaction } from "@/types/pos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Receipt, CreditCard, Banknote, Smartphone, DoorOpen } from "lucide-react";
+import { formatKsh } from "@/lib/formatters";
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -51,7 +52,7 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold">${txn.total.toFixed(2)}</p>
+                  <p className="font-bold">{formatKsh(txn.total)}</p>
                   <Badge className={status.className}>{status.label}</Badge>
                 </div>
               </div>

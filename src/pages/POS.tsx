@@ -16,6 +16,7 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatKsh } from "@/lib/formatters";
 
 const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -84,7 +85,7 @@ const POS = () => {
 
     setTransactions(prev => [newTransaction, ...prev]);
     setCart([]);
-    toast.success(`Transaction completed! Total: $${total.toFixed(2)}`);
+    toast.success(`Transaction completed! Total: ${formatKsh(total)}`);
   };
 
   const clearCart = () => {
@@ -107,7 +108,7 @@ const POS = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Today's Revenue"
-            value={`$${stats.todayRevenue.toFixed(2)}`}
+            value={formatKsh(stats.todayRevenue)}
             icon={DollarSign}
             trend={{ value: 18, isPositive: true }}
             description="From all sales"
@@ -120,7 +121,7 @@ const POS = () => {
           />
           <StatCard
             title="Avg. Ticket"
-            value={`$${stats.avgTicket.toFixed(2)}`}
+            value={formatKsh(stats.avgTicket)}
             icon={TrendingUp}
             description="Per transaction"
           />
