@@ -8,7 +8,8 @@ import {
   Package,
   Settings,
   Building2,
-  BarChart3
+  BarChart3,
+  Wallet
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -36,6 +37,7 @@ const operationsItems = [
   { title: "Maintenance", url: "/maintenance", icon: Wrench },
   { title: "Inventory", url: "/inventory", icon: Package },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Finance", url: "/finance", icon: Wallet },
 ];
 
 const settingsItems = [
