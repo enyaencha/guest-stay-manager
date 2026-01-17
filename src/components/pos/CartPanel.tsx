@@ -1,0 +1,172 @@
+import { CartItem, PaymentMethod } from "@/types/pos";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Smartphone, DoorOpen } from "lucide-react";
+import { useState } from "react";
+
+interface CartPanelProps {
+  items: CartItem[];
+  onUpdateQuantity: (id: string, quantity: number) => void;
+  onRemoveItem: (id: string) => void;
+  onCheckout: (roomNumber: string, paymentMethod: PaymentMethod) => void;
+  onClearCart: () => void;
+}
+
+const TAX_RATE = 0.10;
+
+export const CartPanel = ({ 
+  items, 
+  onUpdateQuantity, 
+  onRemoveItem, 
+  onCheckout,
+  onClearCart 
+}: CartPanelProps) => {
+  const [roomNumber, setRoomNumber] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
+
+  const handleCheckout = () => {
+    if (!roomNumber) return;
+    onCheckout(roomNumber, paymentMethod);
+    setRoomNumber("");
+  };
+
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <ShoppingCart className="h-5 w-5" />
+          Cart ({items.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col">
+        {items.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <p>Cart is empty</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 space-y-3 overflow-auto mb-4">
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">${item.price} each</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-7 w-7"
+                      onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-7 w-7"
+                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => onRemoveItem(item.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Tax (10%)</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span>${total.toFixed(2)}</span>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="room">Room Number</Label>
+                <Input 
+                  id="room" 
+                  placeholder="e.g., 101" 
+                  value={roomNumber}
+                  onChange={(e) => setRoomNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="card">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        Credit Card
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="cash">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="h-4 w-4" />
+                        Cash
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="mobile">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="h-4 w-4" />
+                        Mobile Money
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="room-charge">
+                      <div className="flex items-center gap-2">
+                        <DoorOpen className="h-4 w-4" />
+                        Charge to Room
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={onClearCart}>
+                  Clear
+                </Button>
+                <Button className="flex-1" disabled={!roomNumber} onClick={handleCheckout}>
+                  Checkout
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

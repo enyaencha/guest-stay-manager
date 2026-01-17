@@ -5,6 +5,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
+  description?: string;
   icon: LucideIcon;
   trend?: {
     value: number;
@@ -16,11 +17,13 @@ interface StatCardProps {
 export function StatCard({ 
   title, 
   value, 
-  subtitle, 
+  subtitle,
+  description, 
   icon: Icon, 
   trend,
   variant = 'default' 
 }: StatCardProps) {
+  const displaySubtitle = subtitle || description;
   const variantStyles = {
     default: 'bg-card',
     accent: 'bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20',
@@ -44,8 +47,8 @@ export function StatCard({
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className="text-3xl font-bold tracking-tight">{value}</p>
-          {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          {displaySubtitle && (
+            <p className="text-xs text-muted-foreground">{displaySubtitle}</p>
           )}
           {trend && (
             <p className={cn(
