@@ -51,6 +51,28 @@ const Housekeeping = () => {
     ));
   };
 
+  const handleAmenitiesUpdate = (taskId: string, amenities: NonNullable<HousekeepingTask['actualAdded']>) => {
+    setTasks(prev => prev.map(task =>
+      task.id === taskId
+        ? {
+            ...task,
+            actualAdded: amenities,
+          }
+        : task
+    ));
+  };
+
+  const handleActualNotesUpdate = (taskId: string, notes: string) => {
+    setTasks(prev => prev.map(task =>
+      task.id === taskId
+        ? {
+            ...task,
+            actualAddedNotes: notes,
+          }
+        : task
+    ));
+  };
+
   return (
     <MainLayout>
       <div className="p-6 lg:p-8 space-y-6">
@@ -127,6 +149,8 @@ const Housekeeping = () => {
                   key={task.id} 
                   task={task} 
                   onStatusChange={handleStatusChange}
+                  onAmenitiesUpdate={handleAmenitiesUpdate}
+                  onActualNotesUpdate={handleActualNotesUpdate}
                 />
               ))}
             </div>
