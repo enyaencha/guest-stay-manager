@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
+import { formatKsh } from "@/lib/formatters";
 
 interface POSItemCardProps {
   item: POSItem;
@@ -32,7 +33,7 @@ export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
         </div>
         <div className="flex items-center justify-between mt-4">
           <span className="text-lg font-bold text-primary">
-            {item.price === 0 ? "Free" : `$${item.price}`}
+            {item.price === 0 ? "Free" : formatKsh(item.price)}
           </span>
           <Button 
             size="sm" 
