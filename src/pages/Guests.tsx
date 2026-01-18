@@ -3,6 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { GuestCard } from "@/components/guests/GuestCard";
 import { RequestCard } from "@/components/guests/RequestCard";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { BookingWizard } from "@/components/booking/BookingWizard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +21,7 @@ import {
 import { toast } from "sonner";
 
 const Guests = () => {
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [guests, setGuests] = useState<Guest[]>(mockGuests);
   const [requests, setRequests] = useState<GuestRequest[]>(mockGuestRequests);
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +74,7 @@ const Guests = () => {
               Track guest journeys from booking to checkout
             </p>
           </div>
-          <Button>
+          <Button onClick={() => setBookingOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Booking
           </Button>
@@ -177,6 +179,8 @@ const Guests = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <BookingWizard open={bookingOpen} onOpenChange={setBookingOpen} />
     </MainLayout>
   );
 };
