@@ -4,6 +4,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { RoomGrid } from "@/components/dashboard/RoomGrid";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FilterTabs } from "@/components/dashboard/FilterTabs";
+import { SystemStatusWidget } from "@/components/dashboard/SystemStatusWidget";
+import { BookingWizard } from "@/components/booking/BookingWizard";
 import { mockRooms, calculateStats } from "@/data/mockRooms";
 import { 
   BedDouble, 
@@ -12,11 +14,14 @@ import {
   Wrench,
   LogIn,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  Plus
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [filter, setFilter] = useState("all");
+  const [bookingOpen, setBookingOpen] = useState(false);
   const stats = calculateStats(mockRooms);
 
   const filteredRooms = useMemo(() => {
@@ -53,7 +58,13 @@ const Index = () => {
               Overview of your property operations
             </p>
           </div>
-          <QuickActions />
+          <div className="flex gap-2">
+            <Button onClick={() => setBookingOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Booking
+            </Button>
+            <QuickActions />
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -88,26 +99,29 @@ const Index = () => {
           />
         </div>
 
-        {/* Today's Activity */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex items-center gap-4 p-4 bg-card rounded-xl border shadow-card">
-            <div className="p-3 rounded-lg bg-status-available/10">
-              <LogIn className="h-5 w-5 text-status-available" />
+        {/* Today's Activity + System Status */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-4 p-4 bg-card rounded-xl border shadow-card">
+              <div className="p-3 rounded-lg bg-status-available/10">
+                <LogIn className="h-5 w-5 text-status-available" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.checkinsToday}</p>
+                <p className="text-sm text-muted-foreground">Check-ins Today</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.checkinsToday}</p>
-              <p className="text-sm text-muted-foreground">Check-ins Today</p>
+            <div className="flex items-center gap-4 p-4 bg-card rounded-xl border shadow-card">
+              <div className="p-3 rounded-lg bg-status-checkout/10">
+                <LogOut className="h-5 w-5 text-status-checkout" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.checkoutsToday}</p>
+                <p className="text-sm text-muted-foreground">Check-outs Today</p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-4 p-4 bg-card rounded-xl border shadow-card">
-            <div className="p-3 rounded-lg bg-status-checkout/10">
-              <LogOut className="h-5 w-5 text-status-checkout" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.checkoutsToday}</p>
-              <p className="text-sm text-muted-foreground">Check-outs Today</p>
-            </div>
-          </div>
+          <SystemStatusWidget />
         </div>
 
         {/* Room Status Section */}
@@ -123,6 +137,8 @@ const Index = () => {
           <RoomGrid rooms={filteredRooms} />
         </div>
       </div>
+
+      <BookingWizard open={bookingOpen} onOpenChange={setBookingOpen} />
     </MainLayout>
   );
 };
