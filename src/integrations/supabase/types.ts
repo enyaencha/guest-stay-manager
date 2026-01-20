@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_notifications: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string
+          title: string
+          type: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          title: string
+          type: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_notifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           check_in: string
@@ -894,6 +932,60 @@ export type Database = {
             columns: ["room_assessment_id"]
             isOneToOne: false
             referencedRelation: "room_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          booking_id: string | null
+          comment: string | null
+          created_at: string
+          guest_id: string | null
+          guest_name: string
+          guest_phone: string
+          id: string
+          is_approved: boolean | null
+          rating: number
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          comment?: string | null
+          created_at?: string
+          guest_id?: string | null
+          guest_name: string
+          guest_phone: string
+          id?: string
+          is_approved?: boolean | null
+          rating: number
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          comment?: string | null
+          created_at?: string
+          guest_id?: string | null
+          guest_name?: string
+          guest_phone?: string
+          id?: string
+          is_approved?: boolean | null
+          rating?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
             referencedColumns: ["id"]
           },
         ]

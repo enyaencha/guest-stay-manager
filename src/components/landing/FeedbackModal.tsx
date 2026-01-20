@@ -25,7 +25,7 @@ export const FeedbackModal = ({ open, onOpenChange }: FeedbackModalProps) => {
   });
 
   const handleSubmit = async () => {
-    if (!formData.name || formData.rating === 0 || !formData.comment) {
+    if (!formData.name || !formData.phone || formData.rating === 0 || !formData.comment) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -33,13 +33,43 @@ export const FeedbackModal = ({ open, onOpenChange }: FeedbackModalProps) => {
     setIsSubmitting(true);
 
     try {
-      // For now, we'll just show success since we don't have a reviews table
-      // In production, you'd save this to a reviews table
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      // Find guest by phone to link review
+      const { data: guest } = await supabase
+        .from("guests")
+        .select("id")
+        .eq("phone", formData.phone)
+        .maybeSingle();
+
+      // Find their booking if exists
+      let bookingId = null;
+      if (guest) {
+        const { data: booking } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("guest_id", guest.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        bookingId = booking?.id || null;
+      }
+
+      // Save review to database
+      const { error } = await supabase.from("reviews").insert({
+        guest_id: guest?.id || null,
+        booking_id: bookingId,
+        guest_name: formData.name,
+        guest_phone: formData.phone,
+        rating: formData.rating,
+        comment: formData.comment,
+        is_approved: false, // Needs staff approval
+      });
+
+      if (error) throw error;
       
       setIsSubmitted(true);
       toast.success("Thank you for your feedback!");
     } catch (error: any) {
+      console.error("Feedback error:", error);
       toast.error("Failed to submit feedback");
     } finally {
       setIsSubmitting(false);
@@ -71,14 +101,14 @@ export const FeedbackModal = ({ open, onOpenChange }: FeedbackModalProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Phone Number (Optional)</Label>
+              <Label>Phone Number *</Label>
               <Input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="0712 345 678"
               />
               <p className="text-xs text-muted-foreground">
-                Only used to verify your stay
+                Used to verify your stay with us
               </p>
             </div>
 
@@ -126,7 +156,7 @@ export const FeedbackModal = ({ open, onOpenChange }: FeedbackModalProps) => {
 
             <Button 
               onClick={handleSubmit} 
-              disabled={isSubmitting || !formData.name || formData.rating === 0 || !formData.comment}
+              disabled={isSubmitting || !formData.name || !formData.phone || formData.rating === 0 || !formData.comment}
               className="w-full"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
