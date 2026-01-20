@@ -1,14 +1,13 @@
-import { useState } from "react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BookingFormData } from "@/types/booking";
-import { mockRooms } from "@/data/mockRooms";
+import { useRooms } from "@/hooks/useRooms";
 import { formatKsh } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, BedDouble, Users, Check } from "lucide-react";
+import { CalendarIcon, BedDouble, Users, Check, Loader2 } from "lucide-react";
 
 interface DateRoomStepProps {
   formData: BookingFormData;
@@ -16,19 +15,24 @@ interface DateRoomStepProps {
 }
 
 export function DateRoomStep({ formData, updateFormData }: DateRoomStepProps) {
-  const availableRooms = mockRooms.filter(room => 
-    room.occupancyStatus === 'vacant' && 
-    room.cleaningStatus === 'clean' &&
-    room.maintenanceStatus === 'none'
+  const { data: rooms = [], isLoading } = useRooms();
+  
+  const availableRooms = rooms.filter(room => 
+    room.occupancy_status === 'vacant' && 
+    room.cleaning_status === 'clean' &&
+    room.maintenance_status === 'none'
   );
 
-  const handleRoomSelect = (room: typeof mockRooms[0]) => {
+  const handleRoomSelect = (room: typeof rooms[0]) => {
+    const nights = differenceInDays(formData.checkOut, formData.checkIn);
+    const actualNights = nights > 0 ? nights : 1;
     updateFormData({
       roomId: room.id,
-      roomType: room.type,
+      roomType: room.name,
       roomNumber: room.number,
-      basePrice: room.basePrice,
-      totalAmount: room.basePrice * formData.nights,
+      basePrice: room.base_price,
+      nights: actualNights,
+      totalAmount: room.base_price * actualNights,
     });
   };
 
@@ -100,47 +104,53 @@ export function DateRoomStep({ formData, updateFormData }: DateRoomStepProps) {
       {/* Room Selection */}
       <div className="space-y-3">
         <Label>Select Room</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
-          {availableRooms.map((room) => (
-            <div
-              key={room.id}
-              onClick={() => handleRoomSelect(room)}
-              className={cn(
-                "relative p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/50",
-                formData.roomId === room.id 
-                  ? "border-primary bg-primary/5 ring-1 ring-primary" 
-                  : "border-border"
-              )}
-            >
-              {formData.roomId === room.id && (
-                <div className="absolute top-2 right-2 p-1 bg-primary rounded-full">
-                  <Check className="h-3 w-3 text-primary-foreground" />
-                </div>
-              )}
-              
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-muted">
-                  <BedDouble className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">{room.name}</p>
-                  <p className="text-sm text-muted-foreground">Room {room.number}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Users className="h-3 w-3" />
-                      <span>Max {room.maxOccupancy}</span>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
+            {availableRooms.map((room) => (
+              <div
+                key={room.id}
+                onClick={() => handleRoomSelect(room)}
+                className={cn(
+                  "relative p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/50",
+                  formData.roomId === room.id 
+                    ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                    : "border-border"
+                )}
+              >
+                {formData.roomId === room.id && (
+                  <div className="absolute top-2 right-2 p-1 bg-primary rounded-full">
+                    <Check className="h-3 w-3 text-primary-foreground" />
+                  </div>
+                )}
+                
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-muted">
+                    <BedDouble className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">{room.name}</p>
+                    <p className="text-sm text-muted-foreground">Room {room.number}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        <span>Max {room.max_occupancy}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">
+                        {formatKsh(room.base_price)}/night
+                      </span>
                     </div>
-                    <span className="text-sm font-semibold text-primary">
-                      {formatKsh(room.basePrice)}/night
-                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {availableRooms.length === 0 && (
+        {!isLoading && availableRooms.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             No rooms available for the selected dates
           </div>
