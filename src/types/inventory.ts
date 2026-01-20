@@ -11,8 +11,13 @@ export interface InventoryItem {
   maxStock: number;
   unit: string;
   unitCost: number;
+  sellingPrice?: number; // For items sold over the counter
   lastRestocked?: string;
   supplier?: string;
+  // Stock tracking fields from Excel
+  openingStock?: number;
+  purchasesIn?: number;
+  stockOut?: number;
 }
 
 export interface StockAlert {
@@ -24,4 +29,30 @@ export interface StockAlert {
   minStock: number;
   level: 'warning' | 'critical';
   createdAt: string;
+}
+
+// Stock movement tracking
+export interface StockMovement {
+  id: string;
+  itemId: string;
+  itemName: string;
+  type: 'purchase' | 'sale' | 'room-use' | 'adjustment';
+  quantity: number;
+  unitCost: number;
+  totalValue: number;
+  date: string;
+  reference?: string; // Room number, receipt number, etc.
+  notes?: string;
+}
+
+// Stock summary for reporting
+export interface StockSummary {
+  openingStockUnits: number;
+  openingStockValue: number;
+  purchasesUnits: number;
+  purchasesValue: number;
+  stockOutUnits: number;
+  stockOutSalesValue: number;
+  closingBalanceUnits: number;
+  closingBalanceValue: number;
 }
