@@ -4,7 +4,11 @@ import { RevenueChart } from "@/components/reports/RevenueChart";
 import { OccupancyChart } from "@/components/reports/OccupancyChart";
 import { DepartmentTable } from "@/components/reports/DepartmentTable";
 import { TopItemsTable } from "@/components/reports/TopItemsTable";
+import { AIInsightsPanel } from "@/components/reports/AIInsightsPanel";
+import { ExportReportsPanel } from "@/components/reports/ExportReportsPanel";
+import { ForecastChart } from "@/components/reports/ForecastChart";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select,
   SelectContent,
@@ -19,13 +23,17 @@ import {
   mockTopItems,
   calculateReportStats 
 } from "@/data/mockReports";
+import { mockInventoryItems } from "@/data/mockInventory";
+import { mockExpenseRecords, groupExpensesByCategory } from "@/data/mockExpenses";
+import { useAIAnalytics } from "@/hooks/useAIAnalytics";
 import { 
   DollarSign, 
   BedDouble, 
   CheckCircle, 
   Star,
-  Download,
-  Calendar
+  Calendar,
+  Brain,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { formatKsh } from "@/lib/formatters";
@@ -33,6 +41,47 @@ import { formatKsh } from "@/lib/formatters";
 const Reports = () => {
   const [dateRange, setDateRange] = useState("7d");
   const stats = calculateReportStats();
+  const { isLoading, forecast, insights, recommendations, anomalies, analyzeData } = useAIAnalytics();
+
+  const handleGenerateInsights = async () => {
+    const expensesByCategory = groupExpensesByCategory(mockExpenseRecords);
+    await analyzeData('insights', {
+      revenueData: mockRevenueData,
+      occupancyData: mockOccupancyData,
+    });
+    await analyzeData('recommendations', {
+      revenueData: mockRevenueData,
+      inventoryData: mockInventoryItems.map(i => ({
+        name: i.name,
+        currentStock: i.currentStock,
+        minStock: i.minStock,
+        purchasesIn: i.purchasesIn || 0,
+        stockOut: i.stockOut || 0,
+      })),
+      expenseData: expensesByCategory.map(e => ({
+        category: e.label,
+        amount: e.total,
+        isEtims: true,
+      })),
+    });
+    await analyzeData('anomaly', {
+      revenueData: mockRevenueData,
+      occupancyData: mockOccupancyData,
+      inventoryData: mockInventoryItems.map(i => ({
+        name: i.name,
+        currentStock: i.currentStock,
+        minStock: i.minStock,
+        purchasesIn: i.purchasesIn || 0,
+        stockOut: i.stockOut || 0,
+      })),
+    });
+  };
+
+  const handleGenerateForecast = async () => {
+    await analyzeData('forecast', {
+      revenueData: mockRevenueData,
+    });
+  };
 
   return (
     <MainLayout>
@@ -42,7 +91,7 @@ const Reports = () => {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
             <p className="text-muted-foreground">
-              Comprehensive overview of property performance
+              AI-powered insights and comprehensive reporting
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -58,10 +107,6 @@ const Reports = () => {
                 <SelectItem value="1y">Last Year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
           </div>
         </div>
 
@@ -97,17 +142,63 @@ const Reports = () => {
           />
         </div>
 
-        {/* Charts Row */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <RevenueChart data={mockRevenueData} />
-          <OccupancyChart data={mockOccupancyData} />
-        </div>
+        {/* Tabs for different report sections */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="ai-insights" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              AI Insights
+            </TabsTrigger>
+            <TabsTrigger value="export">Export Reports</TabsTrigger>
+          </TabsList>
 
-        {/* Tables Row */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <DepartmentTable data={mockDepartmentStats} />
-          <TopItemsTable data={mockTopItems} />
-        </div>
+          <TabsContent value="overview" className="space-y-6">
+            {/* Charts Row */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <RevenueChart data={mockRevenueData} />
+              <OccupancyChart data={mockOccupancyData} />
+            </div>
+
+            {/* Tables Row */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <DepartmentTable data={mockDepartmentStats} />
+              <TopItemsTable data={mockTopItems} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ai-insights" className="space-y-6">
+            <div className="flex gap-3 mb-4">
+              <Button onClick={handleGenerateInsights} disabled={isLoading}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate AI Insights
+              </Button>
+              <Button variant="outline" onClick={handleGenerateForecast} disabled={isLoading}>
+                <Brain className="h-4 w-4 mr-2" />
+                Generate Forecast
+              </Button>
+            </div>
+            
+            <ForecastChart 
+              forecast={forecast}
+              historicalData={mockRevenueData.map(r => ({ date: r.date, total: r.total }))}
+              isLoading={isLoading}
+              onRefresh={handleGenerateForecast}
+            />
+            
+            <AIInsightsPanel
+              isLoading={isLoading}
+              insights={insights}
+              recommendations={recommendations}
+              anomalies={anomalies}
+              onRefresh={handleGenerateInsights}
+            />
+          </TabsContent>
+
+          <TabsContent value="export">
+            <ExportReportsPanel />
+          </TabsContent>
+        </Tabs>
       </div>
     </MainLayout>
   );
