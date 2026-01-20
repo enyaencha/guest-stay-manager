@@ -4,11 +4,12 @@ import { RoomGrid } from "@/components/dashboard/RoomGrid";
 import { AvailabilityCalendar } from "@/components/rooms/AvailabilityCalendar";
 import { RoomDetailModal } from "@/components/rooms/RoomDetailModal";
 import { useRooms, useUpdateRoom, Room as DBRoom } from "@/hooks/useRooms";
+import { useBookings, useGuests } from "@/hooks/useGuests";
 import { Room } from "@/types/room";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Filter, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { addDays, format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 
 // Map database room to legacy Room type
 const mapToLegacyRoom = (room: DBRoom): Room => ({
@@ -27,7 +28,9 @@ const mapToLegacyRoom = (room: DBRoom): Room => ({
 });
 
 const Rooms = () => {
-  const { data: dbRooms, isLoading } = useRooms();
+  const { data: dbRooms, isLoading: roomsLoading } = useRooms();
+  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+  const { data: guests = [], isLoading: guestsLoading } = useGuests();
   const updateRoom = useUpdateRoom();
   
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -35,10 +38,28 @@ const Rooms = () => {
   const [calendarStart, setCalendarStart] = useState(new Date());
   const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
 
+  const guestLookup = useMemo(() => {
+    return new Map(guests.map((guest) => [guest.id, guest.name]));
+  }, [guests]);
+
   const rooms = useMemo(() => {
     if (!dbRooms) return [];
-    return dbRooms.map(mapToLegacyRoom);
-  }, [dbRooms]);
+    return dbRooms.map((room) => {
+      const roomBookings = bookings
+        .filter((booking) => booking.room_number === room.number)
+        .sort((a, b) => parseISO(b.check_in).getTime() - parseISO(a.check_in).getTime());
+
+      const latestBooking = roomBookings[0];
+      const guestName = latestBooking?.guest_id ? guestLookup.get(latestBooking.guest_id) : undefined;
+
+      return {
+        ...mapToLegacyRoom(room),
+        currentGuest: guestName || (room.current_guest_id ? "Guest" : undefined),
+        checkInDate: latestBooking?.check_in,
+        checkOutDate: latestBooking?.check_out,
+      };
+    });
+  }, [dbRooms, bookings, guestLookup]);
 
   const handleRoomClick = (room: Room) => {
     setSelectedRoom(room);
@@ -54,6 +75,8 @@ const Rooms = () => {
     
     updateRoom.mutate({ id: roomId, updates: dbUpdates });
   };
+
+  const isLoading = roomsLoading || bookingsLoading || guestsLoading;
 
   if (isLoading) {
     return (
@@ -128,7 +151,13 @@ const Rooms = () => {
           </TabsContent>
 
           <TabsContent value="calendar" className="mt-4">
-            <AvailabilityCalendar startDate={calendarStart} daysToShow={14} />
+            <AvailabilityCalendar
+              rooms={rooms}
+              bookings={bookings}
+              guests={guests}
+              startDate={calendarStart}
+              daysToShow={14}
+            />
           </TabsContent>
         </Tabs>
       </div>

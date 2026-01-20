@@ -7,6 +7,7 @@ import { FilterTabs } from "@/components/dashboard/FilterTabs";
 import { SystemStatusWidget } from "@/components/dashboard/SystemStatusWidget";
 import { BookingWizard } from "@/components/booking/BookingWizard";
 import { useRooms, useRoomStats, Room } from "@/hooks/useRooms";
+import { useGuests } from "@/hooks/useGuests";
 import { 
   BedDouble, 
   Users, 
@@ -41,12 +42,20 @@ const Index = () => {
   const [bookingOpen, setBookingOpen] = useState(false);
   
   const { data: rooms, isLoading } = useRooms();
+  const { data: guests = [] } = useGuests();
   const stats = useRoomStats();
+
+  const guestLookup = useMemo(() => {
+    return new Map(guests.map((guest) => [guest.id, guest.name]));
+  }, [guests]);
 
   const mappedRooms = useMemo(() => {
     if (!rooms) return [];
-    return rooms.map(mapToLegacyRoom);
-  }, [rooms]);
+    return rooms.map((room) => ({
+      ...mapToLegacyRoom(room),
+      currentGuest: room.current_guest_id ? guestLookup.get(room.current_guest_id) || "Guest" : undefined,
+    }));
+  }, [rooms, guestLookup]);
 
   const filteredRooms = useMemo(() => {
     switch (filter) {

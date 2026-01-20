@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,39 +26,29 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRoomTypes } from "@/hooks/useRooms";
 
 const Landing = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const rooms = [
-    {
-      name: "Standard Room",
-      description: "Comfortable and cozy for solo travelers or couples",
-      price: 3500,
-      image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",
-      amenities: ["Queen Bed", "Free WiFi", "TV", "Air Conditioning"],
-      size: "22 sqm",
-      occupancy: 2,
-    },
-    {
-      name: "Deluxe Room",
-      description: "Spacious room with city views and premium amenities",
-      price: 5500,
-      image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&h=400&fit=crop",
-      amenities: ["King Bed", "City View", "Mini Bar", "Work Desk"],
-      size: "32 sqm",
-      occupancy: 2,
-    },
-    {
-      name: "Executive Suite",
-      description: "Luxury suite with separate living area and premium service",
-      price: 8500,
-      image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",
-      amenities: ["King Bed", "Living Area", "Jacuzzi", "Butler Service"],
-      size: "48 sqm",
-      occupancy: 3,
-    },
+  const { data: roomTypes = [] } = useRoomTypes();
+  const roomImages = [
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",
+    "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&h=400&fit=crop",
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",
   ];
+
+  const roomShowcase = useMemo(() => {
+    return roomTypes.slice(0, 3).map((roomType, index) => ({
+      name: roomType.name,
+      description: roomType.description || "Comfortable stay with thoughtful amenities",
+      price: roomType.base_price,
+      image: roomImages[index % roomImages.length],
+      amenities: roomType.amenities?.length ? roomType.amenities : ["Free WiFi", "Smart TV", "Daily Housekeeping"],
+      size: `${roomType.max_occupancy * 12} sqm`,
+      occupancy: roomType.max_occupancy,
+    }));
+  }, [roomTypes]);
 
   const amenities = [
     { icon: Wifi, name: "High-Speed WiFi", description: "Complimentary throughout the property" },
@@ -250,45 +240,51 @@ const Landing = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room, index) => (
-              <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative h-48">
-                  <img 
-                    src={room.image} 
-                    alt={room.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <Badge className="absolute top-3 right-3 bg-primary">
-                    From Ksh {room.price.toLocaleString()}/night
-                  </Badge>
-                </div>
-                <CardContent className="p-5">
-                  <h3 className="text-xl font-semibold mb-2">{room.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{room.description}</p>
-                  
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      {room.occupancy} Guests
-                    </span>
-                    <span>{room.size}</span>
+            {roomShowcase.length > 0 ? (
+              roomShowcase.map((room, index) => (
+                <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="relative h-48">
+                    <img 
+                      src={room.image} 
+                      alt={room.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <Badge className="absolute top-3 right-3 bg-primary">
+                      From Ksh {room.price.toLocaleString()}/night
+                    </Badge>
                   </div>
+                  <CardContent className="p-5">
+                    <h3 className="text-xl font-semibold mb-2">{room.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{room.description}</p>
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {room.occupancy} Guests
+                      </span>
+                      <span>{room.size}</span>
+                    </div>
 
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {room.amenities.map((amenity, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {amenity}
-                      </Badge>
-                    ))}
-                  </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {room.amenities.map((amenity, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {amenity}
+                        </Badge>
+                      ))}
+                    </div>
 
-                  <Button className="w-full">
-                    Book Now
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                    <Button className="w-full">
+                      Book Now
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-full rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                Room types will appear here once they are available.
+              </div>
+            )}
           </div>
         </div>
       </section>
