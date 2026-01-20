@@ -1,4 +1,4 @@
-export type SupplyCategory = 'bathroom' | 'bedroom' | 'kitchen' | 'cleaning' | 'amenities' | 'maintenance';
+export type SupplyCategory = 'bathroom' | 'bedroom' | 'kitchen' | 'cleaning' | 'amenities' | 'maintenance' | 'beverages' | 'medical' | 'toiletries' | string;
 export type StockLevel = 'out-of-stock' | 'low' | 'adequate' | 'full';
 
 export interface InventoryItem {

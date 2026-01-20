@@ -1,8 +1,8 @@
 export type RoomType = 'single' | 'double' | 'suite' | 'villa' | 'apartment';
 
-export type OccupancyStatus = 'vacant' | 'occupied' | 'checkout';
+export type OccupancyStatus = 'vacant' | 'occupied' | 'checkout' | 'reserved';
 
-export type CleaningStatus = 'clean' | 'dirty' | 'in-progress';
+export type CleaningStatus = 'clean' | 'dirty' | 'in-progress' | 'inspecting';
 
 export type MaintenanceStatus = 'none' | 'pending' | 'in-progress';
 
