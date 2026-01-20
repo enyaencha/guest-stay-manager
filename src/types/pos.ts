@@ -1,14 +1,17 @@
-export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'room-charge';
+export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'room-charge' | 'mpesa';
 export type TransactionStatus = 'pending' | 'completed' | 'refunded' | 'cancelled';
+export type POSCategory = 'services' | 'food-beverage' | 'amenities' | 'experiences' | 'packages' | 'beverages' | 'health';
 
 export interface POSItem {
   id: string;
   name: string;
-  category: 'services' | 'food-beverage' | 'amenities' | 'experiences' | 'packages';
+  category: POSCategory;
   price: number;
+  cost?: number; // Cost price for profit calculation
   description: string;
   available: boolean;
   image?: string;
+  stockQuantity?: number; // Link to inventory
 }
 
 export interface CartItem extends POSItem {
