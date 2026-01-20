@@ -44,7 +44,7 @@ export interface MonthlyFinance {
 export interface POSSalesRecord {
   id: string;
   date: string;
-  roomNumber: string;
+  roomNumber?: string;
   items?: string;
   itemName?: string;
   category?: string;

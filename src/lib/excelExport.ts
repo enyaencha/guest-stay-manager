@@ -27,10 +27,17 @@ export const exportToExcel = (sheets: ExportData[], filename: string) => {
 
 // Revenue Report
 export const generateRevenueReport = (
-  revenueData: { date: string; roomRevenue: number; posRevenue: number; total: number }[],
+  revenueData: { date: string; roomRevenue?: number; posRevenue?: number; total?: number }[],
   roomBreakdown: { type: string; rooms: number; rate: number; nights: number; revenue: number }[]
 ) => {
-  const revenueSheet = revenueData.map(r => ({
+  const data = revenueData.map(r => ({
+    date: r.date,
+    roomRevenue: r.roomRevenue ?? 0,
+    posRevenue: r.posRevenue ?? 0,
+    total: r.total ?? 0,
+  }));
+
+  const revenueSheet = data.map(r => ({
     'Date': r.date,
     'Room Revenue (KSH)': r.roomRevenue,
     'POS Revenue (KSH)': r.posRevenue,
@@ -45,7 +52,7 @@ export const generateRevenueReport = (
     'Revenue (KSH)': r.revenue,
   }));
   
-  const totals = revenueData.reduce((acc, r) => ({
+  const totals = data.reduce((acc, r) => ({
     roomRevenue: acc.roomRevenue + r.roomRevenue,
     posRevenue: acc.posRevenue + r.posRevenue,
     total: acc.total + r.total,
@@ -66,10 +73,16 @@ export const generateRevenueReport = (
 
 // Occupancy Report
 export const generateOccupancyReport = (
-  occupancyData: { date: string; occupancy: number; rooms: number }[],
+  occupancyData: { date: string; occupancy: number; rooms?: number }[],
   totalRooms: number
 ) => {
-  const sheet = occupancyData.map(o => ({
+  const data = occupancyData.map(o => ({
+    date: o.date,
+    occupancy: o.occupancy,
+    rooms: o.rooms ?? 0,
+  }));
+  
+  const sheet = data.map(o => ({
     'Date': o.date,
     'Occupancy %': o.occupancy,
     'Rooms Occupied': o.rooms,
@@ -77,14 +90,14 @@ export const generateOccupancyReport = (
     'Vacant Rooms': totalRooms - o.rooms,
   }));
   
-  const avgOccupancy = occupancyData.length > 0 
-    ? Math.round(occupancyData.reduce((sum, o) => sum + o.occupancy, 0) / occupancyData.length)
+  const avgOccupancy = data.length > 0 
+    ? Math.round(data.reduce((sum, o) => sum + o.occupancy, 0) / data.length)
     : 0;
   
   sheet.push({
     'Date': 'AVERAGE',
     'Occupancy %': avgOccupancy,
-    'Rooms Occupied': Math.round(occupancyData.reduce((sum, o) => sum + o.rooms, 0) / occupancyData.length),
+    'Rooms Occupied': Math.round(data.reduce((sum, o) => sum + o.rooms, 0) / data.length),
     'Rooms Available': totalRooms,
     'Vacant Rooms': 0,
   });
@@ -198,7 +211,7 @@ export const generatePOSSalesReport = (
     total: number;
     paymentMethod: string;
   }[],
-  topItems: { name: string; category: string; quantity: number; revenue: number }[]
+  topItems: { name: string; category?: string; quantity: number; revenue: number }[]
 ) => {
   const salesSheet = transactions.map(t => ({
     'Date': t.date,
@@ -211,7 +224,7 @@ export const generatePOSSalesReport = (
   
   const topItemsSheet = topItems.map(i => ({
     'Item': i.name,
-    'Category': i.category,
+    'Category': i.category || 'Uncategorized',
     'Quantity Sold': i.quantity,
     'Revenue (KSH)': i.revenue,
   }));
@@ -224,13 +237,13 @@ export const generatePOSSalesReport = (
 
 // Department Performance Report
 export const generateDepartmentReport = (
-  departments: { department: string; tasksCompleted: number; avgResponseTime: number; satisfaction: number }[]
+  departments: { department: string; tasksCompleted: number; avgResponseTime?: number; satisfaction?: number }[]
 ) => {
   const sheet = departments.map(d => ({
     'Department': d.department,
     'Tasks Completed': d.tasksCompleted,
-    'Avg Response Time (min)': d.avgResponseTime,
-    'Satisfaction %': d.satisfaction,
+    'Avg Response Time (min)': d.avgResponseTime ?? 0,
+    'Satisfaction %': d.satisfaction ?? 0,
   }));
   
   return [{ sheetName: 'Department Performance', data: sheet }];
@@ -239,16 +252,22 @@ export const generateDepartmentReport = (
 // Comprehensive Monthly Report
 export const generateMonthlyReport = (
   month: string,
-  revenueData: { date: string; roomRevenue: number; posRevenue: number; total: number }[],
-  occupancyData: { date: string; occupancy: number; rooms: number }[],
-  departments: { department: string; tasksCompleted: number; avgResponseTime: number; satisfaction: number }[],
-  topItems: { name: string; category: string; quantity: number; revenue: number }[],
+  revenueData: { date: string; roomRevenue?: number; posRevenue?: number; total?: number }[],
+  occupancyData: { date: string; occupancy: number; rooms?: number }[],
+  departments: { department: string; tasksCompleted: number; avgResponseTime?: number; satisfaction?: number }[],
+  topItems: { name: string; category?: string; quantity: number; revenue: number }[],
   expenses: { category: string; description: string; amount: number; isEtims: boolean; date: string }[]
 ) => {
+  const normalizedRevenue = revenueData.map(r => ({
+    date: r.date,
+    roomRevenue: r.roomRevenue ?? 0,
+    posRevenue: r.posRevenue ?? 0,
+    total: r.total ?? 0,
+  }));
   // Summary sheet
-  const totalRevenue = revenueData.reduce((sum, r) => sum + r.total, 0);
-  const totalRoomRevenue = revenueData.reduce((sum, r) => sum + r.roomRevenue, 0);
-  const totalPosRevenue = revenueData.reduce((sum, r) => sum + r.posRevenue, 0);
+  const totalRevenue = normalizedRevenue.reduce((sum, r) => sum + r.total, 0);
+  const totalRoomRevenue = normalizedRevenue.reduce((sum, r) => sum + r.roomRevenue, 0);
+  const totalPosRevenue = normalizedRevenue.reduce((sum, r) => sum + r.posRevenue, 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const avgOccupancy = occupancyData.length > 0 
     ? Math.round(occupancyData.reduce((sum, o) => sum + o.occupancy, 0) / occupancyData.length)
@@ -264,7 +283,7 @@ export const generateMonthlyReport = (
     { 'Metric': 'Total Tasks', 'Value': departments.reduce((sum, d) => sum + d.tasksCompleted, 0), 'Unit': 'tasks' },
   ];
   
-  const revenueSheet = revenueData.map(r => ({
+  const revenueSheet = normalizedRevenue.map(r => ({
     'Date': r.date,
     'Room Revenue (KSH)': r.roomRevenue,
     'POS Revenue (KSH)': r.posRevenue,
@@ -281,7 +300,7 @@ export const generateMonthlyReport = (
   
   const topItemsSheet = topItems.slice(0, 20).map(i => ({
     'Item': i.name,
-    'Category': i.category,
+    'Category': i.category || 'Uncategorized',
     'Quantity': i.quantity,
     'Revenue (KSH)': i.revenue,
   }));
@@ -294,8 +313,8 @@ export const generateMonthlyReport = (
     { sheetName: 'Departments', data: departments.map(d => ({
       'Department': d.department,
       'Tasks': d.tasksCompleted,
-      'Response Time (min)': d.avgResponseTime,
-      'Satisfaction %': d.satisfaction,
+      'Response Time (min)': d.avgResponseTime ?? 0,
+      'Satisfaction %': d.satisfaction ?? 0,
     })) },
   ];
 };

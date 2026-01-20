@@ -9,6 +9,8 @@ import { GuestDetailsStep } from "./steps/GuestDetailsStep";
 import { PaymentStep } from "./steps/PaymentStep";
 import { BookingConfirmation } from "./steps/BookingConfirmation";
 import { toast } from "sonner";
+import { useCreateGuest, useCreateBooking } from "@/hooks/useGuests";
+import { useUpdateRoom } from "@/hooks/useRooms";
 
 interface BookingWizardProps {
   open: boolean;
@@ -41,6 +43,11 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<BookingFormData>(initialFormData);
   const [isComplete, setIsComplete] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const createGuest = useCreateGuest();
+  const createBooking = useCreateBooking();
+  const updateRoom = useUpdateRoom();
 
   const steps: BookingStep[] = [
     { id: 1, title: "Dates & Room", description: "Select dates and room", isComplete: currentStep > 1, isCurrent: currentStep === 1 },
@@ -81,11 +88,54 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
     }
   };
 
-  const handleComplete = () => {
-    setIsComplete(true);
-    setCurrentStep(4);
-    toast.success("Booking created successfully!");
-    onComplete?.(formData);
+  const handleComplete = async () => {
+    setIsSaving(true);
+    try {
+      // Create guest first
+      const guest = await createGuest.mutateAsync({
+        name: formData.guestName,
+        email: formData.guestEmail || null,
+        phone: formData.guestPhone,
+        id_number: formData.idNumber || null,
+      });
+
+      // Create booking with correct nights calculation
+      const nights = differenceInDays(formData.checkOut, formData.checkIn);
+      const actualNights = nights > 0 ? nights : 1;
+
+      await createBooking.mutateAsync({
+        guest_id: guest.id,
+        room_number: formData.roomNumber,
+        room_type: formData.roomType,
+        check_in: format(formData.checkIn, 'yyyy-MM-dd'),
+        check_out: format(formData.checkOut, 'yyyy-MM-dd'),
+        guests_count: formData.guestCount,
+        total_amount: formData.basePrice * actualNights,
+        paid_amount: formData.depositAmount,
+        payment_method: formData.paymentMethod,
+        status: 'pre-arrival',
+        special_requests: formData.specialRequests || null,
+      });
+
+      // Update room status to reserved
+      await updateRoom.mutateAsync({
+        id: formData.roomId,
+        updates: { 
+          occupancy_status: 'reserved',
+          current_guest_id: guest.id 
+        },
+      });
+
+      setIsComplete(true);
+      setCurrentStep(4);
+      toast.success("Booking created successfully!");
+      onComplete?.(formData);
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      toast.error("Failed to create booking. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => {

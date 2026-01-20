@@ -41,7 +41,7 @@ const Reports = () => {
   const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
   const { data: inventoryItems = [], isLoading: inventoryLoading } = useInventoryItems();
-  const stats = useRoomStats(rooms as any);
+  const stats = useRoomStats();
   
   const { isLoading: aiLoading, forecast, insights, recommendations, anomalies, analyzeData } = useAIAnalytics();
 
