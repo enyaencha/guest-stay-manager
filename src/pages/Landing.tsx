@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { BookingRequestModal } from "@/components/landing/BookingRequestModal";
+import { ReservationLookupModal } from "@/components/landing/ReservationLookupModal";
+import { FeedbackModal } from "@/components/landing/FeedbackModal";
 import { 
   BedDouble, 
   Star, 
@@ -23,42 +27,67 @@ import {
   ArrowRight,
   Quote,
   Menu,
-  X
+  X,
+  Search,
+  MessageSquare,
+  Calendar,
+  Tv,
+  Wind,
+  Wine
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface RoomType {
+  id: string;
+  name: string;
+  code: string;
+  base_price: number;
+  max_occupancy: number;
+  description: string | null;
+  amenities: string[] | null;
+}
+
 const Landing = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [lookupModalOpen, setLookupModalOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [preselectedRoom, setPreselectedRoom] = useState<string>("");
 
-  const rooms = [
-    {
-      name: "Standard Room",
-      description: "Comfortable and cozy for solo travelers or couples",
-      price: 3500,
-      image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",
-      amenities: ["Queen Bed", "Free WiFi", "TV", "Air Conditioning"],
-      size: "22 sqm",
-      occupancy: 2,
-    },
-    {
-      name: "Deluxe Room",
-      description: "Spacious room with city views and premium amenities",
-      price: 5500,
-      image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&h=400&fit=crop",
-      amenities: ["King Bed", "City View", "Mini Bar", "Work Desk"],
-      size: "32 sqm",
-      occupancy: 2,
-    },
-    {
-      name: "Executive Suite",
-      description: "Luxury suite with separate living area and premium service",
-      price: 8500,
-      image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",
-      amenities: ["King Bed", "Living Area", "Jacuzzi", "Butler Service"],
-      size: "48 sqm",
-      occupancy: 3,
-    },
-  ];
+  // Fetch room types from database
+  useEffect(() => {
+    const fetchRoomTypes = async () => {
+      const { data } = await supabase
+        .from("room_types")
+        .select("*")
+        .eq("is_active", true)
+        .order("base_price");
+      
+      if (data) setRoomTypes(data);
+    };
+    fetchRoomTypes();
+  }, []);
+
+  const getAmenityIcon = (amenity: string) => {
+    const icons: Record<string, any> = {
+      wifi: Wifi,
+      ac: Wind,
+      tv: Tv,
+      minibar: Wine,
+      balcony: Sparkles,
+    };
+    return icons[amenity.toLowerCase()] || Sparkles;
+  };
+
+  const getRoomImage = (code: string) => {
+    const images: Record<string, string> = {
+      basic: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",
+      standard: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&h=400&fit=crop",
+      superior: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",
+    };
+    return images[code] || images.basic;
+  };
 
   const amenities = [
     { icon: Wifi, name: "High-Speed WiFi", description: "Complimentary throughout the property" },
@@ -79,7 +108,7 @@ const Landing = () => {
     {
       name: "John K.",
       rating: 5,
-      comment: "Best hotel in the area. The executive suite exceeded all expectations. Highly recommend!",
+      comment: "Best hotel in the area. The superior room exceeded all expectations. Highly recommend!",
       date: "January 2026",
     },
     {
@@ -89,6 +118,11 @@ const Landing = () => {
       date: "December 2025",
     },
   ];
+
+  const handleBookRoom = (roomCode?: string) => {
+    setPreselectedRoom(roomCode || "");
+    setBookingModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,10 +146,14 @@ const Landing = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setLookupModalOpen(true)}>
+                <Search className="h-4 w-4 mr-2" />
+                My Booking
+              </Button>
               <Link to="/dashboard">
-                <Button variant="outline">Staff Login</Button>
+                <Button variant="outline" size="sm">Staff Login</Button>
               </Link>
-              <Button>Book Now</Button>
+              <Button onClick={() => handleBookRoom()}>Book Now</Button>
             </div>
 
             {/* Mobile Menu Button */}
@@ -131,15 +169,19 @@ const Landing = () => {
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t">
               <div className="flex flex-col gap-4">
-                <a href="#rooms" className="text-sm font-medium hover:text-primary">Rooms</a>
-                <a href="#amenities" className="text-sm font-medium hover:text-primary">Amenities</a>
-                <a href="#reviews" className="text-sm font-medium hover:text-primary">Reviews</a>
-                <a href="#contact" className="text-sm font-medium hover:text-primary">Contact</a>
+                <a href="#rooms" className="text-sm font-medium hover:text-primary" onClick={() => setMobileMenuOpen(false)}>Rooms</a>
+                <a href="#amenities" className="text-sm font-medium hover:text-primary" onClick={() => setMobileMenuOpen(false)}>Amenities</a>
+                <a href="#reviews" className="text-sm font-medium hover:text-primary" onClick={() => setMobileMenuOpen(false)}>Reviews</a>
+                <a href="#contact" className="text-sm font-medium hover:text-primary" onClick={() => setMobileMenuOpen(false)}>Contact</a>
+                <Button variant="ghost" size="sm" className="justify-start" onClick={() => { setLookupModalOpen(true); setMobileMenuOpen(false); }}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Check My Booking
+                </Button>
                 <div className="flex gap-2 pt-2">
                   <Link to="/dashboard" className="flex-1">
-                    <Button variant="outline" className="w-full">Staff Login</Button>
+                    <Button variant="outline" className="w-full" size="sm">Staff Login</Button>
                   </Link>
-                  <Button className="flex-1">Book Now</Button>
+                  <Button className="flex-1" onClick={() => { handleBookRoom(); setMobileMenuOpen(false); }}>Book Now</Button>
                 </div>
               </div>
             </div>
@@ -173,13 +215,13 @@ const Landing = () => {
                 and unforgettable moments in the heart of the city.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2" onClick={() => handleBookRoom()}>
                   Book Your Stay
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-                <Button size="lg" variant="outline" className="gap-2">
-                  <Phone className="h-4 w-4" />
-                  Call Us
+                <Button size="lg" variant="outline" className="gap-2" onClick={() => setLookupModalOpen(true)}>
+                  <Search className="h-4 w-4" />
+                  Check Booking Status
                 </Button>
               </div>
               <div className="flex items-center gap-8 pt-4">
@@ -203,32 +245,38 @@ const Landing = () => {
             {/* Quick Booking Card */}
             <Card className="shadow-xl">
               <CardContent className="p-6 space-y-4">
-                <h3 className="text-xl font-semibold">Quick Reservation</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Check In</label>
-                    <Input type="date" />
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Quick Reservation
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Request a room reservation in just a few clicks. Our team will confirm availability promptly.
+                </p>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="h-5 w-5 text-primary" />
+                      <span className="text-sm">{roomTypes.length} Room Types Available</span>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Check Out</label>
-                    <Input type="date" />
-                  </div>
+                  
+                  {roomTypes.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Starting from</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold">Ksh {Math.min(...roomTypes.map(r => r.base_price)).toLocaleString()}</span>
+                        <span className="text-muted-foreground">/night</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Guests</label>
-                    <Input type="number" min="1" max="10" defaultValue="2" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Rooms</label>
-                    <Input type="number" min="1" max="5" defaultValue="1" />
-                  </div>
-                </div>
-                <Button className="w-full" size="lg">
-                  Check Availability
+
+                <Button className="w-full" size="lg" onClick={() => handleBookRoom()}>
+                  Reserve Now
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Best rate guarantee • Free cancellation
+                  Best rate guarantee • Pay at hotel
                 </p>
               </CardContent>
             </Card>
@@ -245,21 +293,21 @@ const Landing = () => {
               Choose Your Perfect Stay
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              From cozy standard rooms to luxurious suites, we have the perfect accommodation for every traveler.
+              From cozy basic rooms to luxurious superior suites, we have the perfect accommodation for every traveler.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room, index) => (
-              <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow">
+            {roomTypes.map((room) => (
+              <Card key={room.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-48">
                   <img 
-                    src={room.image} 
+                    src={getRoomImage(room.code)} 
                     alt={room.name}
                     className="w-full h-full object-cover"
                   />
                   <Badge className="absolute top-3 right-3 bg-primary">
-                    From Ksh {room.price.toLocaleString()}/night
+                    Ksh {room.base_price.toLocaleString()}/night
                   </Badge>
                 </div>
                 <CardContent className="p-5">
@@ -269,20 +317,23 @@ const Landing = () => {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                     <span className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
-                      {room.occupancy} Guests
+                      Up to {room.max_occupancy} Guests
                     </span>
-                    <span>{room.size}</span>
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {room.amenities.map((amenity, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {amenity}
-                      </Badge>
-                    ))}
+                    {room.amenities?.map((amenity, i) => {
+                      const Icon = getAmenityIcon(amenity);
+                      return (
+                        <Badge key={i} variant="secondary" className="text-xs gap-1 capitalize">
+                          <Icon className="h-3 w-3" />
+                          {amenity}
+                        </Badge>
+                      );
+                    })}
                   </div>
 
-                  <Button className="w-full">
+                  <Button className="w-full" onClick={() => handleBookRoom(room.code)}>
                     Book Now
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -354,6 +405,13 @@ const Landing = () => {
               </Card>
             ))}
           </div>
+
+          <div className="text-center mt-8">
+            <Button variant="outline" onClick={() => setFeedbackModalOpen(true)} className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Share Your Experience
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -412,7 +470,7 @@ const Landing = () => {
 
             <Card className="p-6">
               <h3 className="text-xl font-semibold mb-4">Send us a message</h3>
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">First Name</label>
@@ -429,7 +487,7 @@ const Landing = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Phone</label>
-                  <Input type="tel" placeholder="+254 700 000 000" />
+                  <Input placeholder="+254 700 123 456" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Message</label>
@@ -443,53 +501,78 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-primary text-primary-foreground py-12">
+      <footer className="bg-muted/50 border-t py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="h-10 w-10 rounded-lg bg-primary-foreground/10 flex items-center justify-center">
-                  <BedDouble className="h-6 w-6" />
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                  <BedDouble className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <span className="text-xl font-bold">HavenStay</span>
+                <span className="text-lg font-bold">HavenStay</span>
               </div>
-              <p className="text-primary-foreground/80 text-sm">
-                Your home away from home. Experience luxury, comfort, and exceptional service.
+              <p className="text-sm text-muted-foreground">
+                Your home away from home. Experience comfort and luxury at its finest.
               </p>
             </div>
+
             <div>
               <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-primary-foreground/80">
-                <li><a href="#rooms" className="hover:text-primary-foreground">Rooms</a></li>
-                <li><a href="#amenities" className="hover:text-primary-foreground">Amenities</a></li>
-                <li><a href="#reviews" className="hover:text-primary-foreground">Reviews</a></li>
-                <li><a href="#contact" className="hover:text-primary-foreground">Contact</a></li>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#rooms" className="hover:text-primary">Our Rooms</a></li>
+                <li><a href="#amenities" className="hover:text-primary">Amenities</a></li>
+                <li><a href="#reviews" className="hover:text-primary">Reviews</a></li>
+                <li><a href="#contact" className="hover:text-primary">Contact</a></li>
               </ul>
             </div>
+
+            <div>
+              <h4 className="font-semibold mb-4">Services</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><button onClick={() => handleBookRoom()} className="hover:text-primary">Book a Room</button></li>
+                <li><button onClick={() => setLookupModalOpen(true)} className="hover:text-primary">Check Booking</button></li>
+                <li><button onClick={() => setFeedbackModalOpen(true)} className="hover:text-primary">Leave Review</button></li>
+              </ul>
+            </div>
+
             <div>
               <h4 className="font-semibold mb-4">Policies</h4>
-              <ul className="space-y-2 text-sm text-primary-foreground/80">
-                <li><a href="#" className="hover:text-primary-foreground">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-primary-foreground">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-primary-foreground">Cancellation Policy</a></li>
-                <li><a href="#" className="hover:text-primary-foreground">House Rules</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2 text-sm text-primary-foreground/80">
-                <li>123 Haven Street</li>
-                <li>City Center</li>
-                <li>+254 700 123 456</li>
-                <li>reservations@havenstay.com</li>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>Check-in: 2:00 PM</li>
+                <li>Check-out: 11:00 AM</li>
+                <li>Free cancellation</li>
+                <li>Pet friendly</li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-primary-foreground/20 mt-8 pt-8 text-center text-sm text-primary-foreground/60">
-            © 2026 HavenStay. All rights reserved.
+
+          <div className="border-t mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              © 2026 HavenStay. All rights reserved.
+            </p>
+            <div className="flex gap-4 text-sm text-muted-foreground">
+              <a href="#" className="hover:text-primary">Privacy Policy</a>
+              <a href="#" className="hover:text-primary">Terms of Service</a>
+            </div>
           </div>
         </div>
       </footer>
+
+      {/* Modals */}
+      <BookingRequestModal 
+        open={bookingModalOpen} 
+        onOpenChange={setBookingModalOpen} 
+        roomTypes={roomTypes}
+        preselectedRoom={preselectedRoom}
+      />
+      <ReservationLookupModal 
+        open={lookupModalOpen} 
+        onOpenChange={setLookupModalOpen} 
+      />
+      <FeedbackModal 
+        open={feedbackModalOpen} 
+        onOpenChange={setFeedbackModalOpen} 
+      />
     </div>
   );
 };
