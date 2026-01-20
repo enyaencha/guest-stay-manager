@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useBookings } from "@/hooks/useGuests";
+import { isSameDay, parseISO } from "date-fns";
 
 export interface Room {
   id: string;
@@ -49,13 +51,21 @@ export const useRooms = () => {
 
 export const useRoomStats = () => {
   const { data: rooms } = useRooms();
+  const { data: bookings } = useBookings();
 
   const calculateStats = (rooms: Room[]): DashboardStats => {
     const occupied = rooms.filter((r) => r.occupancy_status === "occupied").length;
     const vacant = rooms.filter((r) => r.occupancy_status === "vacant").length;
-    const checkout = rooms.filter((r) => r.occupancy_status === "checkout").length;
     const cleaning = rooms.filter((r) => r.cleaning_status === "in-progress" || r.cleaning_status === "dirty").length;
     const maintenance = rooms.filter((r) => r.maintenance_status !== "none").length;
+    const today = new Date();
+    const activeBookings = bookings?.filter((booking) => booking.status !== "cancelled") || [];
+    const checkinsToday = activeBookings.filter((booking) =>
+      isSameDay(parseISO(booking.check_in), today)
+    ).length;
+    const checkoutsToday = activeBookings.filter((booking) =>
+      isSameDay(parseISO(booking.check_out), today)
+    ).length;
 
     return {
       totalRooms: rooms.length,
@@ -63,8 +73,8 @@ export const useRoomStats = () => {
       vacant,
       cleaning,
       maintenance,
-      checkoutsToday: checkout,
-      checkinsToday: 2,
+      checkoutsToday,
+      checkinsToday,
       occupancyRate: rooms.length > 0 ? Math.round((occupied / rooms.length) * 100) : 0,
     };
   };

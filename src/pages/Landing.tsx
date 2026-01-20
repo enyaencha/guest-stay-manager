@@ -36,6 +36,7 @@ import {
   Wine
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRoomTypes } from "@/hooks/useRooms";
 
 interface RoomType {
   id: string;
@@ -88,6 +89,18 @@ const Landing = () => {
     };
     return images[code] || images.basic;
   };
+
+  const roomShowcase = useMemo(() => {
+    return roomTypes.slice(0, 3).map((roomType, index) => ({
+      name: roomType.name,
+      description: roomType.description || "Comfortable stay with thoughtful amenities",
+      price: roomType.base_price,
+      image: roomImages[index % roomImages.length],
+      amenities: roomType.amenities?.length ? roomType.amenities : ["Free WiFi", "Smart TV", "Daily Housekeeping"],
+      size: `${roomType.max_occupancy * 12} sqm`,
+      occupancy: roomType.max_occupancy,
+    }));
+  }, [roomTypes]);
 
   const amenities = [
     { icon: Wifi, name: "High-Speed WiFi", description: "Complimentary throughout the property" },
@@ -320,6 +333,17 @@ const Landing = () => {
                       Up to {room.max_occupancy} Guests
                     </span>
                   </div>
+                  <CardContent className="p-5">
+                    <h3 className="text-xl font-semibold mb-2">{room.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{room.description}</p>
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {room.occupancy} Guests
+                      </span>
+                      <span>{room.size}</span>
+                    </div>
 
                   <div className="flex flex-wrap gap-2 mb-4">
                     {room.amenities?.map((amenity, i) => {

@@ -1,15 +1,22 @@
 import { useMemo } from "react";
-import { format, addDays, startOfWeek, eachDayOfInterval, isSameDay, isWithinInterval, parseISO } from "date-fns";
-import { mockRooms } from "@/data/mockRooms";
+import { format, addDays, eachDayOfInterval, isSameDay, isWithinInterval, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Room } from "@/types/room";
+import { Booking, Guest } from "@/hooks/useGuests";
 
 interface AvailabilityCalendarProps {
+  rooms: Room[];
+  bookings: Booking[];
+  guests?: Guest[];
   startDate?: Date;
   daysToShow?: number;
 }
 
 export function AvailabilityCalendar({ 
+  rooms,
+  bookings,
+  guests = [],
   startDate = new Date(), 
   daysToShow = 14 
 }: AvailabilityCalendarProps) {
@@ -20,16 +27,42 @@ export function AvailabilityCalendar({
     });
   }, [startDate, daysToShow]);
 
+  const guestLookup = useMemo(() => {
+    return new Map(guests.map((guest) => [guest.id, guest.name]));
+  }, [guests]);
+
   const roomsWithBookings = useMemo(() => {
-    return mockRooms.map(room => {
-      const hasBooking = room.checkInDate && room.checkOutDate;
+    const rangeStart = dates[0];
+    const rangeEnd = dates[dates.length - 1];
+
+    return rooms.map(room => {
+      const roomBookings = bookings
+        .filter((booking) => booking.room_number === room.number)
+        .map((booking) => ({
+          booking,
+          start: parseISO(booking.check_in),
+          end: parseISO(booking.check_out),
+        }))
+        .filter(({ start, end }) =>
+          isWithinInterval(rangeStart, { start, end }) ||
+          isWithinInterval(rangeEnd, { start, end }) ||
+          isWithinInterval(start, { start: rangeStart, end: rangeEnd })
+        )
+        .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+      const activeBooking = roomBookings[0];
+      const guestName = activeBooking?.booking.guest_id
+        ? guestLookup.get(activeBooking.booking.guest_id) || "Guest"
+        : "Guest";
+
       return {
         ...room,
-        bookingStart: hasBooking ? parseISO(room.checkInDate!) : null,
-        bookingEnd: hasBooking ? parseISO(room.checkOutDate!) : null,
+        bookingStart: activeBooking?.start ?? (room.checkInDate ? parseISO(room.checkInDate) : null),
+        bookingEnd: activeBooking?.end ?? (room.checkOutDate ? parseISO(room.checkOutDate) : null),
+        bookingGuest: activeBooking ? guestName : room.currentGuest,
       };
     });
-  }, []);
+  }, [rooms, bookings, guestLookup, dates]);
 
   const isDateBooked = (room: typeof roomsWithBookings[0], date: Date) => {
     if (!room.bookingStart || !room.bookingEnd) return false;
@@ -107,9 +140,9 @@ export function AvailabilityCalendar({
                           !isBooked && "hover:bg-status-available/20 cursor-pointer rounded"
                         )}
                       >
-                        {isSameDay(date, room.bookingStart!) && room.currentGuest && (
+                        {room.bookingStart && isSameDay(date, room.bookingStart) && room.bookingGuest && (
                           <span className="truncate px-1 text-xs">
-                            {room.currentGuest}
+                            {room.bookingGuest}
                           </span>
                         )}
                       </div>

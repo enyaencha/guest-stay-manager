@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,16 +31,30 @@ import {
   generateDepartmentReport,
   generateMonthlyReport,
 } from "@/lib/excelExport";
-import { mockRevenueData, mockOccupancyData, mockDepartmentStats, mockTopItems, roomTypeBreakdown } from "@/data/mockReports";
-import { mockInventoryItems } from "@/data/mockInventory";
-import { mockExpenseRecords, expenseCategoryLabels } from "@/data/mockExpenses";
-import { mockTransactions } from "@/data/mockPOS";
+import { InventoryItem } from "@/hooks/useInventory";
+import { FinanceTransaction } from "@/hooks/useFinance";
+import { POSTransaction } from "@/hooks/usePOS";
+import { RevenueData, OccupancyData, DepartmentStats, TopItem } from "@/types/report";
+import { format } from "date-fns";
 
 interface ReportOption {
   id: string;
   label: string;
   icon: React.ReactNode;
   description: string;
+}
+
+interface ExportReportsPanelProps {
+  revenueData: RevenueData[];
+  occupancyData: OccupancyData[];
+  inventoryItems: InventoryItem[];
+  expenseTransactions: FinanceTransaction[];
+  posTransactions: POSTransaction[];
+  topItems: TopItem[];
+  departmentStats: DepartmentStats[];
+  roomBreakdown: { type: string; rooms: number; rate: number; nights: number; revenue: number }[];
+  totalRooms: number;
+  periodLabel: string;
 }
 
 const reportOptions: ReportOption[] = [
@@ -88,11 +102,29 @@ const reportOptions: ReportOption[] = [
   },
 ];
 
-export const ExportReportsPanel = () => {
+export const ExportReportsPanel = ({
+  revenueData,
+  occupancyData,
+  inventoryItems,
+  expenseTransactions,
+  posTransactions,
+  topItems,
+  departmentStats,
+  roomBreakdown,
+  totalRooms,
+  periodLabel,
+}: ExportReportsPanelProps) => {
   const [selectedReports, setSelectedReports] = useState<string[]>(["monthly"]);
-  const [period, setPeriod] = useState("january-2026");
+  const [period, setPeriod] = useState("current");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
+
+  const periodTitle = useMemo(() => {
+    if (period === "current") return periodLabel;
+    if (period === "30d") return "Last 30 Days";
+    if (period === "90d") return "Last 90 Days";
+    return periodLabel;
+  }, [period, periodLabel]);
 
   const toggleReport = (reportId: string) => {
     setSelectedReports((prev) =>
@@ -122,28 +154,28 @@ export const ExportReportsPanel = () => {
         switch (reportId) {
           case "revenue":
             exportToExcel(
-              generateRevenueReport(mockRevenueData, roomTypeBreakdown),
+              generateRevenueReport(revenueData, roomBreakdown),
               `Revenue_Report_${timestamp}`
             );
             break;
           case "occupancy":
             exportToExcel(
-              generateOccupancyReport(mockOccupancyData, 28),
+              generateOccupancyReport(occupancyData, totalRooms),
               `Occupancy_Report_${timestamp}`
             );
             break;
           case "inventory":
             // Map inventory items to the expected format
-            const inventoryData = mockInventoryItems.map(i => ({
+            const inventoryData = inventoryItems.map(i => ({
               name: i.name,
               category: i.category,
-              currentStock: i.currentStock,
-              minStock: i.minStock,
-              openingStock: i.openingStock || 0,
-              purchasesIn: i.purchasesIn || 0,
-              stockOut: i.stockOut || 0,
+              currentStock: i.current_stock,
+              minStock: i.min_stock,
+              openingStock: i.opening_stock || 0,
+              purchasesIn: i.purchases_in || 0,
+              stockOut: i.stock_out || 0,
               unit: i.unit,
-              unitPrice: i.unitCost,
+              unitPrice: i.unit_cost,
             }));
             exportToExcel(
               generateInventoryReport(inventoryData),
@@ -152,57 +184,63 @@ export const ExportReportsPanel = () => {
             break;
           case "expenses":
             // Map expense records to the expected format
-            const expenseData = mockExpenseRecords.map(e => ({
-              category: expenseCategoryLabels[e.category],
-              description: e.description,
-              amount: e.totalCost,
-              isEtims: e.etimsAmount > 0,
-              date: e.date,
-            }));
+            const expenseData = expenseTransactions
+              .filter((transaction) => transaction.type === "expense")
+              .map((transaction) => ({
+                category: transaction.category,
+                description: transaction.description,
+                amount: transaction.amount,
+                isEtims: false,
+                date: transaction.date,
+              }));
             exportToExcel(
               generateExpenseReport(expenseData),
               `Expense_Report_${timestamp}`
             );
             break;
           case "pos":
-            const posTransactions = mockTransactions.map(t => ({
-              date: typeof t.createdAt === 'string' ? t.createdAt.split('T')[0] : new Date(t.createdAt).toLocaleDateString(),
-              guestName: t.guestName,
-              roomNumber: t.roomNumber,
-              items: t.items,
-              total: t.total,
-              paymentMethod: t.paymentMethod,
+            const posSales = posTransactions.map((transaction) => ({
+              date: format(new Date(transaction.created_at), "yyyy-MM-dd"),
+              guestName: transaction.guest_name || "Walk-in",
+              roomNumber: transaction.room_number || "Walk-in",
+              items: Array.isArray(transaction.items)
+                ? (transaction.items as { name: string; quantity: number; price: number }[])
+                : [],
+              total: transaction.total,
+              paymentMethod: transaction.payment_method,
             }));
             exportToExcel(
-              generatePOSSalesReport(posTransactions, mockTopItems),
+              generatePOSSalesReport(posSales, topItems),
               `POS_Sales_Report_${timestamp}`
             );
             break;
           case "department":
             exportToExcel(
-              generateDepartmentReport(mockDepartmentStats),
+              generateDepartmentReport(departmentStats),
               `Department_Report_${timestamp}`
             );
             break;
           case "monthly":
             // Map expense records for monthly report
-            const monthlyExpenses = mockExpenseRecords.map(e => ({
-              category: expenseCategoryLabels[e.category],
-              description: e.description,
-              amount: e.totalCost,
-              isEtims: e.etimsAmount > 0,
-              date: e.date,
-            }));
+            const monthlyExpenses = expenseTransactions
+              .filter((transaction) => transaction.type === "expense")
+              .map((transaction) => ({
+                category: transaction.category,
+                description: transaction.description,
+                amount: transaction.amount,
+                isEtims: false,
+                date: transaction.date,
+              }));
             exportToExcel(
               generateMonthlyReport(
-                "January 2026",
-                mockRevenueData,
-                mockOccupancyData,
-                mockDepartmentStats,
-                mockTopItems,
+                periodTitle,
+                revenueData,
+                occupancyData,
+                departmentStats,
+                topItems,
                 monthlyExpenses
               ),
-              `Monthly_Report_January_2026_${timestamp}`
+              `Monthly_Report_${timestamp}`
             );
             break;
         }
@@ -249,9 +287,9 @@ export const ExportReportsPanel = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="january-2026">January 2026</SelectItem>
-              <SelectItem value="q1-2026">Q1 2026</SelectItem>
-              <SelectItem value="2026">Full Year 2026</SelectItem>
+              <SelectItem value="current">{periodLabel}</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Last 90 Days</SelectItem>
             </SelectContent>
           </Select>
         </div>

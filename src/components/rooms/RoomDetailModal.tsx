@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,7 @@ import { Room } from "@/types/room";
 import { formatKsh } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useBookings, useGuests } from "@/hooks/useGuests";
 import { 
   BedDouble, 
   Users, 
@@ -23,10 +23,10 @@ import {
   Wrench,
   Calendar,
   User,
-  Clock,
   History
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { useMemo } from "react";
 
 interface RoomDetailModalProps {
   room: Room | null;
@@ -46,14 +46,28 @@ const amenityIcons: Record<string, typeof Wifi> = {
   gym: Dumbbell,
 };
 
-const mockHistory = [
-  { date: '2025-01-10', guest: 'John Doe', action: 'Checked out', amount: 12000 },
-  { date: '2025-01-05', guest: 'Jane Smith', action: 'Checked out', amount: 8500 },
-  { date: '2024-12-28', guest: 'Mike Brown', action: 'Cancelled', amount: 0 },
-  { date: '2024-12-20', guest: 'Sarah Wilson', action: 'Checked out', amount: 15000 },
-];
-
 export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: RoomDetailModalProps) {
+  const { data: bookings = [] } = useBookings();
+  const { data: guests = [] } = useGuests();
+
+  const guestLookup = useMemo(() => {
+    return new Map(guests.map((guest) => [guest.id, guest.name]));
+  }, [guests]);
+
+  const historyEntries = useMemo(() => {
+    if (!room) return [];
+    return bookings
+      .filter((booking) => booking.room_number === room.number)
+      .sort((a, b) => parseISO(b.check_in).getTime() - parseISO(a.check_in).getTime())
+      .slice(0, 6)
+      .map((booking) => ({
+        date: booking.check_out || booking.check_in,
+        guest: booking.guest_id ? guestLookup.get(booking.guest_id) || "Guest" : "Guest",
+        action: booking.status ? booking.status.replace(/-/g, " ") : "Booking",
+        amount: booking.total_amount || 0,
+      }));
+  }, [bookings, room?.number, guestLookup, room]);
+
   if (!room) return null;
 
   const handleStatusChange = (field: 'cleaningStatus' | 'maintenanceStatus', value: string) => {
@@ -216,22 +230,28 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
 
             <TabsContent value="history" className="mt-4">
               <div className="space-y-3">
-                {mockHistory.map((entry, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-muted">
-                        <History className="h-4 w-4 text-muted-foreground" />
+                {historyEntries.length > 0 ? (
+                  historyEntries.map((entry, index) => (
+                    <div key={`${entry.date}-${index}`} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-muted">
+                          <History className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{entry.guest}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.action} • {entry.date}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">{entry.guest}</p>
-                        <p className="text-xs text-muted-foreground">{entry.action} • {entry.date}</p>
-                      </div>
+                      {entry.amount > 0 && (
+                        <span className="text-sm font-medium">{formatKsh(entry.amount)}</span>
+                      )}
                     </div>
-                    {entry.amount > 0 && (
-                      <span className="text-sm font-medium">{formatKsh(entry.amount)}</span>
-                    )}
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">No booking history available.</div>
+                )}
               </div>
             </TabsContent>
           </Tabs>

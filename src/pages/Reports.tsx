@@ -18,9 +18,12 @@ import {
 } from "@/components/ui/select";
 import { useFinanceTransactions } from "@/hooks/useFinance";
 import { usePOSTransactions } from "@/hooks/usePOS";
-import { useRooms, useRoomStats } from "@/hooks/useRooms";
+import { useRooms, useRoomStats, useRoomTypes } from "@/hooks/useRooms";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useAIAnalytics } from "@/hooks/useAIAnalytics";
+import { useBookings } from "@/hooks/useGuests";
+import { useHousekeepingTasks } from "@/hooks/useHousekeeping";
+import { useMaintenanceIssues } from "@/hooks/useMaintenance";
 import { 
   DollarSign, 
   BedDouble, 
@@ -33,6 +36,16 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatKsh } from "@/lib/formatters";
+import {
+  eachDayOfInterval,
+  differenceInCalendarDays,
+  differenceInMinutes,
+  format,
+  isSameDay,
+  isWithinInterval,
+  parseISO,
+  subDays,
+} from "date-fns";
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState("7d");
@@ -40,12 +53,24 @@ const Reports = () => {
   const { data: financeTransactions = [], isLoading: financeLoading } = useFinanceTransactions();
   const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
+  const { data: roomTypes = [], isLoading: roomTypesLoading } = useRoomTypes();
   const { data: inventoryItems = [], isLoading: inventoryLoading } = useInventoryItems();
+  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+  const { data: housekeepingTasks = [], isLoading: housekeepingLoading } = useHousekeepingTasks();
+  const { data: maintenanceIssues = [], isLoading: maintenanceLoading } = useMaintenanceIssues();
   const stats = useRoomStats();
   
   const { isLoading: aiLoading, forecast, insights, recommendations, anomalies, analyzeData } = useAIAnalytics();
 
-  const isLoading = financeLoading || posLoading || roomsLoading || inventoryLoading;
+  const isLoading =
+    financeLoading ||
+    posLoading ||
+    roomsLoading ||
+    roomTypesLoading ||
+    inventoryLoading ||
+    bookingsLoading ||
+    housekeepingLoading ||
+    maintenanceLoading;
 
   // Calculate stats from real data
   const totalRevenue = financeTransactions
@@ -56,42 +81,121 @@ const Reports = () => {
     .filter(t => t.status === 'completed')
     .reduce((sum, t) => sum + t.total, 0);
 
-  // Mock report stats (would be calculated from real data in production)
-  const reportStats = {
-    totalRevenue: totalRevenue + posRevenue,
-    avgOccupancy: stats.occupancyRate,
-    totalTasks: 127, // Would come from housekeeping/maintenance data
-    avgSatisfaction: 92, // Would come from guest feedback data
-  };
+  const rangeDays = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : dateRange === "90d" ? 90 : 365;
+  const rangeEnd = new Date();
+  const rangeStart = subDays(rangeEnd, rangeDays - 1);
+  const rangeDaysList = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+  const periodLabel =
+    dateRange === "7d"
+      ? "Last 7 Days"
+      : dateRange === "30d"
+        ? "Last 30 Days"
+        : dateRange === "90d"
+          ? "Last 90 Days"
+          : "Last 12 Months";
 
-  // Prepare data for charts
-  const revenueData = [
-    { date: '2026-01-14', roomRevenue: Math.round(totalRevenue * 0.15), posRevenue: Math.round(posRevenue * 0.15), total: Math.round((totalRevenue + posRevenue) * 0.15) },
-    { date: '2026-01-15', roomRevenue: Math.round(totalRevenue * 0.18), posRevenue: Math.round(posRevenue * 0.12), total: Math.round((totalRevenue + posRevenue) * 0.16) },
-    { date: '2026-01-16', roomRevenue: Math.round(totalRevenue * 0.12), posRevenue: Math.round(posRevenue * 0.18), total: Math.round((totalRevenue + posRevenue) * 0.14) },
-    { date: '2026-01-17', roomRevenue: Math.round(totalRevenue * 0.20), posRevenue: Math.round(posRevenue * 0.15), total: Math.round((totalRevenue + posRevenue) * 0.18) },
-    { date: '2026-01-18', roomRevenue: Math.round(totalRevenue * 0.15), posRevenue: Math.round(posRevenue * 0.20), total: Math.round((totalRevenue + posRevenue) * 0.17) },
-    { date: '2026-01-19', roomRevenue: Math.round(totalRevenue * 0.10), posRevenue: Math.round(posRevenue * 0.10), total: Math.round((totalRevenue + posRevenue) * 0.10) },
-    { date: '2026-01-20', roomRevenue: Math.round(totalRevenue * 0.10), posRevenue: Math.round(posRevenue * 0.10), total: Math.round((totalRevenue + posRevenue) * 0.10) },
-  ];
+  const revenueData = rangeDaysList.map((date) => {
+    const roomRevenue = financeTransactions
+      .filter((t) => t.type === "income" && isSameDay(parseISO(t.date), date))
+      .reduce((sum, t) => sum + t.amount, 0);
 
-  const occupancyData = [
-    { date: '2026-01-14', occupancy: 75, rooms: 8 },
-    { date: '2026-01-15', occupancy: 82, rooms: 9 },
-    { date: '2026-01-16', occupancy: 78, rooms: 8 },
-    { date: '2026-01-17', occupancy: 90, rooms: 10 },
-    { date: '2026-01-18', occupancy: 85, rooms: 9 },
-    { date: '2026-01-19', occupancy: 70, rooms: 7 },
-    { date: '2026-01-20', occupancy: stats.occupancyRate, rooms: stats.occupied },
-  ];
+    const posRevenueForDay = posTransactions
+      .filter((t) => t.status === "completed" && isSameDay(parseISO(t.created_at), date))
+      .reduce((sum, t) => sum + t.total, 0);
+
+    return {
+      date: format(date, "yyyy-MM-dd"),
+      roomRevenue,
+      posRevenue: posRevenueForDay,
+      total: roomRevenue + posRevenueForDay,
+    };
+  });
+
+  const occupancyData = rangeDaysList.map((date) => {
+    const occupiedRooms = new Set(
+      bookings
+        .filter((booking) => {
+          if (booking.status === "cancelled") return false;
+          const checkIn = parseISO(booking.check_in);
+          const checkOut = parseISO(booking.check_out);
+          return isWithinInterval(date, { start: checkIn, end: checkOut });
+        })
+        .map((booking) => booking.room_number)
+    );
+
+    const occupiedCount = occupiedRooms.size;
+    const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
+
+    return {
+      date: format(date, "yyyy-MM-dd"),
+      occupancy,
+      rooms: occupiedCount,
+    };
+  });
+
+  const housekeepingCompleted = housekeepingTasks.filter((task) => task.status === "completed").length;
+  const maintenanceCompleted = maintenanceIssues.filter((issue) => ["resolved", "closed"].includes(issue.status)).length;
+  const frontDeskCompleted = bookings.filter((booking) => booking.status !== "cancelled").length;
+
+  const housekeepingEfficiency = housekeepingTasks.length
+    ? Math.round((housekeepingCompleted / housekeepingTasks.length) * 100)
+    : 0;
+  const maintenanceEfficiency = maintenanceIssues.length
+    ? Math.round((maintenanceCompleted / maintenanceIssues.length) * 100)
+    : 0;
+  const frontDeskEfficiency = bookings.length ? Math.round((frontDeskCompleted / bookings.length) * 100) : 0;
 
   const departmentStats = [
-    { department: 'Front Desk', tasksCompleted: 45, efficiency: 92, avgResponseTime: 5, satisfaction: 95 },
-    { department: 'Housekeeping', tasksCompleted: 38, efficiency: 88, avgResponseTime: 15, satisfaction: 90 },
-    { department: 'Maintenance', tasksCompleted: 22, efficiency: 85, avgResponseTime: 30, satisfaction: 88 },
-    { department: 'F&B', tasksCompleted: 15, efficiency: 90, avgResponseTime: 10, satisfaction: 92 },
-    { department: 'Security', tasksCompleted: 7, efficiency: 95, avgResponseTime: 3, satisfaction: 98 },
+    {
+      department: "Front Desk",
+      tasksCompleted: frontDeskCompleted,
+      efficiency: frontDeskEfficiency,
+      avgResponseTime: 0,
+      satisfaction: frontDeskEfficiency,
+    },
+    {
+      department: "Housekeeping",
+      tasksCompleted: housekeepingCompleted,
+      efficiency: housekeepingEfficiency,
+      avgResponseTime:
+        housekeepingTasks.length > 0
+          ? Math.round(
+              housekeepingTasks.reduce((sum, task) => sum + (task.estimated_minutes || 0), 0) /
+                housekeepingTasks.length
+            )
+          : 0,
+      satisfaction: housekeepingEfficiency,
+    },
+    {
+      department: "Maintenance",
+      tasksCompleted: maintenanceCompleted,
+      efficiency: maintenanceEfficiency,
+      avgResponseTime: maintenanceIssues.length > 0
+        ? Math.round(
+            maintenanceIssues.reduce((sum, issue) => {
+              if (!issue.resolved_at) return sum;
+              return sum + Math.max(0, differenceInMinutes(parseISO(issue.resolved_at), parseISO(issue.reported_at)));
+            }, 0) / Math.max(1, maintenanceIssues.filter((issue) => issue.resolved_at).length)
+          )
+        : 0,
+      satisfaction: maintenanceEfficiency,
+    },
   ];
+
+  const avgSatisfaction =
+    departmentStats.length > 0
+      ? Math.round(
+          departmentStats.reduce((sum, dept) => sum + (dept.satisfaction || 0), 0) / departmentStats.length
+        )
+      : 0;
+
+  // Report stats from live data
+  const reportStats = {
+    totalRevenue: totalRevenue + posRevenue,
+    avgOccupancy: stats?.occupancyRate || 0,
+    totalTasks: housekeepingTasks.length + maintenanceIssues.length + bookings.length,
+    avgSatisfaction,
+  };
 
   // Top selling items from POS data
   const topItems = posTransactions
@@ -101,14 +205,58 @@ const Reports = () => {
       const existing = acc.find(i => i.name === item.name);
       if (existing) {
         existing.quantity += item.quantity;
-        existing.revenue += item.price;
+        existing.revenue += item.price * item.quantity;
       } else {
-        acc.push({ name: item.name, category: 'POS', quantity: item.quantity, revenue: item.price });
+        acc.push({ name: item.name, category: 'POS', quantity: item.quantity, revenue: item.price * item.quantity });
       }
       return acc;
     }, [] as { name: string; category: string; quantity: number; revenue: number }[])
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
+
+  const roomBreakdown = roomTypes.length
+    ? roomTypes.map((roomType) => {
+        const roomsForType = rooms.filter((room) => room.room_type_id === roomType.id).length;
+        const nights = bookings
+          .filter((booking) => booking.room_type?.toLowerCase() === roomType.name.toLowerCase())
+          .reduce((sum, booking) => {
+            const checkIn = parseISO(booking.check_in);
+            const checkOut = parseISO(booking.check_out);
+            const start = checkIn > rangeStart ? checkIn : rangeStart;
+            const end = checkOut < rangeEnd ? checkOut : rangeEnd;
+            return sum + Math.max(0, differenceInCalendarDays(end, start));
+          }, 0);
+
+        return {
+          type: roomType.name,
+          rooms: roomsForType,
+          rate: roomType.base_price,
+          nights,
+          revenue: nights * roomType.base_price,
+        };
+      })
+    : Array.from(
+        bookings.reduce((acc, booking) => {
+          const type = booking.room_type || "Unknown";
+          if (!acc.has(type)) {
+            acc.set(type, {
+              type,
+              rooms: rooms.filter((room) => room.name.toLowerCase() === type.toLowerCase()).length,
+              rate: 0,
+              nights: 0,
+              revenue: 0,
+            });
+          }
+
+          const entry = acc.get(type)!;
+          const checkIn = parseISO(booking.check_in);
+          const checkOut = parseISO(booking.check_out);
+          const start = checkIn > rangeStart ? checkIn : rangeStart;
+          const end = checkOut < rangeEnd ? checkOut : rangeEnd;
+          entry.nights += Math.max(0, differenceInCalendarDays(end, start));
+          return acc;
+        }, new Map())
+      ).map(([, value]) => value);
 
   const handleGenerateInsights = async () => {
     await analyzeData('insights', {
@@ -266,7 +414,18 @@ const Reports = () => {
               </TabsContent>
 
               <TabsContent value="export">
-                <ExportReportsPanel />
+                <ExportReportsPanel
+                  revenueData={revenueData}
+                  occupancyData={occupancyData}
+                  inventoryItems={inventoryItems}
+                  expenseTransactions={financeTransactions}
+                  posTransactions={posTransactions}
+                  topItems={topItems}
+                  departmentStats={departmentStats}
+                  roomBreakdown={roomBreakdown}
+                  totalRooms={rooms.length}
+                  periodLabel={periodLabel}
+                />
               </TabsContent>
             </Tabs>
           </>

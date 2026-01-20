@@ -10,8 +10,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { mockSystemPreferences, mockPropertySettings, mockNotificationSettings } from "@/data/mockSettings";
 import { format } from "date-fns";
+import { useNotificationSettings, useSystemPreferences } from "@/hooks/useSettings";
 
 interface StatusItemProps {
   label: string;
@@ -42,14 +42,21 @@ function StatusItem({ label, status, detail }: StatusItemProps) {
 }
 
 export function SystemStatusWidget() {
+  const { data: systemPreferences } = useSystemPreferences();
+  const { data: notificationSettings } = useNotificationSettings();
   const lastBackup = new Date();
   lastBackup.setHours(lastBackup.getHours() - 2);
 
+  const autoBackupEnabled = Boolean(systemPreferences?.auto_backup);
+  const notificationsEnabled = Boolean(
+    notificationSettings?.email_notifications || notificationSettings?.sms_notifications
+  );
+
   const systemStatus = {
     database: 'online' as const,
-    backup: mockSystemPreferences.autoBackup ? 'online' as const : 'warning' as const,
-    notifications: mockNotificationSettings.emailNotifications ? 'online' as const : 'warning' as const,
-    maintenance: mockSystemPreferences.maintenanceMode ? 'warning' as const : 'online' as const,
+    backup: autoBackupEnabled ? 'online' as const : 'warning' as const,
+    notifications: notificationsEnabled ? 'online' as const : 'warning' as const,
+    maintenance: systemPreferences?.maintenance_mode ? 'warning' as const : 'online' as const,
   };
 
   return (
@@ -74,7 +81,13 @@ export function SystemStatusWidget() {
         <StatusItem 
           label="Auto Backup" 
           status={systemStatus.backup}
-          detail={mockSystemPreferences.autoBackup ? format(lastBackup, 'HH:mm') : 'Disabled'}
+          detail={
+            systemPreferences
+              ? autoBackupEnabled
+                ? format(lastBackup, 'HH:mm')
+                : 'Disabled'
+              : 'Unknown'
+          }
         />
         <StatusItem 
           label="Notifications" 
@@ -83,7 +96,13 @@ export function SystemStatusWidget() {
         <StatusItem 
           label="Maintenance Mode" 
           status={systemStatus.maintenance}
-          detail={mockSystemPreferences.maintenanceMode ? 'Active' : 'Off'}
+          detail={
+            systemPreferences
+              ? systemPreferences.maintenance_mode
+                ? 'Active'
+                : 'Off'
+              : 'Unknown'
+          }
         />
       </div>
 
