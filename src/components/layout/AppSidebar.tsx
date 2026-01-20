@@ -9,7 +9,9 @@ import {
   Settings,
   Building2,
   BarChart3,
-  Wallet
+  Wallet,
+  CalendarCheck,
+  ReceiptText
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -28,6 +30,7 @@ import {
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Rooms", url: "/rooms", icon: BedDouble },
+  { title: "Reservations", url: "/reservations", icon: CalendarCheck },
   { title: "Guests", url: "/guests", icon: Users },
   { title: "Point of Sale", url: "/pos", icon: ShoppingCart },
 ];
@@ -38,6 +41,7 @@ const operationsItems = [
   { title: "Inventory", url: "/inventory", icon: Package },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Finance", url: "/finance", icon: Wallet },
+  { title: "Refunds", url: "/refunds", icon: ReceiptText },
 ];
 
 const settingsItems = [

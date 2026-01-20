@@ -59,14 +59,14 @@ const Guests = () => {
     },
   });
 
-  // Combine guests with their bookings
+  // Combine guests with their bookings - exclude reserved (handled in Reservations page)
   const guestsWithBookings = guests.map(guest => {
-    const booking = bookings.find(b => b.guest_id === guest.id);
+    const booking = bookings.find(b => b.guest_id === guest.id && b.status !== 'reserved');
     return {
       ...guest,
       booking,
     };
-  });
+  }).filter(g => g.booking); // Only show guests with confirmed bookings
 
   // Convert to Guest type for component
   const guestData: Guest[] = guestsWithBookings.map(g => ({
@@ -79,7 +79,8 @@ const Guests = () => {
     checkIn: g.booking?.check_in || '',
     checkOut: g.booking?.check_out || '',
     status: (g.booking?.status === 'checked-in' ? 'checked-in' : 
-             g.booking?.status === 'checked-out' ? 'checked-out' : 'pre-arrival') as Guest['status'],
+             g.booking?.status === 'checked-out' ? 'checked-out' : 
+             g.booking?.status === 'confirmed' ? 'pre-arrival' : 'pre-arrival') as Guest['status'],
     totalAmount: g.booking?.total_amount || 0,
     paidAmount: g.booking?.paid_amount || 0,
     guests: g.booking?.guests_count || 1,
