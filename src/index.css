@@ -51,6 +51,8 @@
     --status-maintenance-bg: 0 84% 95%;
     --status-checkout: 280 60% 50%;
     --status-checkout-bg: 280 60% 95%;
+    --status-reserved: 199 89% 48%;
+    --status-reserved-bg: 199 89% 95%;
 
     /* Sidebar */
     --sidebar-background: 222 47% 11%;
@@ -129,5 +131,8 @@
   }
   .status-checkout {
     @apply bg-[hsl(var(--status-checkout-bg))] text-[hsl(var(--status-checkout))] border-[hsl(var(--status-checkout))];
+  }
+  .status-reserved {
+    @apply bg-[hsl(var(--status-reserved-bg))] text-[hsl(var(--status-reserved))] border-[hsl(var(--status-reserved))];
   }
 }

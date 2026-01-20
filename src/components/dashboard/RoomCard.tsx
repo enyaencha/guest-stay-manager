@@ -104,10 +104,16 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
       {/* Room Name */}
       <p className="text-sm text-muted-foreground mb-3 truncate">{room.name}</p>
 
-      {/* Guest Info (if occupied) */}
-      {room.occupancyStatus !== 'vacant' && room.currentGuest && (
-        <div className="flex items-center gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
-          <Users className="h-4 w-4 text-muted-foreground" />
+      {/* Guest Info (if occupied or reserved) */}
+      {(room.occupancyStatus === 'occupied' || room.occupancyStatus === 'reserved') && room.currentGuest && (
+        <div className={cn(
+          "flex items-center gap-2 mb-3 p-2 rounded-lg",
+          room.occupancyStatus === 'reserved' ? "bg-[hsl(var(--status-reserved-bg))]" : "bg-muted/50"
+        )}>
+          <Users className={cn(
+            "h-4 w-4",
+            room.occupancyStatus === 'reserved' ? "text-[hsl(var(--status-reserved))]" : "text-muted-foreground"
+          )} />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">{room.currentGuest}</p>
             {room.checkOutDate && (
