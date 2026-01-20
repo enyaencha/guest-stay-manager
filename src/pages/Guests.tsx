@@ -80,7 +80,9 @@ const Guests = () => {
     checkOut: g.booking?.check_out || '',
     status: (g.booking?.status === 'checked-in' ? 'checked-in' : 
              g.booking?.status === 'checked-out' ? 'checked-out' : 'pre-arrival') as Guest['status'],
-    totalSpend: g.booking?.total_amount || 0,
+    totalAmount: g.booking?.total_amount || 0,
+    paidAmount: g.booking?.paid_amount || 0,
+    guests: g.booking?.guests_count || 1,
     specialRequests: g.booking?.special_requests || undefined,
   }));
 
