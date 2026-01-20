@@ -83,25 +83,38 @@ const Reservations = () => {
 
   const handleStatusChange = async (id: string, newStatus: string, note?: string) => {
     try {
-      const { error } = await supabase
+      const reservation = reservations.find(r => r.id === id);
+      if (!reservation) throw new Error("Reservation not found");
+
+      // Update booking status
+      const { error: bookingError } = await supabase
         .from("bookings")
         .update({ status: newStatus })
         .eq("id", id);
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
 
-      // Update booking notification
-      const reservation = reservations.find(r => r.id === id);
-      if (reservation) {
-        await supabase.from("booking_notifications").insert({
-          booking_id: id,
-          type: newStatus === 'confirmed' ? 'reservation_confirmed' : 'reservation_cancelled',
-          title: newStatus === 'confirmed' ? 'Reservation Confirmed' : 'Reservation Cancelled',
-          message: note || (newStatus === 'confirmed' 
-            ? `Your reservation for Room ${reservation.room_number} has been confirmed.`
-            : `Your reservation for Room ${reservation.room_number} has been cancelled.`),
-        });
+      // If confirmed, update the room's occupancy status to 'reserved'
+      if (newStatus === 'confirmed') {
+        const { error: roomError } = await supabase
+          .from("rooms")
+          .update({ occupancy_status: 'reserved' })
+          .eq("number", reservation.room_number);
+
+        if (roomError) {
+          console.error("Error updating room status:", roomError);
+        }
       }
+
+      // Create booking notification
+      await supabase.from("booking_notifications").insert({
+        booking_id: id,
+        type: newStatus === 'confirmed' ? 'reservation_confirmed' : 'reservation_cancelled',
+        title: newStatus === 'confirmed' ? 'Reservation Confirmed' : 'Reservation Cancelled',
+        message: note || (newStatus === 'confirmed' 
+          ? `Reservation for Room ${reservation.room_number} has been confirmed.`
+          : `Reservation for Room ${reservation.room_number} has been cancelled. Reason: ${note}`),
+      });
 
       // Update local state
       setReservations(prev => prev.map(r => 

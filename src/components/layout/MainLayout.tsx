@@ -1,8 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { NotificationBell } from "./NotificationBell";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -26,10 +26,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5 text-muted-foreground" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-accent rounded-full" />
-              </Button>
+              <NotificationBell />
               <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-medium text-sm">
                 PM
               </div>
