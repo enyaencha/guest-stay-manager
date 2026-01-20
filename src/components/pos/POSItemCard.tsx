@@ -16,6 +16,8 @@ const categoryLabels: Record<POSItem["category"], string> = {
   amenities: "Amenity",
   experiences: "Experience",
   packages: "Package",
+  beverages: "Beverages",
+  health: "Health",
 };
 
 export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
