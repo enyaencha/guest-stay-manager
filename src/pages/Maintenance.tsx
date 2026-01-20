@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockMaintenanceIssues, mockMaintenanceStaff } from "@/data/mockMaintenance";
+import { useMaintenanceIssues, useMaintenanceStaff, useUpdateMaintenanceIssue, MaintenanceIssue as DBIssue, MaintenanceStaff as DBStaff } from "@/hooks/useMaintenance";
 import { MaintenanceIssue } from "@/types/maintenance";
 import { 
   Wrench, 
@@ -13,13 +13,43 @@ import {
   Users, 
   AlertTriangle, 
   Clock, 
-  CheckCircle2 
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Map database issue to legacy format
+const mapToLegacyIssue = (issue: DBIssue): MaintenanceIssue => ({
+  id: issue.id,
+  roomId: issue.room_id || '',
+  roomNumber: issue.room_number,
+  roomName: issue.room_name || '',
+  title: issue.title,
+  description: issue.description || '',
+  category: issue.category as MaintenanceIssue['category'],
+  priority: issue.priority as MaintenanceIssue['priority'],
+  status: issue.status as MaintenanceIssue['status'],
+  assignedTo: issue.assigned_to_name || undefined,
+  reportedAt: issue.reported_at,
+  resolvedAt: issue.resolved_at || undefined,
+});
+
 const Maintenance = () => {
-  const [issues, setIssues] = useState(mockMaintenanceIssues);
+  const { data: dbIssues, isLoading: issuesLoading } = useMaintenanceIssues();
+  const { data: dbStaff, isLoading: staffLoading } = useMaintenanceStaff();
+  const updateIssue = useUpdateMaintenanceIssue();
+  
   const [filter, setFilter] = useState("all");
+
+  const issues = useMemo(() => {
+    if (!dbIssues) return [];
+    return dbIssues.map(mapToLegacyIssue);
+  }, [dbIssues]);
+
+  const staff = useMemo(() => {
+    if (!dbStaff) return [];
+    return dbStaff;
+  }, [dbStaff]);
 
   const stats = useMemo(() => ({
     open: issues.filter(i => i.status === 'open').length,
@@ -42,18 +72,16 @@ const Maintenance = () => {
   }, [issues, filter]);
 
   const handleStatusChange = (issueId: string, newStatus: MaintenanceIssue['status']) => {
-    setIssues(prev => prev.map(issue => 
-      issue.id === issueId 
-        ? { 
-            ...issue, 
-            status: newStatus,
-            resolvedAt: newStatus === 'resolved' ? new Date().toISOString() : issue.resolvedAt
-          } 
-        : issue
-    ));
+    updateIssue.mutate({
+      id: issueId,
+      updates: {
+        status: newStatus,
+        resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null,
+      },
+    });
   };
 
-  const categoryLabels = {
+  const categoryLabels: Record<string, string> = {
     plumbing: 'Plumbing',
     electrical: 'Electrical',
     hvac: 'HVAC',
@@ -61,6 +89,16 @@ const Maintenance = () => {
     furniture: 'Furniture',
     structural: 'Structural',
   };
+
+  if (issuesLoading || staffLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -156,10 +194,10 @@ const Maintenance = () => {
               <h2 className="font-semibold">Technicians</h2>
             </div>
             <div className="space-y-3">
-              {mockMaintenanceStaff.map(staff => {
-                const initials = staff.name.split(' ').map(n => n[0]).join('');
+              {staff.map(s => {
+                const initials = s.name.split(' ').map(n => n[0]).join('');
                 return (
-                  <div key={staff.id} className="p-3 bg-card rounded-lg border">
+                  <div key={s.id} className="p-3 bg-card rounded-lg border">
                     <div className="flex items-center gap-3 mb-2">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-status-maintenance/10 text-status-maintenance text-sm">
@@ -167,18 +205,18 @@ const Maintenance = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{staff.name}</p>
+                        <p className="font-medium text-sm truncate">{s.name}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{staff.issuesAssigned} assigned</span>
+                          <span>{s.issues_assigned} assigned</span>
                           <span>·</span>
-                          <span>{staff.issuesResolved} resolved</span>
+                          <span>{s.issues_resolved} resolved</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {staff.specialty.map(spec => (
+                      {s.specialty.map(spec => (
                         <Badge key={spec} variant="outline" className="text-xs">
-                          {categoryLabels[spec]}
+                          {categoryLabels[spec] || spec}
                         </Badge>
                       ))}
                     </div>

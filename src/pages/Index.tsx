@@ -6,7 +6,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FilterTabs } from "@/components/dashboard/FilterTabs";
 import { SystemStatusWidget } from "@/components/dashboard/SystemStatusWidget";
 import { BookingWizard } from "@/components/booking/BookingWizard";
-import { mockRooms, calculateStats } from "@/data/mockRooms";
+import { useRooms, useRoomStats, Room } from "@/hooks/useRooms";
 import { 
   BedDouble, 
   Users, 
@@ -15,37 +15,71 @@ import {
   LogIn,
   LogOut,
   TrendingUp,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Map database room to legacy Room type for RoomGrid
+const mapToLegacyRoom = (room: Room) => ({
+  id: room.id,
+  number: room.number,
+  name: room.name,
+  type: room.max_occupancy <= 2 ? 'single' as const : room.max_occupancy <= 3 ? 'double' as const : 'suite' as const,
+  floor: room.floor,
+  maxOccupancy: room.max_occupancy,
+  occupancyStatus: room.occupancy_status as 'vacant' | 'occupied' | 'checkout' | 'reserved',
+  cleaningStatus: room.cleaning_status as 'clean' | 'dirty' | 'in-progress' | 'inspecting',
+  maintenanceStatus: room.maintenance_status as 'none' | 'pending' | 'in-progress',
+  basePrice: room.base_price,
+  amenities: room.amenities || [],
+  currentGuest: room.current_guest_id ? 'Guest' : undefined,
+});
 
 const Index = () => {
   const [filter, setFilter] = useState("all");
   const [bookingOpen, setBookingOpen] = useState(false);
-  const stats = calculateStats(mockRooms);
+  
+  const { data: rooms, isLoading } = useRooms();
+  const stats = useRoomStats();
+
+  const mappedRooms = useMemo(() => {
+    if (!rooms) return [];
+    return rooms.map(mapToLegacyRoom);
+  }, [rooms]);
 
   const filteredRooms = useMemo(() => {
     switch (filter) {
       case "occupied":
-        return mockRooms.filter(r => r.occupancyStatus === 'occupied');
+        return mappedRooms.filter(r => r.occupancyStatus === 'occupied');
       case "vacant":
-        return mockRooms.filter(r => r.occupancyStatus === 'vacant');
+        return mappedRooms.filter(r => r.occupancyStatus === 'vacant');
       case "cleaning":
-        return mockRooms.filter(r => r.cleaningStatus !== 'clean');
+        return mappedRooms.filter(r => r.cleaningStatus !== 'clean');
       case "maintenance":
-        return mockRooms.filter(r => r.maintenanceStatus !== 'none');
+        return mappedRooms.filter(r => r.maintenanceStatus !== 'none');
       default:
-        return mockRooms;
+        return mappedRooms;
     }
-  }, [filter]);
+  }, [filter, mappedRooms]);
 
-  const filterCounts = {
-    all: mockRooms.length,
-    occupied: mockRooms.filter(r => r.occupancyStatus === 'occupied').length,
-    vacant: mockRooms.filter(r => r.occupancyStatus === 'vacant').length,
-    cleaning: mockRooms.filter(r => r.cleaningStatus !== 'clean').length,
-    maintenance: mockRooms.filter(r => r.maintenanceStatus !== 'none').length,
-  };
+  const filterCounts = useMemo(() => ({
+    all: mappedRooms.length,
+    occupied: mappedRooms.filter(r => r.occupancyStatus === 'occupied').length,
+    vacant: mappedRooms.filter(r => r.occupancyStatus === 'vacant').length,
+    cleaning: mappedRooms.filter(r => r.cleaningStatus !== 'clean').length,
+    maintenance: mappedRooms.filter(r => r.maintenanceStatus !== 'none').length,
+  }), [mappedRooms]);
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -71,29 +105,29 @@ const Index = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Occupancy Rate"
-            value={`${stats.occupancyRate}%`}
-            subtitle={`${stats.occupied} of ${stats.totalRooms} rooms`}
+            value={`${stats?.occupancyRate || 0}%`}
+            subtitle={`${stats?.occupied || 0} of ${stats?.totalRooms || 0} rooms`}
             icon={TrendingUp}
             variant="accent"
             trend={{ value: 8, isPositive: true }}
           />
           <StatCard
             title="Available Rooms"
-            value={stats.vacant}
+            value={stats?.vacant || 0}
             subtitle="Ready for check-in"
             icon={BedDouble}
             variant="success"
           />
           <StatCard
             title="Needs Cleaning"
-            value={stats.cleaning}
+            value={stats?.cleaning || 0}
             subtitle="Pending housekeeping"
             icon={Sparkles}
-            variant={stats.cleaning > 0 ? "warning" : "default"}
+            variant={(stats?.cleaning || 0) > 0 ? "warning" : "default"}
           />
           <StatCard
             title="Maintenance"
-            value={stats.maintenance}
+            value={stats?.maintenance || 0}
             subtitle="Issues reported"
             icon={Wrench}
           />
@@ -107,7 +141,7 @@ const Index = () => {
                 <LogIn className="h-5 w-5 text-status-available" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.checkinsToday}</p>
+                <p className="text-2xl font-bold">{stats?.checkinsToday || 0}</p>
                 <p className="text-sm text-muted-foreground">Check-ins Today</p>
               </div>
             </div>
@@ -116,7 +150,7 @@ const Index = () => {
                 <LogOut className="h-5 w-5 text-status-checkout" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.checkoutsToday}</p>
+                <p className="text-2xl font-bold">{stats?.checkoutsToday || 0}</p>
                 <p className="text-sm text-muted-foreground">Check-outs Today</p>
               </div>
             </div>

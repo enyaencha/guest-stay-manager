@@ -1,21 +1,44 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { RoomGrid } from "@/components/dashboard/RoomGrid";
 import { AvailabilityCalendar } from "@/components/rooms/AvailabilityCalendar";
 import { RoomDetailModal } from "@/components/rooms/RoomDetailModal";
-import { mockRooms } from "@/data/mockRooms";
+import { useRooms, useUpdateRoom, Room as DBRoom } from "@/hooks/useRooms";
 import { Room } from "@/types/room";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Filter, LayoutGrid, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Filter, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { addDays, format } from "date-fns";
 
+// Map database room to legacy Room type
+const mapToLegacyRoom = (room: DBRoom): Room => ({
+  id: room.id,
+  number: room.number,
+  name: room.name,
+  type: room.max_occupancy <= 2 ? 'single' : room.max_occupancy <= 3 ? 'double' : 'suite',
+  floor: room.floor,
+  maxOccupancy: room.max_occupancy,
+  occupancyStatus: room.occupancy_status as 'vacant' | 'occupied' | 'checkout' | 'reserved',
+  cleaningStatus: room.cleaning_status as 'clean' | 'dirty' | 'in-progress' | 'inspecting',
+  maintenanceStatus: room.maintenance_status as 'none' | 'pending' | 'in-progress',
+  basePrice: room.base_price,
+  amenities: room.amenities || [],
+  currentGuest: room.current_guest_id ? 'Guest' : undefined,
+});
+
 const Rooms = () => {
-  const [rooms, setRooms] = useState<Room[]>(mockRooms);
+  const { data: dbRooms, isLoading } = useRooms();
+  const updateRoom = useUpdateRoom();
+  
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [calendarStart, setCalendarStart] = useState(new Date());
   const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
+
+  const rooms = useMemo(() => {
+    if (!dbRooms) return [];
+    return dbRooms.map(mapToLegacyRoom);
+  }, [dbRooms]);
 
   const handleRoomClick = (room: Room) => {
     setSelectedRoom(room);
@@ -23,10 +46,24 @@ const Rooms = () => {
   };
 
   const handleUpdateRoom = (roomId: string, updates: Partial<Room>) => {
-    setRooms(prev => prev.map(r => 
-      r.id === roomId ? { ...r, ...updates } : r
-    ));
+    // Map legacy updates to database format
+    const dbUpdates: Partial<DBRoom> = {};
+    if (updates.occupancyStatus) dbUpdates.occupancy_status = updates.occupancyStatus;
+    if (updates.cleaningStatus) dbUpdates.cleaning_status = updates.cleaningStatus;
+    if (updates.maintenanceStatus) dbUpdates.maintenance_status = updates.maintenanceStatus;
+    
+    updateRoom.mutate({ id: roomId, updates: dbUpdates });
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
