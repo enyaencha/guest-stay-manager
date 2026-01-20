@@ -4,20 +4,64 @@ import { TaskCard } from "@/components/housekeeping/TaskCard";
 import { StaffCard } from "@/components/housekeeping/StaffCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockHousekeepingTasks, mockHousekeepingStaff } from "@/data/mockHousekeeping";
-import { HousekeepingTask } from "@/types/housekeeping";
+import { useHousekeepingTasks, useHousekeepingStaff, useUpdateHousekeepingTask, HousekeepingTask as DBTask } from "@/hooks/useHousekeeping";
+import { HousekeepingTask, HousekeepingStaff } from "@/types/housekeeping";
 import { 
   ClipboardList, 
   Plus, 
   Users, 
   Clock, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Loader2
 } from "lucide-react";
+import { Json } from "@/integrations/supabase/types";
+
+// Map database task to legacy format
+const mapToLegacyTask = (task: DBTask): HousekeepingTask => ({
+  id: task.id,
+  roomId: task.room_id || '',
+  roomNumber: task.room_number,
+  roomName: task.room_name || '',
+  type: task.task_type as HousekeepingTask['type'],
+  priority: task.priority as HousekeepingTask['priority'],
+  status: task.status as HousekeepingTask['status'],
+  assignedTo: task.assigned_to_name || undefined,
+  notes: task.notes || undefined,
+  amenities: Array.isArray(task.amenities) ? task.amenities as any[] : [],
+  restockNotes: task.restock_notes || undefined,
+  actualAdded: Array.isArray(task.actual_added) ? task.actual_added as any[] : undefined,
+  actualAddedNotes: task.actual_added_notes || undefined,
+  createdAt: task.created_at,
+  completedAt: task.completed_at || undefined,
+  estimatedMinutes: task.estimated_minutes || 30,
+});
+
+// Map database staff to legacy format
+const mapToLegacyStaff = (staff: any): HousekeepingStaff => ({
+  id: staff.id,
+  name: staff.name,
+  tasksCompleted: staff.tasks_completed || 0,
+  tasksAssigned: staff.tasks_assigned || 0,
+  isAvailable: staff.is_available ?? true,
+});
 
 const Housekeeping = () => {
-  const [tasks, setTasks] = useState(mockHousekeepingTasks);
+  const { data: dbTasks, isLoading: tasksLoading } = useHousekeepingTasks();
+  const { data: dbStaff, isLoading: staffLoading } = useHousekeepingStaff();
+  const updateTask = useUpdateHousekeepingTask();
+  
   const [filter, setFilter] = useState("all");
+
+  const tasks = useMemo(() => {
+    if (!dbTasks) return [];
+    return dbTasks.map(mapToLegacyTask);
+  }, [dbTasks]);
+
+  const staff = useMemo(() => {
+    if (!dbStaff) return [];
+    return dbStaff.map(mapToLegacyStaff);
+  }, [dbStaff]);
 
   const stats = useMemo(() => ({
     pending: tasks.filter(t => t.status === 'pending').length,
@@ -40,38 +84,42 @@ const Housekeeping = () => {
   }, [tasks, filter]);
 
   const handleStatusChange = (taskId: string, newStatus: HousekeepingTask['status']) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId 
-        ? { 
-            ...task, 
-            status: newStatus,
-            completedAt: newStatus === 'completed' ? new Date().toISOString() : task.completedAt
-          } 
-        : task
-    ));
+    updateTask.mutate({
+      id: taskId,
+      updates: {
+        status: newStatus,
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+      },
+    });
   };
 
   const handleAmenitiesUpdate = (taskId: string, amenities: NonNullable<HousekeepingTask['actualAdded']>) => {
-    setTasks(prev => prev.map(task =>
-      task.id === taskId
-        ? {
-            ...task,
-            actualAdded: amenities,
-          }
-        : task
-    ));
+    updateTask.mutate({
+      id: taskId,
+      updates: {
+        actual_added: amenities as unknown as Json,
+      },
+    });
   };
 
   const handleActualNotesUpdate = (taskId: string, notes: string) => {
-    setTasks(prev => prev.map(task =>
-      task.id === taskId
-        ? {
-            ...task,
-            actualAddedNotes: notes,
-          }
-        : task
-    ));
+    updateTask.mutate({
+      id: taskId,
+      updates: {
+        actual_added_notes: notes,
+      },
+    });
   };
+
+  if (tasksLoading || staffLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -169,8 +217,8 @@ const Housekeeping = () => {
               <h2 className="font-semibold">Staff</h2>
             </div>
             <div className="space-y-2">
-              {mockHousekeepingStaff.map(staff => (
-                <StaffCard key={staff.id} staff={staff} />
+              {staff.map(s => (
+                <StaffCard key={s.id} staff={s} />
               ))}
             </div>
           </div>

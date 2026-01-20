@@ -5,7 +5,7 @@ import { StockAlertCard } from "@/components/inventory/StockAlertCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockInventoryItems, getStockAlerts, getStockLevel } from "@/data/mockInventory";
+import { useInventoryItems, useUpdateInventoryItem, getStockAlerts, getStockLevel, InventoryItem as DBItem } from "@/hooks/useInventory";
 import { InventoryItem } from "@/types/inventory";
 import { 
   Package, 
@@ -14,22 +14,60 @@ import {
   AlertTriangle, 
   PackageCheck, 
   PackageX,
-  TrendingDown
+  TrendingDown,
+  Loader2
 } from "lucide-react";
 
+// Map database item to legacy format
+const mapToLegacyItem = (item: DBItem): InventoryItem => ({
+  id: item.id,
+  name: item.name,
+  category: item.category as InventoryItem['category'],
+  sku: item.sku || '',
+  currentStock: item.current_stock,
+  minStock: item.min_stock,
+  maxStock: item.max_stock,
+  unit: item.unit,
+  unitCost: item.unit_cost,
+  sellingPrice: item.selling_price || undefined,
+  lastRestocked: item.last_restocked || '',
+  supplier: item.supplier || undefined,
+  openingStock: item.opening_stock || undefined,
+  purchasesIn: item.purchases_in || undefined,
+  stockOut: item.stock_out || undefined,
+});
+
 const Inventory = () => {
-  const [items, setItems] = useState(mockInventoryItems);
+  const { data: dbItems, isLoading } = useInventoryItems();
+  const updateItem = useUpdateInventoryItem();
+  
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const alerts = useMemo(() => getStockAlerts(items), [items]);
+  const items = useMemo(() => {
+    if (!dbItems) return [];
+    return dbItems.map(mapToLegacyItem);
+  }, [dbItems]);
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    lowStock: items.filter(i => getStockLevel(i) === 'low').length,
-    outOfStock: items.filter(i => getStockLevel(i) === 'out-of-stock').length,
-    totalValue: items.reduce((sum, i) => sum + (i.currentStock * i.unitCost), 0),
-  }), [items]);
+  const alerts = useMemo(() => {
+    if (!dbItems) return [];
+    return getStockAlerts(dbItems);
+  }, [dbItems]);
+
+  const stats = useMemo(() => {
+    const legacyItems = items.map(i => ({
+      ...i,
+      current_stock: i.currentStock,
+      min_stock: i.minStock,
+      max_stock: i.maxStock,
+    }));
+    return {
+      total: items.length,
+      lowStock: legacyItems.filter(i => getStockLevel(i as any) === 'low').length,
+      outOfStock: legacyItems.filter(i => getStockLevel(i as any) === 'out-of-stock').length,
+      totalValue: items.reduce((sum, i) => sum + (i.currentStock * i.unitCost), 0),
+    };
+  }, [items]);
 
   const filteredItems = useMemo(() => {
     let result = items;
@@ -51,16 +89,27 @@ const Inventory = () => {
   }, [items, search, categoryFilter]);
 
   const handleAdjustStock = (itemId: string, adjustment: number) => {
-    setItems(prev => prev.map(item => 
-      item.id === itemId 
-        ? { 
-            ...item, 
-            currentStock: Math.max(0, item.currentStock + adjustment),
-            lastRestocked: adjustment > 0 ? new Date().toISOString().split('T')[0] : item.lastRestocked
-          } 
-        : item
-    ));
+    const item = dbItems?.find(i => i.id === itemId);
+    if (!item) return;
+
+    updateItem.mutate({
+      id: itemId,
+      updates: {
+        current_stock: Math.max(0, item.current_stock + adjustment),
+        last_restocked: adjustment > 0 ? new Date().toISOString().split('T')[0] : item.last_restocked,
+      },
+    });
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -137,7 +186,7 @@ const Inventory = () => {
                 <TabsList>
                   <TabsTrigger value="all">All</TabsTrigger>
                   <TabsTrigger value="bathroom">Bathroom</TabsTrigger>
-                  <TabsTrigger value="bedroom">Bedroom</TabsTrigger>
+                  <TabsTrigger value="amenities">Amenities</TabsTrigger>
                   <TabsTrigger value="kitchen">Kitchen</TabsTrigger>
                   <TabsTrigger value="cleaning">Cleaning</TabsTrigger>
                 </TabsList>
