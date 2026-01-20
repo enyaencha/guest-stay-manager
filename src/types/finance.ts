@@ -1,16 +1,17 @@
 export type TransactionType = 'income' | 'expense';
-export type IncomeCategory = 'room-booking' | 'pos-sale' | 'service-charge' | 'late-checkout' | 'damage-fee' | 'other-income';
-export type ExpenseCategory = 'inventory-purchase' | 'room-amenities' | 'maintenance' | 'utilities' | 'staff-salary' | 'supplies' | 'marketing' | 'other-expense';
+export type IncomeCategory = 'room-booking' | 'pos-sale' | 'service-charge' | 'late-checkout' | 'damage-fee' | 'other-income' | string;
+export type ExpenseCategory = 'inventory-purchase' | 'room-amenities' | 'maintenance' | 'utilities' | 'staff-salary' | 'supplies' | 'marketing' | 'other-expense' | string;
 export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'cancelled';
 
 export interface FinanceTransaction {
   id: string;
   date: string;
   type: TransactionType;
-  category: IncomeCategory | ExpenseCategory;
+  category: string;
   description: string;
   amount: number;
   paymentStatus: PaymentStatus;
+  paymentMethod?: string;
   reference?: string;
   roomNumber?: string;
   guestName?: string;
@@ -29,7 +30,8 @@ export interface CategoryBreakdown {
   category: string;
   amount: number;
   percentage: number;
-  transactionCount: number;
+  transactionCount?: number;
+  count?: number;
 }
 
 export interface MonthlyFinance {
@@ -42,13 +44,15 @@ export interface MonthlyFinance {
 export interface POSSalesRecord {
   id: string;
   date: string;
-  itemName: string;
-  category: string;
-  quantity: number;
-  unitPrice: number;
+  roomNumber: string;
+  items?: string;
+  itemName?: string;
+  category?: string;
+  quantity?: number;
+  unitPrice?: number;
   totalAmount: number;
   paymentMethod: string;
-  roomNumber?: string;
+  staffName?: string;
   guestName?: string;
 }
 
@@ -60,5 +64,6 @@ export interface RoomAmenityCost {
   quantity: number;
   unitCost: number;
   totalCost: number;
-  restockedBy: string;
+  isComplimentary?: boolean;
+  restockedBy?: string;
 }
