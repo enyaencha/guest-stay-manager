@@ -73,6 +73,134 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          approved_by: string | null
+          category: string
+          created_at: string
+          date: string
+          description: string
+          etims_amount: number | null
+          id: string
+          non_etims_amount: number | null
+          payment_method: string
+          reference: string | null
+          status: string
+          supplier: string | null
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          category: string
+          created_at?: string
+          date?: string
+          description: string
+          etims_amount?: number | null
+          id?: string
+          non_etims_amount?: number | null
+          payment_method: string
+          reference?: string | null
+          status?: string
+          supplier?: string | null
+          total_cost: number
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          etims_amount?: number | null
+          id?: string
+          non_etims_amount?: number | null
+          payment_method?: string
+          reference?: string | null
+          status?: string
+          supplier?: string | null
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_transactions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string
+          id: string
+          payment_method: string | null
+          payment_status: string
+          reference: string | null
+          room_number: string | null
+          type: string
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description: string
+          id?: string
+          payment_method?: string | null
+          payment_status?: string
+          reference?: string | null
+          room_number?: string | null
+          type: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string
+          id?: string
+          payment_method?: string | null
+          payment_status?: string
+          reference?: string | null
+          room_number?: string | null
+          type?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_issues: {
         Row: {
           booking_id: string | null
@@ -153,6 +281,538 @@ export type Database = {
           name?: string
           phone?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      housekeeping_staff: {
+        Row: {
+          created_at: string
+          id: string
+          is_available: boolean | null
+          name: string
+          specialty: string[] | null
+          staff_id: string | null
+          tasks_assigned: number | null
+          tasks_completed: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_available?: boolean | null
+          name: string
+          specialty?: string[] | null
+          staff_id?: string | null
+          tasks_assigned?: number | null
+          tasks_completed?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_available?: boolean | null
+          name?: string
+          specialty?: string[] | null
+          staff_id?: string | null
+          tasks_assigned?: number | null
+          tasks_completed?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "housekeeping_staff_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      housekeeping_tasks: {
+        Row: {
+          actual_added: Json | null
+          actual_added_notes: string | null
+          amenities: Json | null
+          assigned_to: string | null
+          assigned_to_name: string | null
+          completed_at: string | null
+          created_at: string
+          estimated_minutes: number | null
+          id: string
+          notes: string | null
+          priority: string
+          restock_notes: string | null
+          room_id: string | null
+          room_name: string | null
+          room_number: string
+          status: string
+          task_type: string
+          updated_at: string
+        }
+        Insert: {
+          actual_added?: Json | null
+          actual_added_notes?: string | null
+          amenities?: Json | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          estimated_minutes?: number | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          restock_notes?: string | null
+          room_id?: string | null
+          room_name?: string | null
+          room_number: string
+          status?: string
+          task_type: string
+          updated_at?: string
+        }
+        Update: {
+          actual_added?: Json | null
+          actual_added_notes?: string | null
+          amenities?: Json | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          estimated_minutes?: number | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          restock_notes?: string | null
+          room_id?: string | null
+          room_name?: string | null
+          room_number?: string
+          status?: string
+          task_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "housekeeping_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "housekeeping_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "housekeeping_tasks_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          category: string
+          created_at: string
+          current_stock: number
+          id: string
+          is_active: boolean | null
+          last_restocked: string | null
+          max_stock: number
+          min_stock: number
+          name: string
+          opening_stock: number | null
+          purchases_in: number | null
+          selling_price: number | null
+          sku: string | null
+          stock_out: number | null
+          supplier: string | null
+          unit: string
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          is_active?: boolean | null
+          last_restocked?: string | null
+          max_stock?: number
+          min_stock?: number
+          name: string
+          opening_stock?: number | null
+          purchases_in?: number | null
+          selling_price?: number | null
+          sku?: string | null
+          stock_out?: number | null
+          supplier?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          is_active?: boolean | null
+          last_restocked?: string | null
+          max_stock?: number
+          min_stock?: number
+          name?: string
+          opening_stock?: number | null
+          purchases_in?: number | null
+          selling_price?: number | null
+          sku?: string | null
+          stock_out?: number | null
+          supplier?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      maintenance_issues: {
+        Row: {
+          assigned_to: string | null
+          assigned_to_name: string | null
+          category: string
+          cost: number | null
+          created_at: string
+          description: string | null
+          id: string
+          priority: string
+          reported_at: string
+          reported_by: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          room_id: string | null
+          room_name: string | null
+          room_number: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          category: string
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          reported_at?: string
+          reported_by?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          room_id?: string | null
+          room_name?: string | null
+          room_number: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          category?: string
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          reported_at?: string
+          reported_by?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          room_id?: string | null
+          room_name?: string | null
+          room_number?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_issues_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "maintenance_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_issues_reported_by_fkey"
+            columns: ["reported_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_issues_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_staff: {
+        Row: {
+          created_at: string
+          id: string
+          is_available: boolean | null
+          issues_assigned: number | null
+          issues_resolved: number | null
+          name: string
+          specialty: string[] | null
+          staff_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_available?: boolean | null
+          issues_assigned?: number | null
+          issues_resolved?: number | null
+          name: string
+          specialty?: string[] | null
+          staff_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_available?: boolean | null
+          issues_assigned?: number | null
+          issues_resolved?: number | null
+          name?: string
+          specialty?: string[] | null
+          staff_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_staff_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_settings: {
+        Row: {
+          booking_confirmations: boolean | null
+          created_at: string
+          daily_reports: boolean | null
+          email_notifications: boolean | null
+          id: string
+          low_stock_alerts: boolean | null
+          maintenance_alerts: boolean | null
+          payment_alerts: boolean | null
+          sms_notifications: boolean | null
+          updated_at: string
+          user_id: string | null
+          weekly_reports: boolean | null
+        }
+        Insert: {
+          booking_confirmations?: boolean | null
+          created_at?: string
+          daily_reports?: boolean | null
+          email_notifications?: boolean | null
+          id?: string
+          low_stock_alerts?: boolean | null
+          maintenance_alerts?: boolean | null
+          payment_alerts?: boolean | null
+          sms_notifications?: boolean | null
+          updated_at?: string
+          user_id?: string | null
+          weekly_reports?: boolean | null
+        }
+        Update: {
+          booking_confirmations?: boolean | null
+          created_at?: string
+          daily_reports?: boolean | null
+          email_notifications?: boolean | null
+          id?: string
+          low_stock_alerts?: boolean | null
+          maintenance_alerts?: boolean | null
+          payment_alerts?: boolean | null
+          sms_notifications?: boolean | null
+          updated_at?: string
+          user_id?: string | null
+          weekly_reports?: boolean | null
+        }
+        Relationships: []
+      }
+      pos_items: {
+        Row: {
+          category: string
+          cost: number
+          created_at: string
+          description: string | null
+          id: string
+          inventory_item_id: string | null
+          is_available: boolean | null
+          name: string
+          price: number
+          stock_quantity: number | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          is_available?: boolean | null
+          name: string
+          price: number
+          stock_quantity?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          is_available?: boolean | null
+          name?: string
+          price?: number
+          stock_quantity?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_transactions: {
+        Row: {
+          created_at: string
+          guest_id: string | null
+          guest_name: string | null
+          id: string
+          items: Json
+          notes: string | null
+          payment_method: string
+          room_number: string | null
+          staff_id: string | null
+          staff_name: string | null
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          guest_id?: string | null
+          guest_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          payment_method: string
+          room_number?: string | null
+          staff_id?: string | null
+          staff_name?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          guest_id?: string | null
+          guest_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          payment_method?: string
+          room_number?: string | null
+          staff_id?: string | null
+          staff_name?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_transactions_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_settings: {
+        Row: {
+          address: string | null
+          check_in_time: string | null
+          check_out_time: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          currency: string | null
+          email: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          phone: string | null
+          timezone: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          currency?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          phone?: string | null
+          timezone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          currency?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          timezone?: string | null
+          updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -237,6 +897,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system_role: boolean | null
+          name: string
+          permissions: Database["public"]["Enums"]["app_permission"][]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system_role?: boolean | null
+          name: string
+          permissions?: Database["public"]["Enums"]["app_permission"][]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system_role?: boolean | null
+          name?: string
+          permissions?: Database["public"]["Enums"]["app_permission"][]
+          updated_at?: string
+        }
+        Relationships: []
       }
       room_assessments: {
         Row: {
@@ -354,15 +1044,291 @@ export type Database = {
           },
         ]
       }
+      room_types: {
+        Row: {
+          amenities: string[] | null
+          base_price: number
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_occupancy: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          amenities?: string[] | null
+          base_price: number
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_occupancy?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          amenities?: string[] | null
+          base_price?: number
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_occupancy?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rooms: {
+        Row: {
+          amenities: string[] | null
+          base_price: number
+          cleaning_status: string
+          created_at: string
+          current_booking_id: string | null
+          current_guest_id: string | null
+          floor: number
+          id: string
+          is_active: boolean | null
+          maintenance_status: string
+          max_occupancy: number
+          name: string
+          number: string
+          occupancy_status: string
+          room_type_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amenities?: string[] | null
+          base_price: number
+          cleaning_status?: string
+          created_at?: string
+          current_booking_id?: string | null
+          current_guest_id?: string | null
+          floor?: number
+          id?: string
+          is_active?: boolean | null
+          maintenance_status?: string
+          max_occupancy?: number
+          name: string
+          number: string
+          occupancy_status?: string
+          room_type_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amenities?: string[] | null
+          base_price?: number
+          cleaning_status?: string
+          created_at?: string
+          current_booking_id?: string | null
+          current_guest_id?: string | null
+          floor?: number
+          id?: string
+          is_active?: boolean | null
+          maintenance_status?: string
+          max_occupancy?: number
+          name?: string
+          number?: string
+          occupancy_status?: string
+          room_type_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_current_booking_id_fkey"
+            columns: ["current_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rooms_current_guest_id_fkey"
+            columns: ["current_guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rooms_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string
+          email: string | null
+          id: string
+          joined_date: string
+          name: string
+          phone: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department: string
+          email?: string | null
+          id?: string
+          joined_date?: string
+          name: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string
+          email?: string | null
+          id?: string
+          joined_date?: string
+          name?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      system_preferences: {
+        Row: {
+          auto_backup: boolean | null
+          created_at: string
+          date_format: string | null
+          id: string
+          language: string | null
+          maintenance_mode: boolean | null
+          time_format: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_backup?: boolean | null
+          created_at?: string
+          date_format?: string | null
+          id?: string
+          language?: string | null
+          maintenance_mode?: boolean | null
+          time_format?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_backup?: boolean | null
+          created_at?: string
+          date_format?: string | null
+          id?: string
+          language?: string | null
+          maintenance_mode?: boolean | null
+          time_format?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          role_id: string
+          updated_at: string
+          user_id: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          role_id: string
+          updated_at?: string
+          user_id: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          role_id?: string
+          updated_at?: string
+          user_id?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_permissions: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_permission"][]
+      }
+      has_role: {
+        Args: { _role_name: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_permission:
+        | "rooms.view"
+        | "rooms.manage"
+        | "guests.view"
+        | "guests.manage"
+        | "bookings.view"
+        | "bookings.manage"
+        | "housekeeping.view"
+        | "housekeeping.manage"
+        | "maintenance.view"
+        | "maintenance.manage"
+        | "inventory.view"
+        | "inventory.manage"
+        | "pos.view"
+        | "pos.manage"
+        | "finance.view"
+        | "finance.manage"
+        | "reports.view"
+        | "reports.export"
+        | "settings.view"
+        | "settings.manage"
+        | "refunds.view"
+        | "refunds.approve"
+        | "staff.view"
+        | "staff.manage"
+      app_role:
+        | "administrator"
+        | "manager"
+        | "front_desk"
+        | "housekeeping_supervisor"
+        | "maintenance_staff"
+        | "pos_operator"
+        | "accountant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -489,6 +1455,42 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_permission: [
+        "rooms.view",
+        "rooms.manage",
+        "guests.view",
+        "guests.manage",
+        "bookings.view",
+        "bookings.manage",
+        "housekeeping.view",
+        "housekeeping.manage",
+        "maintenance.view",
+        "maintenance.manage",
+        "inventory.view",
+        "inventory.manage",
+        "pos.view",
+        "pos.manage",
+        "finance.view",
+        "finance.manage",
+        "reports.view",
+        "reports.export",
+        "settings.view",
+        "settings.manage",
+        "refunds.view",
+        "refunds.approve",
+        "staff.view",
+        "staff.manage",
+      ],
+      app_role: [
+        "administrator",
+        "manager",
+        "front_desk",
+        "housekeeping_supervisor",
+        "maintenance_staff",
+        "pos_operator",
+        "accountant",
+      ],
+    },
   },
 } as const
