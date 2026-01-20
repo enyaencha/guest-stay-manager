@@ -1,4 +1,5 @@
 export interface PropertySettings {
+  id?: string;
   name: string;
   address: string;
   city: string;
@@ -10,6 +11,7 @@ export interface PropertySettings {
   checkOutTime: string;
   currency: string;
   timezone: string;
+  logoUrl?: string;
 }
 
 export interface UserRole {
@@ -32,11 +34,13 @@ export interface StaffMember {
 
 export interface RoomTypeConfig {
   id: string;
+  code?: string;
   name: string;
   basePrice: number;
   maxOccupancy: number;
   amenities: string[];
   description: string;
+  isActive?: boolean;
 }
 
 export interface NotificationSettings {

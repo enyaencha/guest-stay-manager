@@ -6,39 +6,46 @@ import { TransactionList } from "@/components/pos/TransactionList";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockPOSItems, mockTransactions } from "@/data/mockPOS";
-import { POSItem, CartItem, Transaction, PaymentMethod } from "@/types/pos";
+import { usePOSItems, usePOSTransactions, useCreatePOSTransaction, POSItem, CartItem } from "@/hooks/usePOS";
+import { PaymentMethod } from "@/types/pos";
 import { 
   ShoppingCart, 
   DollarSign, 
   Receipt, 
   TrendingUp,
-  Search
+  Search,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatKsh } from "@/lib/formatters";
 
 const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  const { data: posItems = [], isLoading: itemsLoading } = usePOSItems();
+  const { data: transactions = [], isLoading: transactionsLoading } = usePOSTransactions();
+  const createTransaction = useCreatePOSTransaction();
 
   const todayRevenue = transactions
     .filter(t => t.status === "completed")
     .reduce((sum, t) => sum + t.total, 0);
 
+  const completedTransactions = transactions.filter(t => t.status === "completed");
   const stats = {
     todayRevenue,
     totalTransactions: transactions.length,
-    avgTicket: transactions.length > 0 ? todayRevenue / transactions.filter(t => t.status === "completed").length : 0,
+    avgTicket: completedTransactions.length > 0 ? todayRevenue / completedTransactions.length : 0,
     itemsInCart: cart.reduce((sum, item) => sum + item.quantity, 0),
   };
 
-  const filteredItems = mockPOSItems.filter(item => {
+  const categories = [...new Set(posItems.map(item => item.category))];
+  
+  const filteredItems = posItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && item.is_available;
   });
 
   const addToCart = (item: POSItem) => {
@@ -64,34 +71,75 @@ const POS = () => {
     setCart(prev => prev.filter(i => i.id !== id));
   };
 
-  const handleCheckout = (roomNumber: string, paymentMethod: PaymentMethod) => {
+  const handleCheckout = async (roomNumber: string, paymentMethod: PaymentMethod) => {
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const tax = subtotal * 0.10;
     const total = subtotal + tax;
 
-    const newTransaction: Transaction = {
-      id: `txn${Date.now()}`,
-      roomNumber,
-      guestName: `Guest - Room ${roomNumber}`,
-      items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price * i.quantity })),
-      subtotal,
-      tax,
-      total,
-      paymentMethod,
-      status: "completed",
-      createdAt: new Date().toISOString(),
-      staffName: "Current Staff",
-    };
-
-    setTransactions(prev => [newTransaction, ...prev]);
-    setCart([]);
-    toast.success(`Transaction completed! Total: ${formatKsh(total)}`);
+    try {
+      await createTransaction.mutateAsync({
+        room_number: roomNumber || null,
+        guest_id: null,
+        guest_name: roomNumber ? `Guest - Room ${roomNumber}` : null,
+        items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price * i.quantity })),
+        subtotal,
+        tax,
+        total,
+        payment_method: paymentMethod,
+        status: "completed",
+        staff_id: null,
+        staff_name: "Current Staff",
+        notes: null,
+      });
+      setCart([]);
+      toast.success(`Transaction completed! Total: ${formatKsh(total)}`);
+    } catch (error) {
+      // Error handled by mutation
+    }
   };
 
   const clearCart = () => {
     setCart([]);
     toast.info("Cart cleared");
   };
+
+  const isLoading = itemsLoading || transactionsLoading;
+
+  // Convert transactions for TransactionList component
+  const transactionListData = transactions.slice(0, 5).map(t => ({
+    id: t.id,
+    roomNumber: t.room_number || '',
+    guestName: t.guest_name || 'Walk-in Customer',
+    items: Array.isArray(t.items) ? (t.items as { name: string; quantity: number; price: number }[]) : [],
+    subtotal: t.subtotal,
+    tax: t.tax,
+    total: t.total,
+    paymentMethod: t.payment_method as PaymentMethod,
+    status: t.status as 'completed' | 'pending' | 'refunded',
+    createdAt: t.created_at,
+    staffName: t.staff_name || undefined,
+  }));
+
+  // Convert cart items for CartPanel (needs price property)
+  const cartPanelItems = cart.map(item => ({
+    id: item.id,
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    category: item.category as any,
+    description: item.description || '',
+    available: item.is_available,
+  }));
+
+  // Convert items for POSItemCard
+  const posItemCardData = filteredItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    category: item.category as any,
+    price: item.price,
+    description: item.description || '',
+    available: item.is_available,
+  }));
 
   return (
     <MainLayout>
@@ -133,69 +181,78 @@ const POS = () => {
           />
         </div>
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Items Section */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Search and Filter */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search items..." 
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          /* Main Content */
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Items Section */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Search and Filter */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search items..." 
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
+                <TabsList className="flex-wrap h-auto">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  {categories.map(cat => (
+                    <TabsTrigger key={cat} value={cat} className="capitalize">
+                      {cat.replace('-', ' ')}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                <TabsContent value={categoryFilter} className="mt-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {posItemCardData.map((item) => (
+                      <POSItemCard 
+                        key={item.id} 
+                        item={item}
+                        onAddToCart={() => {
+                          const fullItem = posItems.find(i => i.id === item.id);
+                          if (fullItem) addToCart(fullItem);
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {posItemCardData.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No items found
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              {/* Recent Transactions */}
+              <TransactionList transactions={transactionListData} />
+            </div>
+
+            {/* Cart Panel */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-6">
+                <CartPanel 
+                  items={cartPanelItems}
+                  onUpdateQuantity={updateQuantity}
+                  onRemoveItem={removeItem}
+                  onCheckout={handleCheckout}
+                  onClearCart={clearCart}
                 />
               </div>
             </div>
-
-            <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
-              <TabsList className="flex-wrap h-auto">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="services">Services</TabsTrigger>
-                <TabsTrigger value="food-beverage">Food & Beverage</TabsTrigger>
-                <TabsTrigger value="amenities">Amenities</TabsTrigger>
-                <TabsTrigger value="experiences">Experiences</TabsTrigger>
-                <TabsTrigger value="packages">Packages</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value={categoryFilter} className="mt-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {filteredItems.map((item) => (
-                    <POSItemCard 
-                      key={item.id} 
-                      item={item}
-                      onAddToCart={addToCart}
-                    />
-                  ))}
-                </div>
-
-                {filteredItems.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    No items found
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-
-            {/* Recent Transactions */}
-            <TransactionList transactions={transactions.slice(0, 5)} />
           </div>
-
-          {/* Cart Panel */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-6">
-              <CartPanel 
-                items={cart}
-                onUpdateQuantity={updateQuantity}
-                onRemoveItem={removeItem}
-                onCheckout={handleCheckout}
-                onClearCart={clearCart}
-              />
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </MainLayout>
   );

@@ -10,11 +10,12 @@ export interface Guest {
   checkIn: string;
   checkOut: string;
   status: GuestStatus;
-  guests: number;
+  guests?: number;
   specialRequests?: string;
-  totalAmount: number;
-  paidAmount: number;
-  createdAt: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  totalSpend?: number;
+  createdAt?: string;
 }
 
 export interface GuestRequest {
