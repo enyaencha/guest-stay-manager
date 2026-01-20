@@ -47,26 +47,46 @@ interface RoomType {
   amenities: string[] | null;
 }
 
+interface Review {
+  id: string;
+  guest_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
 const Landing = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [lookupModalOpen, setLookupModalOpen] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [preselectedRoom, setPreselectedRoom] = useState<string>("");
 
-  // Fetch room types from database
+  // Fetch room types and reviews from database
   useEffect(() => {
-    const fetchRoomTypes = async () => {
-      const { data } = await supabase
+    const fetchData = async () => {
+      // Fetch room types
+      const { data: roomData } = await supabase
         .from("room_types")
         .select("*")
         .eq("is_active", true)
         .order("base_price");
       
-      if (data) setRoomTypes(data);
+      if (roomData) setRoomTypes(roomData);
+
+      // Fetch approved reviews
+      const { data: reviewData } = await supabase
+        .from("reviews")
+        .select("id, guest_name, rating, comment, created_at")
+        .eq("is_approved", true)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      
+      if (reviewData) setReviews(reviewData);
     };
-    fetchRoomTypes();
+    fetchData();
   }, []);
 
   const getAmenityIcon = (amenity: string) => {
@@ -98,26 +118,37 @@ const Landing = () => {
     { icon: Sparkles, name: "Daily Housekeeping", description: "Immaculate rooms every day" },
   ];
 
-  const reviews = [
+  // Default reviews if none in database
+  const defaultReviews = [
     {
-      name: "Sarah M.",
+      id: "default-1",
+      guest_name: "Sarah M.",
       rating: 5,
       comment: "Absolutely wonderful stay! The staff was incredibly friendly and the room was spotless. Will definitely come back!",
-      date: "January 2026",
+      created_at: "2026-01-15",
     },
     {
-      name: "John K.",
+      id: "default-2",
+      guest_name: "John K.",
       rating: 5,
       comment: "Best hotel in the area. The superior room exceeded all expectations. Highly recommend!",
-      date: "January 2026",
+      created_at: "2026-01-10",
     },
     {
-      name: "Emily R.",
+      id: "default-3",
+      guest_name: "Emily R.",
       rating: 4,
       comment: "Great location, excellent service. The breakfast was amazing. Perfect for business travelers.",
-      date: "December 2025",
+      created_at: "2025-12-20",
     },
   ];
+
+  const displayReviews = reviews.length > 0 ? reviews : defaultReviews;
+
+  const formatReviewDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
 
   const handleBookRoom = (roomCode?: string) => {
     setPreselectedRoom(roomCode || "");
@@ -389,8 +420,8 @@ const Landing = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {reviews.map((review, index) => (
-              <Card key={index} className="p-6">
+            {displayReviews.map((review) => (
+              <Card key={review.id} className="p-6">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(review.rating)].map((_, i) => (
                     <Star key={i} className="h-4 w-4 fill-primary text-primary" />
@@ -399,8 +430,8 @@ const Landing = () => {
                 <Quote className="h-8 w-8 text-muted-foreground/30 mb-3" />
                 <p className="text-muted-foreground mb-4">{review.comment}</p>
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold">{review.name}</p>
-                  <p className="text-sm text-muted-foreground">{review.date}</p>
+                  <p className="font-semibold">{review.guest_name}</p>
+                  <p className="text-sm text-muted-foreground">{formatReviewDate(review.created_at)}</p>
                 </div>
               </Card>
             ))}

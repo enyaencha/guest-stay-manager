@@ -69,12 +69,12 @@ export const BookingRequestModal = ({
     setIsSubmitting(true);
 
     try {
-      // Create or find guest
+      // Create or find guest using maybeSingle to handle 0 rows
       const { data: existingGuest } = await supabase
         .from("guests")
         .select("id")
         .eq("phone", formData.phone)
-        .single();
+        .maybeSingle();
 
       let guestId: string;
 
@@ -96,14 +96,14 @@ export const BookingRequestModal = ({
         guestId = newGuest.id;
       }
 
-      // Find an available room of the selected type
+      // Find an available room of the selected type using maybeSingle
       const { data: availableRoom } = await supabase
         .from("rooms")
         .select("number")
         .eq("name", `${selectedRoomType?.name} Room`)
         .eq("occupancy_status", "vacant")
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const roomNumber = availableRoom?.number || "TBA";
 
@@ -126,6 +126,14 @@ export const BookingRequestModal = ({
         .single();
 
       if (bookingError) throw bookingError;
+
+      // Create notification for new reservation
+      await supabase.from("booking_notifications").insert({
+        booking_id: booking.id,
+        type: "new_reservation",
+        title: "New Reservation Request",
+        message: `${formData.name} has requested a ${selectedRoomType?.name} room from ${formData.checkIn} to ${formData.checkOut} (${nights} nights). Total: Ksh ${totalAmount.toLocaleString()}`,
+      });
 
       setBookingReference(booking.id.slice(0, 8).toUpperCase());
       setStep(3);
