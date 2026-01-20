@@ -1,5 +1,4 @@
 import { InventoryItem } from '@/types/inventory';
-import { getStockLevel } from '@/data/mockInventory';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -34,6 +33,13 @@ const categoryLabels = {
   cleaning: 'Cleaning',
   amenities: 'Amenities',
   maintenance: 'Maintenance',
+};
+
+const getStockLevel = (item: InventoryItem): 'out-of-stock' | 'low' | 'adequate' | 'full' => {
+  if (item.currentStock === 0) return 'out-of-stock';
+  if (item.currentStock < item.minStock) return 'low';
+  if (item.currentStock >= item.maxStock * 0.8) return 'full';
+  return 'adequate';
 };
 
 export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {

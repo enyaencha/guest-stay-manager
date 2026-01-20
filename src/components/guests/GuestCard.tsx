@@ -36,7 +36,10 @@ const statusConfig: Record<Guest["status"], { label: string; className: string }
 
 export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
   const status = statusConfig[guest.status];
-  const paymentStatus = guest.paidAmount >= guest.totalAmount ? "Paid" : "Partial";
+  const paidAmount = guest.paidAmount ?? 0;
+  const totalAmount = guest.totalAmount ?? 0;
+  const guestCount = guest.guests ?? 1;
+  const paymentStatus = paidAmount >= totalAmount ? "Paid" : "Partial";
   const paymentColor = paymentStatus === "Paid" 
     ? "bg-status-available/20 text-status-available" 
     : "bg-status-checkout/20 text-status-checkout";
@@ -96,7 +99,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
-            <span>{guest.guests} Guest{guest.guests > 1 ? "s" : ""}</span>
+            <span>{guestCount} Guest{guestCount > 1 ? "s" : ""}</span>
           </div>
         </div>
 
@@ -110,7 +113,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">
-              {formatKsh(guest.paidAmount)} / {formatKsh(guest.totalAmount)}
+              {formatKsh(paidAmount)} / {formatKsh(totalAmount)}
             </span>
           </div>
           <Badge className={paymentColor}>{paymentStatus}</Badge>
