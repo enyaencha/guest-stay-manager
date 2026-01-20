@@ -11,7 +11,8 @@ import {
   BarChart3,
   Wallet,
   CalendarCheck,
-  ReceiptText
+  ReceiptText,
+  Star
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -42,6 +43,7 @@ const operationsItems = [
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Finance", url: "/finance", icon: Wallet },
   { title: "Refunds", url: "/refunds", icon: ReceiptText },
+  { title: "Reviews", url: "/reviews", icon: Star },
 ];
 
 const settingsItems = [

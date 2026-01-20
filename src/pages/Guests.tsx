@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { GuestCard } from "@/components/guests/GuestCard";
+import { ConfirmedBookingCard } from "@/components/guests/ConfirmedBookingCard";
+import { RoomAssignmentModal } from "@/components/guests/RoomAssignmentModal";
 import { RequestCard } from "@/components/guests/RequestCard";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { BookingWizard } from "@/components/booking/BookingWizard";
@@ -18,17 +20,34 @@ import {
   Plus, 
   Search,
   Bell,
-  Loader2
+  Loader2,
+  CalendarCheck
 } from "lucide-react";
 import { toast } from "sonner";
+
+interface ConfirmedBooking {
+  id: string;
+  guest_id: string | null;
+  guest_name: string;
+  guest_phone: string;
+  room_type: string;
+  room_number: string;
+  check_in: string;
+  check_out: string;
+  guests_count: number;
+  total_amount: number;
+  special_requests: string | null;
+}
 
 const Guests = () => {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<ConfirmedBooking | null>(null);
 
   const { data: guests = [], isLoading: guestsLoading } = useGuests();
-  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+  const { data: bookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useBookings();
   const updateBooking = useUpdateBooking();
   const queryClient = useQueryClient();
 
@@ -59,14 +78,34 @@ const Guests = () => {
     },
   });
 
+  // Get confirmed bookings awaiting room assignment
+  const confirmedBookings: ConfirmedBooking[] = bookings
+    .filter(b => b.status === 'confirmed')
+    .map(b => {
+      const guest = guests.find(g => g.id === b.guest_id);
+      return {
+        id: b.id,
+        guest_id: b.guest_id,
+        guest_name: guest?.name || 'Unknown',
+        guest_phone: guest?.phone || '',
+        room_type: b.room_type,
+        room_number: b.room_number,
+        check_in: b.check_in,
+        check_out: b.check_out,
+        guests_count: b.guests_count,
+        total_amount: b.total_amount,
+        special_requests: b.special_requests,
+      };
+    });
+
   // Combine guests with their bookings - exclude reserved (handled in Reservations page)
   const guestsWithBookings = guests.map(guest => {
-    const booking = bookings.find(b => b.guest_id === guest.id && b.status !== 'reserved');
+    const booking = bookings.find(b => b.guest_id === guest.id && !['reserved', 'confirmed'].includes(b.status));
     return {
       ...guest,
       booking,
     };
-  }).filter(g => g.booking); // Only show guests with confirmed bookings
+  }).filter(g => g.booking);
 
   // Convert to Guest type for component
   const guestData: Guest[] = guestsWithBookings.map(g => ({
@@ -79,8 +118,7 @@ const Guests = () => {
     checkIn: g.booking?.check_in || '',
     checkOut: g.booking?.check_out || '',
     status: (g.booking?.status === 'checked-in' ? 'checked-in' : 
-             g.booking?.status === 'checked-out' ? 'checked-out' : 
-             g.booking?.status === 'confirmed' ? 'pre-arrival' : 'pre-arrival') as Guest['status'],
+             g.booking?.status === 'checked-out' ? 'checked-out' : 'pre-arrival') as Guest['status'],
     totalAmount: g.booking?.total_amount || 0,
     paidAmount: g.booking?.paid_amount || 0,
     guests: g.booking?.guests_count || 1,
@@ -104,7 +142,7 @@ const Guests = () => {
     totalGuests: guestData.length,
     checkedIn: guestData.filter(g => g.status === "checked-in").length,
     preArrival: guestData.filter(g => g.status === "pre-arrival").length,
-    pendingRequests: requests.filter(r => r.status === "pending").length,
+    pendingRequests: confirmedBookings.length,
   };
 
   const filteredGuests = guestData.filter(guest => {
@@ -139,6 +177,16 @@ const Guests = () => {
 
   const handleUpdateRequestStatus = (id: string, status: GuestRequest["status"]) => {
     updateIssue.mutate({ id, resolved: status === 'completed' });
+  };
+
+  const handleAssignRoom = (booking: ConfirmedBooking) => {
+    setSelectedBooking(booking);
+    setRoomAssignmentOpen(true);
+  };
+
+  const handleRoomAssigned = () => {
+    refetchBookings();
+    queryClient.invalidateQueries({ queryKey: ["rooms"] });
   };
 
   const isLoading = guestsLoading || bookingsLoading;
@@ -184,9 +232,9 @@ const Guests = () => {
           <StatCard
             title="Pending Requests"
             value={stats.pendingRequests}
-            icon={Bell}
+            icon={CalendarCheck}
             trend={stats.pendingRequests > 0 ? { value: stats.pendingRequests, isPositive: false } : undefined}
-            description="Awaiting action"
+            description="Awaiting room assignment"
           />
         </div>
 
@@ -199,7 +247,7 @@ const Guests = () => {
           <Tabs defaultValue="guests" className="space-y-4">
             <TabsList>
               <TabsTrigger value="guests">Guests</TabsTrigger>
-              <TabsTrigger value="requests">Requests ({requests.filter(r => r.status === "pending").length})</TabsTrigger>
+              <TabsTrigger value="requests">Requests ({confirmedBookings.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="guests" className="space-y-4">
@@ -245,20 +293,18 @@ const Guests = () => {
 
             <TabsContent value="requests" className="space-y-4">
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {requests
-                  .filter(r => r.status !== "completed" && r.status !== "cancelled")
-                  .map((request) => (
-                    <RequestCard 
-                      key={request.id} 
-                      request={request}
-                      onUpdateStatus={handleUpdateRequestStatus}
-                    />
-                  ))}
+                {confirmedBookings.map((booking) => (
+                  <ConfirmedBookingCard
+                    key={booking.id}
+                    booking={booking}
+                    onAssignRoom={handleAssignRoom}
+                  />
+                ))}
               </div>
 
-              {requests.filter(r => r.status !== "completed" && r.status !== "cancelled").length === 0 && (
+              {confirmedBookings.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
-                  No pending requests
+                  No confirmed bookings awaiting room assignment
                 </div>
               )}
             </TabsContent>
@@ -267,6 +313,13 @@ const Guests = () => {
       </div>
 
       <BookingWizard open={bookingOpen} onOpenChange={setBookingOpen} />
+      
+      <RoomAssignmentModal
+        open={roomAssignmentOpen}
+        onOpenChange={setRoomAssignmentOpen}
+        booking={selectedBooking}
+        onAssigned={handleRoomAssigned}
+      />
     </MainLayout>
   );
 };
