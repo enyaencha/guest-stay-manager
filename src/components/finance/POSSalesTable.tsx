@@ -16,14 +16,31 @@ interface POSSalesTableProps {
 }
 
 const paymentMethodStyles: Record<string, string> = {
+  'cash': 'bg-status-available/10 text-status-available border-status-available/20',
   'Cash': 'bg-status-available/10 text-status-available border-status-available/20',
+  'card': 'bg-primary/10 text-primary border-primary/20',
   'Card': 'bg-primary/10 text-primary border-primary/20',
+  'mpesa': 'bg-status-checkout/10 text-status-checkout border-status-checkout/20',
   'M-Pesa': 'bg-status-checkout/10 text-status-checkout border-status-checkout/20',
+  'room-charge': 'bg-status-occupied/10 text-status-occupied border-status-occupied/20',
   'Room Charge': 'bg-status-occupied/10 text-status-occupied border-status-occupied/20'
 };
 
 export function POSSalesTable({ sales }: POSSalesTableProps) {
   const totalSales = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+
+  if (sales.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">POS Sales History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">No POS sales recorded yet</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -40,12 +57,10 @@ export function POSSalesTable({ sales }: POSSalesTableProps) {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">Date</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-center">Qty</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
+                <TableHead>Items</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Room</TableHead>
+                <TableHead>Staff</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
@@ -58,14 +73,9 @@ export function POSSalesTable({ sales }: POSSalesTableProps) {
                       month: 'short' 
                     })}
                   </TableCell>
-                  <TableCell className="font-medium text-sm">{sale.itemName}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {sale.category}
-                    </Badge>
+                  <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                    {sale.items || '-'}
                   </TableCell>
-                  <TableCell className="text-center text-sm">{sale.quantity}</TableCell>
-                  <TableCell className="text-right text-sm">{formatKsh(sale.unitPrice)}</TableCell>
                   <TableCell>
                     <Badge 
                       variant="outline" 
@@ -76,6 +86,9 @@ export function POSSalesTable({ sales }: POSSalesTableProps) {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {sale.roomNumber || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {sale.staffName || '-'}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-status-available">
                     {formatKsh(sale.totalAmount)}
