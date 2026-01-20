@@ -42,6 +42,10 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
         return { label: 'Vacant', class: 'status-available' };
       case 'checkout':
         return { label: 'Checkout', class: 'status-checkout' };
+      case 'reserved':
+        return { label: 'Reserved', class: 'status-reserved' };
+      default:
+        return { label: 'Unknown', class: 'status-available' };
     }
   };
 
