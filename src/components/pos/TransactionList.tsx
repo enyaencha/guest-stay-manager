@@ -19,6 +19,7 @@ const paymentIcons: Record<Transaction["paymentMethod"], React.ReactNode> = {
   card: <CreditCard className="h-4 w-4" />,
   cash: <Banknote className="h-4 w-4" />,
   mobile: <Smartphone className="h-4 w-4" />,
+  mpesa: <Smartphone className="h-4 w-4" />,
   "room-charge": <DoorOpen className="h-4 w-4" />,
 };
 
