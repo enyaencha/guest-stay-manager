@@ -800,6 +800,33 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       property_settings: {
         Row: {
           address: string | null
@@ -1296,6 +1323,33 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_secrets: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          secret_code: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          secret_code: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          secret_code?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       system_preferences: {
         Row: {
           auto_backup: boolean | null
@@ -1379,10 +1433,10 @@ export type Database = {
     }
     Functions: {
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
-      has_role: {
-        Args: { _role_name: string; _user_id: string }
-        Returns: boolean
-      }
+      has_role:
+        | { Args: { _role_name: string; _user_id: string }; Returns: boolean }
+        | { Args: { _role_name: string; _user_id: string }; Returns: boolean }
+      verify_staff_secret: { Args: { _secret: string }; Returns: boolean }
     }
     Enums: {
       app_permission:
