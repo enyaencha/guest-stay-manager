@@ -1284,9 +1284,11 @@ export type Database = {
       staff: {
         Row: {
           avatar_url: string | null
+          contract_end_date: string | null
           created_at: string
           department: string
           email: string | null
+          employment_type: string
           id: string
           joined_date: string
           name: string
@@ -1297,9 +1299,11 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          contract_end_date?: string | null
           created_at?: string
           department: string
           email?: string | null
+          employment_type?: string
           id?: string
           joined_date?: string
           name: string
@@ -1310,9 +1314,11 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          contract_end_date?: string | null
           created_at?: string
           department?: string
           email?: string | null
+          employment_type?: string
           id?: string
           joined_date?: string
           name?: string
@@ -1432,6 +1438,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deactivate_expired_staff: { Args: never; Returns: undefined }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
       has_role:
         | { Args: { _role_name: string; _user_id: string }; Returns: boolean }

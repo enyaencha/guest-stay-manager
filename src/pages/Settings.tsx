@@ -13,9 +13,8 @@ import {
   useUpdateNotificationSettings,
   useUpdateSystemPreferences
 } from "@/hooks/useSettings";
-import { useStaff, useRoles } from "@/hooks/useStaff";
 import { useRoomTypes } from "@/hooks/useRooms";
-import { PropertySettings, StaffMember, RoomTypeConfig, NotificationSettings as NotificationSettingsType, SystemPreferences } from "@/types/settings";
+import { PropertySettings, RoomTypeConfig, NotificationSettings as NotificationSettingsType, SystemPreferences } from "@/types/settings";
 import { Building2, Users, BedDouble, Bell, Settings2, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,8 +26,6 @@ const Settings = () => {
   const { data: propertySettings, isLoading: propertyLoading } = usePropertySettings();
   const { data: notificationSettings, isLoading: notificationLoading } = useNotificationSettings();
   const { data: systemPreferences, isLoading: systemLoading } = useSystemPreferences();
-  const { data: staff = [], isLoading: staffLoading } = useStaff();
-  const { data: roles = [] } = useRoles();
   const { data: roomTypes = [], isLoading: roomTypesLoading } = useRoomTypes();
   
   const updatePropertySettings = useUpdatePropertySettings();
@@ -49,7 +46,7 @@ const Settings = () => {
     },
   });
 
-  const isLoading = propertyLoading || notificationLoading || systemLoading || staffLoading || roomTypesLoading;
+  const isLoading = propertyLoading || notificationLoading || systemLoading || roomTypesLoading;
 
   // Convert property settings for form
   const propertyFormData: PropertySettings = propertySettings ? {
@@ -81,20 +78,7 @@ const Settings = () => {
     checkOutTime: '11:00',
   };
 
-  // Convert staff for management
-  const staffFormData: StaffMember[] = staff.map(s => ({
-    id: s.id,
-    name: s.name,
-    email: s.email || '',
-    phone: s.phone || '',
-    role: s.department as StaffMember['role'],
-    department: s.department,
-    status: s.status as StaffMember['status'],
-    joinedDate: s.joined_date,
-    avatar: s.avatar_url || undefined,
-  }));
-
-  // Convert room types for settings
+  // Room type conversion (staff is now self-contained)
   const roomTypeFormData: RoomTypeConfig[] = roomTypes.map(rt => ({
     id: rt.id,
     code: rt.code,
@@ -141,14 +125,6 @@ const Settings = () => {
     autoBackup: true,
     maintenanceMode: false,
   };
-
-  // Mock user roles for staff management
-  const mockUserRoles = roles.map(r => ({
-    id: r.id,
-    name: r.name,
-    description: r.description || '',
-    permissions: (r.permissions as string[]) || [],
-  }));
 
   const handlePropertySave = (settings: PropertySettings) => {
     if (propertySettings) {
@@ -205,13 +181,7 @@ const Settings = () => {
   };
 
   const handleRoomTypeUpdate = (types: RoomTypeConfig[]) => {
-    // For now, just show a toast - individual updates handled via mutation
     toast.info("Room type settings saved");
-  };
-
-  const handleStaffUpdate = (updatedStaff: StaffMember[]) => {
-    // Staff updates are handled via mutations in the component
-    toast.info("Staff management updated");
   };
 
   if (isLoading) {
@@ -266,11 +236,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="staff">
-            <StaffManagement
-              staff={staffFormData}
-              roles={mockUserRoles}
-              onUpdate={handleStaffUpdate}
-            />
+            <StaffManagement />
           </TabsContent>
 
           <TabsContent value="rooms">
