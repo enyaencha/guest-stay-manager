@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BookingRequestModal } from "@/components/landing/BookingRequestModal";
 import { ReservationLookupModal } from "@/components/landing/ReservationLookupModal";
 import { FeedbackModal } from "@/components/landing/FeedbackModal";
+import { StaffSecretModal } from "@/components/auth/StaffSecretModal";
 import { 
   BedDouble, 
   Star, 
@@ -62,6 +63,7 @@ const Landing = () => {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [lookupModalOpen, setLookupModalOpen] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [staffSecretModalOpen, setStaffSecretModalOpen] = useState(false);
   const [preselectedRoom, setPreselectedRoom] = useState<string>("");
 
   // Fetch room types and reviews from database
@@ -181,9 +183,13 @@ const Landing = () => {
                 <Search className="h-4 w-4 mr-2" />
                 My Booking
               </Button>
-              <Link to="/dashboard">
-                <Button variant="outline" size="sm">Staff Login</Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setStaffSecretModalOpen(true)}
+              >
+                Staff Login
+              </Button>
               <Button onClick={() => handleBookRoom()}>Book Now</Button>
             </div>
 
@@ -209,9 +215,14 @@ const Landing = () => {
                   Check My Booking
                 </Button>
                 <div className="flex gap-2 pt-2">
-                  <Link to="/dashboard" className="flex-1">
-                    <Button variant="outline" className="w-full" size="sm">Staff Login</Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1" 
+                    size="sm"
+                    onClick={() => { setStaffSecretModalOpen(true); setMobileMenuOpen(false); }}
+                  >
+                    Staff Login
+                  </Button>
                   <Button className="flex-1" onClick={() => { handleBookRoom(); setMobileMenuOpen(false); }}>Book Now</Button>
                 </div>
               </div>
@@ -603,6 +614,10 @@ const Landing = () => {
       <FeedbackModal 
         open={feedbackModalOpen} 
         onOpenChange={setFeedbackModalOpen} 
+      />
+      <StaffSecretModal
+        open={staffSecretModalOpen}
+        onOpenChange={setStaffSecretModalOpen}
       />
     </div>
   );

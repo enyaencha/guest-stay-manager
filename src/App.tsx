@@ -3,7 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Landing from "./pages/Landing";
+import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
 import Guests from "./pages/Guests";
@@ -23,29 +26,87 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Index />} />
-          <Route path="/rooms" element={<Rooms />} />
-          <Route path="/reservations" element={<Reservations />} />
-          <Route path="/guests" element={<Guests />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/housekeeping" element={<Housekeeping />} />
-          <Route path="/maintenance" element={<Maintenance />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/finance" element={<Finance />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/refunds" element={<Refunds />} />
-          <Route path="/reviews" element={<Reviews />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected routes - require authentication */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/rooms" element={
+              <ProtectedRoute requiredPermission="rooms.view">
+                <Rooms />
+              </ProtectedRoute>
+            } />
+            <Route path="/reservations" element={
+              <ProtectedRoute requiredPermission="bookings.view">
+                <Reservations />
+              </ProtectedRoute>
+            } />
+            <Route path="/guests" element={
+              <ProtectedRoute requiredPermission="guests.view">
+                <Guests />
+              </ProtectedRoute>
+            } />
+            <Route path="/pos" element={
+              <ProtectedRoute requiredPermission="pos.view">
+                <POS />
+              </ProtectedRoute>
+            } />
+            <Route path="/housekeeping" element={
+              <ProtectedRoute requiredPermission="housekeeping.view">
+                <Housekeeping />
+              </ProtectedRoute>
+            } />
+            <Route path="/maintenance" element={
+              <ProtectedRoute requiredPermission="maintenance.view">
+                <Maintenance />
+              </ProtectedRoute>
+            } />
+            <Route path="/inventory" element={
+              <ProtectedRoute requiredPermission="inventory.view">
+                <Inventory />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute requiredPermission="reports.view">
+                <Reports />
+              </ProtectedRoute>
+            } />
+            <Route path="/finance" element={
+              <ProtectedRoute requiredPermission="finance.view">
+                <Finance />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute requiredPermission="settings.view">
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/refunds" element={
+              <ProtectedRoute requiredPermission="refunds.view">
+                <Refunds />
+              </ProtectedRoute>
+            } />
+            <Route path="/reviews" element={
+              <ProtectedRoute>
+                <Reviews />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

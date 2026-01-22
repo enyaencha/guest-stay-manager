@@ -3,12 +3,49 @@ import { AppSidebar } from "./AppSidebar";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "./NotificationBell";
+import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  const { user, roles, signOut, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/");
+  };
+
+  // Get user initials from email
+  const getInitials = () => {
+    if (!user?.email) return "??";
+    const parts = user.email.split("@")[0].split(/[._-]/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return user.email.substring(0, 2).toUpperCase();
+  };
+
+  // Get primary role name
+  const getPrimaryRole = () => {
+    if (roles.length === 0) return "Staff";
+    return roles[0].name.charAt(0).toUpperCase() + roles[0].name.slice(1).replace(/_/g, " ");
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -27,9 +64,37 @@ export function MainLayout({ children }: MainLayoutProps) {
             </div>
             <div className="flex items-center gap-3">
               <NotificationBell />
-              <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-medium text-sm">
-                PM
-              </div>
+              
+              {isLoading ? (
+                <Skeleton className="h-9 w-9 rounded-full" />
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">
+                      {getInitials()}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium">{user?.email}</p>
+                        <p className="text-xs text-muted-foreground">{getPrimaryRole()}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/settings")}>
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={handleSignOut}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </header>
           <main className="flex-1 overflow-auto bg-background">
