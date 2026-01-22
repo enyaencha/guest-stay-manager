@@ -102,11 +102,23 @@ const Landing = () => {
     return icons[amenity.toLowerCase()] || Sparkles;
   };
 
-  const getRoomImage = (code: string) => {
-    const images: Record<string, string> = {
-      basic: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",
-      standard: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&h=400&fit=crop",
-      superior: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",
+  const getRoomImages = (code: string) => {
+    const images: Record<string, string[]> = {
+      basic: [
+        "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=1200&h=800&fit=crop",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=600&h=600&fit=crop",
+      ],
+      standard: [
+        "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=1200&h=800&fit=crop",
+        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=600&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=600&h=600&fit=crop",
+      ],
+      superior: [
+        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&h=800&fit=crop",
+        "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1521783593447-5702b9bfd267?w=600&h=600&fit=crop",
+      ],
     };
     return images[code] || images.basic;
   };
@@ -233,9 +245,10 @@ const Landing = () => {
 
       {/* Hero Section */}
       <section className="relative pt-16">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(218,165,32,0.25),transparent_55%),radial-gradient(circle_at_85%_10%,rgba(15,23,42,0.2),transparent_45%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-muted/40" />
         <div 
-          className="absolute inset-0 opacity-10"
+          className="absolute inset-0 opacity-[0.12]"
           style={{
             backgroundImage: "url('https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&h=1080&fit=crop')",
             backgroundSize: "cover",
@@ -249,7 +262,7 @@ const Landing = () => {
                 <Star className="h-4 w-4 text-primary fill-primary" />
                 <span className="text-sm font-medium">Rated 4.9/5 by our guests</span>
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight font-serif">
                 Your Perfect <span className="text-primary">Getaway</span> Awaits
               </h1>
               <p className="text-lg text-muted-foreground max-w-lg">
@@ -285,7 +298,7 @@ const Landing = () => {
             </div>
             
             {/* Quick Booking Card */}
-            <Card className="shadow-xl">
+            <Card className="shadow-2xl bg-background/80 backdrop-blur-xl border-primary/10">
               <CardContent className="p-6 space-y-4">
                 <h3 className="text-xl font-semibold flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-primary" />
@@ -327,11 +340,12 @@ const Landing = () => {
       </section>
 
       {/* Rooms Section */}
-      <section id="rooms" className="py-20 bg-muted/30">
+      <section id="rooms" className="py-20 bg-muted/30 relative">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(218,165,32,0.12),transparent_50%),radial-gradient(circle_at_10%_80%,rgba(15,23,42,0.08),transparent_55%)]" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Our Rooms</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 font-serif">
               Choose Your Perfect Stay
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -339,16 +353,36 @@ const Landing = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
             {roomTypes.map((room) => (
-              <Card key={room.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative h-48">
-                  <img 
-                    src={getRoomImage(room.code)} 
-                    alt={room.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <Badge className="absolute top-3 right-3 bg-primary">
+              <Card key={room.id} className="overflow-hidden hover:shadow-2xl transition-shadow bg-background/80 backdrop-blur-xl border-primary/10">
+                <div className="relative p-3">
+                  <div className="grid grid-cols-3 gap-2 h-56">
+                    <div className="col-span-2 rounded-xl overflow-hidden">
+                      <img 
+                        src={getRoomImages(room.code)[0]} 
+                        alt={`${room.name} main view`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex-1 rounded-xl overflow-hidden">
+                        <img 
+                          src={getRoomImages(room.code)[1]} 
+                          alt={`${room.name} detail view`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 rounded-xl overflow-hidden">
+                        <img 
+                          src={getRoomImages(room.code)[2]} 
+                          alt={`${room.name} amenities view`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Badge className="absolute top-6 right-6 bg-primary/95 shadow-lg">
                     Ksh {room.base_price.toLocaleString()}/night
                   </Badge>
                 </div>
