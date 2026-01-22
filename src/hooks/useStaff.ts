@@ -10,6 +10,8 @@ export interface Staff {
   phone: string | null;
   department: string;
   status: string;
+  employment_type: 'permanent' | 'temporary';
+  contract_end_date: string | null;
   joined_date: string;
   avatar_url: string | null;
   created_at: string;
@@ -151,6 +153,53 @@ export const useAssignRole = () => {
     },
     onError: (error) => {
       toast.error("Failed to assign role: " + error.message);
+    },
+  });
+};
+
+export const useUpdateUserRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<UserRole> }) => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user_roles"] });
+      toast.success("Role updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update role: " + error.message);
+    },
+  });
+};
+
+export const useRevokeUserRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("user_roles")
+        .update({ is_active: false })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user_roles"] });
+      toast.success("Role revoked successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to revoke role: " + error.message);
     },
   });
 };
