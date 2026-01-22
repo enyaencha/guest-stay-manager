@@ -26,9 +26,9 @@ export function StaffSecretModal({ open, onOpenChange }: StaffSecretModalProps) 
 
     setIsVerifying(true);
     try {
-      const { data, error } = await supabase.rpc("verify_staff_secret" as any, {
+      const { data, error } = await supabase.rpc("verify_staff_secret", {
         _secret: secretCode.trim(),
-      });
+      } as any);
 
       if (error) throw error;
 
