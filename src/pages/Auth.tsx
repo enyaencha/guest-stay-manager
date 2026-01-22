@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Building2, KeyRound, Lock, Mail, User, ArrowLeft } from "lucide-react";
+import { Building2, KeyRound, Lock, Mail, User, ArrowLeft, RefreshCw } from "lucide-react";
 import { z } from "zod";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -29,6 +30,9 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string }>({});
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -154,6 +158,37 @@ export default function Auth() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetEmail.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    try {
+      emailSchema.parse(resetEmail);
+    } catch (e: any) {
+      toast.error(e.errors[0].message);
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Password reset email sent! Check your inbox.");
+      setShowResetPassword(false);
+      setResetEmail("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send reset email");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -162,14 +197,79 @@ export default function Auth() {
     );
   }
 
+  // Password Reset View
+  if (showResetPassword && secretVerified) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          backgroundImage: `linear-gradient(to bottom right, hsl(158 45% 12% / 0.9), hsl(45 30% 98% / 0.85)), url(${heroBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <Card className="w-full max-w-md backdrop-blur-sm bg-card/95 border-accent/20 shadow-2xl">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto h-16 w-16 bg-accent/10 rounded-full flex items-center justify-center">
+              <RefreshCw className="h-8 w-8 text-accent" />
+            </div>
+            <CardTitle className="text-2xl">Reset Password</CardTitle>
+            <CardDescription>
+              Enter your email to receive a password reset link
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email Address</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="reset-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  className="pl-9"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
+                />
+              </div>
+            </div>
+            <Button 
+              onClick={handleResetPassword} 
+              className="w-full"
+              disabled={isResetting}
+            >
+              {isResetting ? "Sending..." : "Send Reset Link"}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => setShowResetPassword(false)}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Secret gate view
   if (!secretVerified) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
-        <Card className="w-full max-w-md">
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          backgroundImage: `linear-gradient(to bottom right, hsl(158 45% 12% / 0.85), hsl(45 30% 98% / 0.8)), url(${heroBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <Card className="w-full max-w-md backdrop-blur-sm bg-card/95 border-accent/20 shadow-2xl">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
-              <KeyRound className="h-8 w-8 text-primary" />
+            <div className="mx-auto h-16 w-16 bg-accent/10 rounded-full flex items-center justify-center">
+              <KeyRound className="h-8 w-8 text-accent" />
             </div>
             <CardTitle className="text-2xl">Staff Access</CardTitle>
             <CardDescription>
@@ -186,11 +286,12 @@ export default function Auth() {
                 value={secretCode}
                 onChange={(e) => setSecretCode(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleVerifySecret()}
+                className="bg-background/80"
               />
             </div>
             <Button 
               onClick={handleVerifySecret} 
-              className="w-full"
+              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
               disabled={isVerifying}
             >
               {isVerifying ? "Verifying..." : "Verify Access Code"}
@@ -211,11 +312,18 @@ export default function Auth() {
 
   // Login/Signup view
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
-      <Card className="w-full max-w-md">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        backgroundImage: `linear-gradient(to bottom right, hsl(158 45% 12% / 0.85), hsl(45 30% 98% / 0.8)), url(${heroBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <Card className="w-full max-w-md backdrop-blur-sm bg-card/95 border-accent/20 shadow-2xl">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <Building2 className="h-8 w-8 text-primary" />
+          <div className="mx-auto h-16 w-16 bg-accent/10 rounded-full flex items-center justify-center">
+            <Building2 className="h-8 w-8 text-accent" />
           </div>
           <CardTitle className="text-2xl">HavenStay Staff Portal</CardTitle>
           <CardDescription>
@@ -239,7 +347,7 @@ export default function Auth() {
                       id="signin-email"
                       type="email"
                       placeholder="you@example.com"
-                      className="pl-9"
+                      className="pl-9 bg-background/80"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -249,14 +357,23 @@ export default function Auth() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowResetPassword(true)}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="signin-password"
                       type="password"
                       placeholder="••••••••"
-                      className="pl-9"
+                      className="pl-9 bg-background/80"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -265,7 +382,7 @@ export default function Auth() {
                     <p className="text-sm text-destructive">{errors.password}</p>
                   )}
                 </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
                   {isSubmitting ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
@@ -281,7 +398,7 @@ export default function Auth() {
                       id="signup-name"
                       type="text"
                       placeholder="John Doe"
-                      className="pl-9"
+                      className="pl-9 bg-background/80"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                     />
@@ -298,7 +415,7 @@ export default function Auth() {
                       id="signup-email"
                       type="email"
                       placeholder="you@example.com"
-                      className="pl-9"
+                      className="pl-9 bg-background/80"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -315,7 +432,7 @@ export default function Auth() {
                       id="signup-password"
                       type="password"
                       placeholder="••••••••"
-                      className="pl-9"
+                      className="pl-9 bg-background/80"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -324,14 +441,17 @@ export default function Auth() {
                     <p className="text-sm text-destructive">{errors.password}</p>
                   )}
                 </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
                   {isSubmitting ? "Creating account..." : "Create Account"}
                 </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  First user to sign up will be assigned Administrator role
+                </p>
               </form>
             </TabsContent>
           </Tabs>
           
-          <div className="mt-4 pt-4 border-t">
+          <div className="mt-4 pt-4 border-t border-accent/20">
             <Button
               variant="ghost"
               className="w-full"
