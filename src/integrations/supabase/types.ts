@@ -1440,6 +1440,10 @@ export type Database = {
     Functions: {
       deactivate_expired_staff: { Args: never; Returns: undefined }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role:
         | { Args: { _role_name: string; _user_id: string }; Returns: boolean }
         | { Args: { _role_name: string; _user_id: string }; Returns: boolean }
