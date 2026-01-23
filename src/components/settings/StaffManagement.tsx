@@ -21,11 +21,16 @@ import {
   Role,
   UserRole
 } from "@/hooks/useStaff";
-import { Users, Plus, Edit, Search, UserCheck, Shield, CalendarIcon, Clock, UserX } from "lucide-react";
+import { useLogAudit } from "@/hooks/useAuditLog";
+import { Users, Plus, Edit, Search, UserCheck, Shield, CalendarIcon, Clock, UserX, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, isBefore, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { BulkStaffImport } from "./BulkStaffImport";
+import { AuditLogViewer } from "./AuditLogViewer";
+
+const DEFAULT_PASSWORD = "HAVEN2026";
 
 interface StaffFormData {
   name: string;
@@ -52,6 +57,9 @@ export const StaffManagement = () => {
   const updateStaff = useUpdateStaff();
   const assignRole = useAssignRole();
   const updateUserRole = useUpdateUserRole();
+  const logAudit = useLogAudit();
+
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -118,7 +126,7 @@ export const StaffManagement = () => {
       return;
     }
 
-    await createStaff.mutateAsync({
+    const staffData = await createStaff.mutateAsync({
       name: formData.name,
       email: formData.email || null,
       phone: formData.phone || null,
@@ -131,12 +139,35 @@ export const StaffManagement = () => {
       avatar_url: null,
     });
 
+    // Log audit
+    await logAudit.mutateAsync({
+      action: "staff_created",
+      entityType: "staff",
+      entityId: staffData.id,
+      newValues: {
+        name: formData.name,
+        department: formData.department,
+        employment_type: formData.employment_type,
+      },
+      metadata: {
+        staff_name: formData.name,
+      },
+    });
+
     setIsAddDialogOpen(false);
     resetForm();
   };
 
   const handleEditStaff = async () => {
     if (!editingStaff) return;
+
+    const staffMember = staff.find(s => s.id === editingStaff);
+    const oldValues = staffMember ? {
+      name: staffMember.name,
+      department: staffMember.department,
+      status: staffMember.status,
+      employment_type: staffMember.employment_type,
+    } : null;
 
     await updateStaff.mutateAsync({
       id: editingStaff,
@@ -149,6 +180,23 @@ export const StaffManagement = () => {
         employment_type: formData.employment_type,
         contract_end_date: formData.contract_end_date ? format(formData.contract_end_date, 'yyyy-MM-dd') : null,
       }
+    });
+
+    // Log audit
+    await logAudit.mutateAsync({
+      action: "staff_updated",
+      entityType: "staff",
+      entityId: editingStaff,
+      oldValues,
+      newValues: {
+        name: formData.name,
+        department: formData.department,
+        status: formData.status,
+        employment_type: formData.employment_type,
+      },
+      metadata: {
+        staff_name: formData.name,
+      },
     });
 
     setEditingStaff(null);
@@ -170,10 +218,79 @@ export const StaffManagement = () => {
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const staffMember = staff.find(s => s.id === id);
+    
     await updateStaff.mutateAsync({
       id,
       updates: { status: newStatus }
     });
+
+    // Log audit
+    await logAudit.mutateAsync({
+      action: newStatus === 'active' ? "staff_activated" : "staff_deactivated",
+      entityType: "staff",
+      entityId: id,
+      oldValues: { status: currentStatus },
+      newValues: { status: newStatus },
+      metadata: {
+        staff_name: staffMember?.name,
+      },
+    });
+  };
+
+  const handleCreateUserForStaff = async (member: any) => {
+    if (!member.email) {
+      toast.error("Staff member needs an email address to create a user account");
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      // Create user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: member.email,
+        password: DEFAULT_PASSWORD,
+        options: {
+          data: { full_name: member.name },
+        },
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Link user to staff
+        await supabase
+          .from("staff")
+          .update({ user_id: authData.user.id })
+          .eq("id", member.id);
+
+        // Set password reset required
+        await supabase
+          .from("profiles")
+          .update({ password_reset_required: true })
+          .eq("user_id", authData.user.id);
+
+        // Log audit
+        await logAudit.mutateAsync({
+          action: "user_linked",
+          entityType: "staff",
+          entityId: member.id,
+          newValues: { user_id: authData.user.id },
+          metadata: {
+            staff_name: member.name,
+            email: member.email,
+          },
+        });
+
+        toast.success(`User account created for ${member.name}. Default password: ${DEFAULT_PASSWORD}`);
+        refetchStaff();
+      }
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      toast.error(error.message || "Failed to create user account");
+    } finally {
+      setIsCreatingUser(false);
+    }
   };
 
   const openRoleDialog = (member: any) => {
@@ -197,6 +314,8 @@ export const StaffManagement = () => {
       return;
     }
 
+    const selectedRole = roles.find(r => r.id === roleAssignment.role_id);
+
     // Check if role already exists for this user
     const existingRole = userRoles.find(
       ur => ur.user_id === selectedStaffForRole.user_id && ur.role_id === roleAssignment.role_id
@@ -211,6 +330,20 @@ export const StaffManagement = () => {
           valid_until: roleAssignment.valid_until ? roleAssignment.valid_until.toISOString() : null,
         }
       });
+
+      // Log audit
+      await logAudit.mutateAsync({
+        action: "role_updated",
+        entityType: "user_role",
+        entityId: existingRole.id,
+        newValues: {
+          role_name: selectedRole?.name,
+          valid_until: roleAssignment.valid_until?.toISOString() || null,
+        },
+        metadata: {
+          staff_name: selectedStaffForRole.name,
+        },
+      });
     } else {
       // Create new role assignment
       await assignRole.mutateAsync({
@@ -220,6 +353,21 @@ export const StaffManagement = () => {
         valid_from: new Date().toISOString(),
         valid_until: roleAssignment.valid_until ? roleAssignment.valid_until.toISOString() : null,
         assigned_by: null,
+      });
+
+      // Log audit
+      await logAudit.mutateAsync({
+        action: "role_assigned",
+        entityType: "user_role",
+        entityId: roleAssignment.role_id,
+        newValues: {
+          role_name: selectedRole?.name,
+          valid_until: roleAssignment.valid_until?.toISOString() || null,
+        },
+        metadata: {
+          staff_name: selectedStaffForRole.name,
+          user_id: selectedStaffForRole.user_id,
+        },
       });
     }
 
@@ -380,27 +528,30 @@ export const StaffManagement = () => {
               <CardDescription>Manage staff members, roles, and access permissions</CardDescription>
             </div>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Staff
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Add New Staff Member</DialogTitle>
-                <DialogDescription>Enter the details for the new staff member</DialogDescription>
-              </DialogHeader>
-              <StaffForm />
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddStaff} disabled={createStaff.isPending}>
-                  {createStaff.isPending ? "Adding..." : "Add Staff"}
+          <div className="flex gap-2">
+            <BulkStaffImport />
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Staff
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add New Staff Member</DialogTitle>
+                  <DialogDescription>Enter the details for the new staff member</DialogDescription>
+                </DialogHeader>
+                <StaffForm />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleAddStaff} disabled={createStaff.isPending}>
+                    {createStaff.isPending ? "Adding..." : "Add Staff"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -433,6 +584,8 @@ export const StaffManagement = () => {
               onEdit={openEditDialog}
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
+              onCreateUser={handleCreateUserForStaff}
+              isCreatingUser={isCreatingUser}
             />
           </TabsContent>
 
@@ -446,6 +599,8 @@ export const StaffManagement = () => {
               onEdit={openEditDialog}
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
+              onCreateUser={handleCreateUserForStaff}
+              isCreatingUser={isCreatingUser}
             />
           </TabsContent>
 
@@ -459,6 +614,8 @@ export const StaffManagement = () => {
               onEdit={openEditDialog}
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
+              onCreateUser={handleCreateUserForStaff}
+              isCreatingUser={isCreatingUser}
             />
           </TabsContent>
         </Tabs>
@@ -570,6 +727,11 @@ export const StaffManagement = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Audit Log Viewer */}
+        <div className="mt-6">
+          <AuditLogViewer />
+        </div>
       </CardContent>
     </Card>
   );
@@ -585,6 +747,8 @@ interface StaffTableProps {
   onEdit: (member: any) => void;
   onToggleStatus: (id: string, status: string) => void;
   onAssignRole: (member: any) => void;
+  onCreateUser?: (member: any) => void;
+  isCreatingUser?: boolean;
 }
 
 const StaffTable = ({ 
@@ -595,7 +759,9 @@ const StaffTable = ({
   isContractExpired,
   onEdit, 
   onToggleStatus,
-  onAssignRole 
+  onAssignRole,
+  onCreateUser,
+  isCreatingUser 
 }: StaffTableProps) => {
   if (staff.length === 0) {
     return (

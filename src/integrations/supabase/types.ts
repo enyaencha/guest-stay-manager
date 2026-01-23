@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          new_values: Json | null
+          old_values: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       booking_notifications: {
         Row: {
           booking_id: string
@@ -806,6 +845,7 @@ export type Database = {
           created_at: string | null
           full_name: string | null
           id: string
+          password_reset_required: boolean | null
           updated_at: string | null
           user_id: string
         }
@@ -814,6 +854,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string
+          password_reset_required?: boolean | null
           updated_at?: string | null
           user_id: string
         }
@@ -822,6 +863,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string
+          password_reset_required?: boolean | null
           updated_at?: string | null
           user_id?: string
         }
@@ -1447,6 +1489,17 @@ export type Database = {
       has_role:
         | { Args: { _role_name: string; _user_id: string }; Returns: boolean }
         | { Args: { _role_name: string; _user_id: string }; Returns: boolean }
+      log_audit: {
+        Args: {
+          _action: string
+          _entity_id: string
+          _entity_type: string
+          _metadata?: Json
+          _new_values?: Json
+          _old_values?: Json
+        }
+        Returns: string
+      }
       verify_staff_secret: { Args: { _secret: string }; Returns: boolean }
     }
     Enums: {
