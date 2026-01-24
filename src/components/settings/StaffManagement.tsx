@@ -22,13 +22,14 @@ import {
   UserRole
 } from "@/hooks/useStaff";
 import { useLogAudit } from "@/hooks/useAuditLog";
-import { Users, Plus, Edit, Search, UserCheck, Shield, CalendarIcon, Clock, UserX, UserPlus } from "lucide-react";
+import { Users, Plus, Edit, Search, UserCheck, Shield, CalendarIcon, Clock, UserX, UserPlus, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, isBefore, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { BulkStaffImport } from "./BulkStaffImport";
 import { AuditLogViewer } from "./AuditLogViewer";
+import { useAuth } from "@/contexts/AuthContext";
 
 const DEFAULT_PASSWORD = "HAVEN2026";
 
@@ -49,6 +50,7 @@ interface RoleAssignmentData {
 }
 
 export const StaffManagement = () => {
+  const { user } = useAuth();
   const { data: staff = [], isLoading: staffLoading, refetch: refetchStaff } = useStaff();
   const { data: roles = [] } = useRoles();
   const { data: userRoles = [], refetch: refetchUserRoles } = useUserRoles();
@@ -290,6 +292,49 @@ export const StaffManagement = () => {
       toast.error(error.message || "Failed to create user account");
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const handleLinkToCurrentUser = async (member: any) => {
+    if (!user) {
+      toast.error("You must be signed in to link a staff member");
+      return;
+    }
+
+    if (member.user_id) {
+      toast.error("This staff member is already linked to a user account");
+      return;
+    }
+
+    const existingLink = staff.find((s) => s.user_id === user.id);
+    if (existingLink && existingLink.id !== member.id) {
+      toast.error(`Your account is already linked to ${existingLink.name}`);
+      return;
+    }
+
+    try {
+      await supabase
+        .from("staff")
+        .update({ user_id: user.id })
+        .eq("id", member.id);
+
+      await logAudit.mutateAsync({
+        action: "user_linked",
+        entityType: "staff",
+        entityId: member.id,
+        newValues: { user_id: user.id },
+        metadata: {
+          staff_name: member.name,
+          linked_by: user.email || user.id,
+        },
+      });
+
+      toast.success(`Linked ${member.name} to your account`);
+      refetchStaff();
+      refetchUserRoles();
+    } catch (error: any) {
+      console.error("Error linking user:", error);
+      toast.error(error.message || "Failed to link staff member");
     }
   };
 
@@ -585,6 +630,7 @@ export const StaffManagement = () => {
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
               onCreateUser={handleCreateUserForStaff}
+              onLinkToCurrentUser={handleLinkToCurrentUser}
               isCreatingUser={isCreatingUser}
             />
           </TabsContent>
@@ -600,6 +646,7 @@ export const StaffManagement = () => {
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
               onCreateUser={handleCreateUserForStaff}
+              onLinkToCurrentUser={handleLinkToCurrentUser}
               isCreatingUser={isCreatingUser}
             />
           </TabsContent>
@@ -615,6 +662,7 @@ export const StaffManagement = () => {
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
               onCreateUser={handleCreateUserForStaff}
+              onLinkToCurrentUser={handleLinkToCurrentUser}
               isCreatingUser={isCreatingUser}
             />
           </TabsContent>
@@ -748,6 +796,7 @@ interface StaffTableProps {
   onToggleStatus: (id: string, status: string) => void;
   onAssignRole: (member: any) => void;
   onCreateUser?: (member: any) => void;
+  onLinkToCurrentUser?: (member: any) => void;
   isCreatingUser?: boolean;
 }
 
@@ -761,6 +810,7 @@ const StaffTable = ({
   onToggleStatus,
   onAssignRole,
   onCreateUser,
+  onLinkToCurrentUser,
   isCreatingUser 
 }: StaffTableProps) => {
   if (staff.length === 0) {
@@ -856,6 +906,27 @@ const StaffTable = ({
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
+                    {onCreateUser && !member.user_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onCreateUser(member)}
+                        disabled={isCreatingUser}
+                        title="Create user with default password"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onLinkToCurrentUser && !member.user_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onLinkToCurrentUser(member)}
+                        title="Link this staff member to my account"
+                      >
+                        <Link2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
                       size="sm" 

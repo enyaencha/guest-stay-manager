@@ -33,6 +33,14 @@ const amenityIcons: Record<string, React.ElementType> = {
   kitchen: UtensilsCrossed,
 };
 
+const roomTypeImages: Record<string, string> = {
+  single: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=2400&h=1600&fit=crop",
+  double: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=2400&h=1600&fit=crop",
+  suite: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=2400&h=1600&fit=crop",
+  villa: "https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=2400&h=1600&fit=crop",
+  apartment: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2400&h=1600&fit=crop",
+};
+
 export function RoomCard({ room, onClick }: RoomCardProps) {
   const getOccupancyStatus = () => {
     switch (room.occupancyStatus) {
@@ -76,6 +84,8 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
 
   const displayedAmenities = room.amenities.slice(0, 4);
 
+  const roomImage = roomTypeImages[room.type] || roomTypeImages.single;
+
   return (
     <div 
       onClick={onClick}
@@ -85,6 +95,15 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
         cleaning && !maintenance && "border-status-cleaning/30"
       )}
     >
+      <div
+        className="absolute inset-0 rounded-xl opacity-15 group-hover:opacity-30 transition-opacity duration-300"
+        style={{
+          backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.2), rgba(0,0,0,0.3)), url('${roomImage}')`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+      <div className="relative z-10">
       {/* Room Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -107,14 +126,22 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
       {/* Guest Info (if occupied or reserved) */}
       {(room.occupancyStatus === 'occupied' || room.occupancyStatus === 'reserved') && room.currentGuest && (
         <div className={cn(
-          "flex items-center gap-2 mb-3 p-2 rounded-lg",
+          "relative overflow-hidden flex items-center gap-2 mb-3 p-2 rounded-lg",
           room.occupancyStatus === 'reserved' ? "bg-[hsl(var(--status-reserved-bg))]" : "bg-muted/50"
         )}>
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.35), rgba(0,0,0,0.15)), url('${roomImage}')`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
           <Users className={cn(
-            "h-4 w-4",
+            "h-4 w-4 relative z-10",
             room.occupancyStatus === 'reserved' ? "text-[hsl(var(--status-reserved))]" : "text-muted-foreground"
           )} />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 relative z-10">
             <p className="text-xs font-medium truncate">{room.currentGuest}</p>
             {room.checkOutDate && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -159,6 +186,7 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
           <p className="text-sm font-semibold">Ksh {room.basePrice}</p>
           <p className="text-xs text-muted-foreground">/night</p>
         </div>
+      </div>
       </div>
     </div>
   );

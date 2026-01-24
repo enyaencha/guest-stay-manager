@@ -8,6 +8,7 @@ import { POSSalesTable } from "@/components/finance/POSSalesTable";
 import { RoomAmenityCostsTable } from "@/components/finance/RoomAmenityCostsTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -107,6 +108,14 @@ export default function Finance() {
     { month: 'Jan', income: summary.totalIncome, expenses: summary.totalExpenses, profit: summary.netProfit },
   ];
 
+  const kenyaNotes = [
+    { label: "Ksh 50", image: "https://source.unsplash.com/1200x800/?kenya,banknote,50" },
+    { label: "Ksh 100", image: "https://source.unsplash.com/1200x800/?kenya,banknote,100" },
+    { label: "Ksh 200", image: "https://source.unsplash.com/1200x800/?kenya,banknote,200" },
+    { label: "Ksh 500", image: "https://source.unsplash.com/1200x800/?kenya,banknote,500" },
+    { label: "Ksh 1000", image: "https://source.unsplash.com/1200x800/?kenya,banknote,1000" },
+  ];
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -136,6 +145,51 @@ export default function Finance() {
           </div>
         ) : (
           <>
+            <div className="relative overflow-hidden rounded-2xl border bg-card">
+              <div
+                className="absolute inset-0 opacity-15"
+                style={{
+                  backgroundImage: "url('https://images.unsplash.com/photo-1489515217757-5fd1be406fef?w=3200&h=1800&fit=crop')",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
+              <div className="relative z-10 p-6">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-foreground">Kenyan Shilling Series</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Visual reference for daily cash handling and reconciliation.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="border-primary/20 text-primary w-fit">
+                    New Notes
+                  </Badge>
+                </div>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {kenyaNotes.map((note) => (
+                    <div
+                      key={note.label}
+                      className="group relative overflow-hidden rounded-xl border bg-background/80 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                    >
+                      <div
+                        className="h-24 sm:h-28"
+                        style={{
+                          backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.15), rgba(0,0,0,0.25)), url('${note.image}')`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                      <div className="px-3 py-2">
+                        <p className="text-xs font-semibold text-foreground">{note.label}</p>
+                        <p className="text-[11px] text-muted-foreground">Series 2019</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard

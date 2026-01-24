@@ -50,8 +50,18 @@ export function MainLayout({ children }: MainLayoutProps) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b bg-card flex items-center justify-between px-4 lg:px-6">
+        <div className="flex-1 flex flex-col relative">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                "linear-gradient(135deg, rgba(15,23,42,0.08), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=3200&h=1800&fit=crop')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+          <div className="absolute inset-0 bg-background/85 pointer-events-none" />
+          <header className="relative z-10 h-16 border-b bg-card/90 backdrop-blur flex items-center justify-between px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
               <div className="hidden md:flex relative">
@@ -97,7 +107,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               )}
             </div>
           </header>
-          <main className="flex-1 overflow-auto bg-background">
+          <main className="relative z-10 flex-1 overflow-auto bg-transparent">
             {children}
           </main>
         </div>

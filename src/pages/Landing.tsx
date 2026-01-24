@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,7 @@ import { ReservationLookupModal } from "@/components/landing/ReservationLookupMo
 import { FeedbackModal } from "@/components/landing/FeedbackModal";
 import { StaffSecretModal } from "@/components/auth/StaffSecretModal";
 import { FeaturedSuitesGallery } from "@/components/landing/FeaturedSuitesGallery";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { 
   BedDouble, 
   Star, 
@@ -38,7 +38,6 @@ import {
   Wine
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import heroBg from "@/assets/hero-bg.jpg";
 
 interface RoomType {
   id: string;
@@ -67,6 +66,11 @@ const Landing = () => {
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [staffSecretModalOpen, setStaffSecretModalOpen] = useState(false);
   const [preselectedRoom, setPreselectedRoom] = useState<string>("");
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryTitle, setGalleryTitle] = useState("");
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   // Fetch room types and reviews from database
   useEffect(() => {
@@ -107,19 +111,25 @@ const Landing = () => {
   const getRoomImages = (code: string) => {
     const images: Record<string, string[]> = {
       basic: [
-        "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=1200&h=800&fit=crop",
-        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=600&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=2400&h=1600&fit=crop",
       ],
       standard: [
-        "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=1200&h=800&fit=crop",
-        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=600&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=600&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=2400&h=1600&fit=crop",
       ],
       superior: [
-        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&h=800&fit=crop",
-        "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1521783593447-5702b9bfd267?w=600&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1521783593447-5702b9bfd267?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=2400&h=1600&fit=crop",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=2400&h=1600&fit=crop",
       ],
     };
     return images[code] || images.basic;
@@ -171,11 +181,41 @@ const Landing = () => {
     setBookingModalOpen(true);
   };
 
+  const openGallery = (roomName: string, images: string[], activeImage: string) => {
+    if (images.length === 0) return;
+    setGalleryTitle(roomName);
+    setGalleryImages(images);
+    const startIndex = Math.max(0, images.indexOf(activeImage));
+    setGalleryIndex(startIndex);
+    setGalleryOpen(true);
+  };
+
+  const handleNextImage = () => {
+    if (galleryImages.length === 0) return;
+    setGalleryIndex((prev) => (prev + 1) % galleryImages.length);
+  };
+
+  const handlePrevImage = () => {
+    if (galleryImages.length === 0) return;
+    setGalleryIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  };
+
+  useEffect(() => {
+    if (!galleryOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight") handleNextImage();
+      if (event.key === "ArrowLeft") handlePrevImage();
+      if (event.key === "Escape") setGalleryOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [galleryOpen, galleryImages.length]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-accent/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
               <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
@@ -254,12 +294,13 @@ const Landing = () => {
         <div 
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${heroBg})`,
+            backgroundImage: "url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=7680&h=4320&fit=crop')",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-primary/60 to-background/95" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-background/95" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(218,165,32,0.35),transparent_55%)]" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -351,7 +392,7 @@ const Landing = () => {
       {/* Rooms Section */}
       <section id="rooms" className="py-20 bg-muted/30 relative">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(218,165,32,0.12),transparent_50%),radial-gradient(circle_at_10%_80%,rgba(15,23,42,0.08),transparent_55%)]" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Our Rooms</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 font-serif">
@@ -364,14 +405,15 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
             {roomTypes.map((room) => (
-              <Card key={room.id} className="overflow-hidden hover:shadow-2xl transition-shadow bg-background/80 backdrop-blur-xl border-primary/10">
+              <Card key={room.id} className="overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-background/80 backdrop-blur-xl border-primary/10">
                 <div className="relative p-3">
                   <div className="grid grid-cols-3 gap-2 h-56">
                     <div className="col-span-2 rounded-xl overflow-hidden">
                       <img 
                         src={getRoomImages(room.code)[0]} 
                         alt={`${room.name} main view`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-zoom-in transition-transform duration-500 hover:scale-[1.03]"
+                        onClick={() => openGallery(room.name, getRoomImages(room.code), getRoomImages(room.code)[0])}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -379,14 +421,16 @@ const Landing = () => {
                         <img 
                           src={getRoomImages(room.code)[1]} 
                           alt={`${room.name} detail view`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover cursor-zoom-in transition-transform duration-500 hover:scale-[1.03]"
+                          onClick={() => openGallery(room.name, getRoomImages(room.code), getRoomImages(room.code)[1])}
                         />
                       </div>
                       <div className="flex-1 rounded-xl overflow-hidden">
                         <img 
                           src={getRoomImages(room.code)[2]} 
                           alt={`${room.name} amenities view`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover cursor-zoom-in transition-transform duration-500 hover:scale-[1.03]"
+                          onClick={() => openGallery(room.name, getRoomImages(room.code), getRoomImages(room.code)[2])}
                         />
                       </div>
                     </div>
@@ -430,8 +474,16 @@ const Landing = () => {
       </section>
 
       {/* Amenities Section */}
-      <section id="amenities" className="py-20 bg-secondary/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="amenities" className="py-20 bg-secondary/30 relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1501117716987-c8e1ecb210dd?w=7680&h=4320&fit=crop')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4 border-accent/30 text-accent">Amenities</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -444,7 +496,7 @@ const Landing = () => {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {amenities.map((amenity, index) => (
-              <Card key={index} className="p-6 hover:shadow-md transition-shadow border-accent/10">
+              <Card key={index} className="p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-accent/10 bg-background/85 backdrop-blur-sm">
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-lg bg-accent/10">
                     <amenity.icon className="h-6 w-6 text-accent" />
@@ -461,7 +513,15 @@ const Landing = () => {
       </section>
 
       {/* Reviews Section */}
-      <section id="reviews" className="py-20">
+      <section id="reviews" className="py-20 relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1505691723518-36a1e45c3d3f?w=7680&h=4320&fit=crop')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4 border-accent/30 text-accent">Guest Reviews</Badge>
@@ -475,7 +535,7 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-3 gap-6">
             {displayReviews.map((review) => (
-              <Card key={review.id} className="p-6 border-accent/10">
+              <Card key={review.id} className="p-6 border-accent/10 bg-background/85 backdrop-blur-sm">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(review.rating)].map((_, i) => (
                     <Star key={i} className="h-4 w-4 fill-accent text-accent" />
@@ -501,7 +561,15 @@ const Landing = () => {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-20 bg-secondary/30">
+      <section id="contact" className="py-20 bg-secondary/30 relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1505691723518-36a1e45c3d3f?w=7680&h=4320&fit=crop')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12">
             <div>
@@ -553,7 +621,7 @@ const Landing = () => {
               </div>
             </div>
 
-            <Card className="p-6 border-accent/10">
+            <Card className="p-6 border-accent/10 bg-background/90 backdrop-blur-sm shadow-lg">
               <h3 className="text-xl font-semibold mb-4">Send us a message</h3>
               <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                 <div className="grid grid-cols-2 gap-4">
@@ -662,6 +730,83 @@ const Landing = () => {
         open={staffSecretModalOpen}
         onOpenChange={setStaffSecretModalOpen}
       />
+      <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+        <DialogContent className="max-w-6xl bg-background/95 backdrop-blur-xl border-primary/10">
+          <div className="grid lg:grid-cols-[2fr_1fr] gap-6">
+            <div className="space-y-3">
+              <div
+                className="relative aspect-[16/10] rounded-2xl overflow-hidden bg-muted"
+                onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
+                onTouchEnd={(event) => {
+                  if (touchStartX === null) return;
+                  const endX = event.changedTouches[0]?.clientX ?? touchStartX;
+                  const delta = touchStartX - endX;
+                  if (Math.abs(delta) > 50) {
+                    if (delta > 0) {
+                      handleNextImage();
+                    } else {
+                      handlePrevImage();
+                    }
+                  }
+                  setTouchStartX(null);
+                }}
+              >
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10"
+                  onClick={handlePrevImage}
+                >
+                  <ChevronRight className="h-4 w-4 rotate-180" />
+                </Button>
+                <img
+                  src={galleryImages[galleryIndex]}
+                  alt={galleryTitle}
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10"
+                  onClick={handleNextImage}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {galleryTitle} — curated luxury details and elevated comfort.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Room Gallery</p>
+                  <h3 className="text-xl font-semibold">{galleryTitle}</h3>
+                </div>
+                <Badge variant="outline">{galleryImages.length} Photos</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {galleryImages.map((img, index) => (
+                  <button
+                    key={`${img}-${index}`}
+                    type="button"
+                    className={cn(
+                      "relative rounded-xl overflow-hidden border transition-all",
+                      galleryIndex === index ? "border-primary shadow-lg" : "border-border hover:border-primary/60"
+                    )}
+                    onClick={() => setGalleryIndex(index)}
+                  >
+                    <img src={img} alt={`${galleryTitle} ${index + 1}`} className="w-full h-24 object-cover" />
+                  </button>
+                ))}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Tap any image to expand. High‑resolution photos showcase the full suite experience.
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

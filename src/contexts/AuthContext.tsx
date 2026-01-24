@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  passwordResetRequired: boolean;
   roles: UserRole[];
   permissions: string[];
   hasPermission: (permission: string) => boolean;
@@ -19,6 +20,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [passwordResetRequired, setPasswordResetRequired] = useState(false);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
 
@@ -75,6 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("password_reset_required")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      setPasswordResetRequired(!!data?.password_reset_required);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setPasswordResetRequired(false);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -86,10 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           setTimeout(() => {
             fetchUserRoles(session.user.id);
+            fetchProfile(session.user.id);
           }, 0);
         } else {
           setRoles([]);
           setPermissions([]);
+          setPasswordResetRequired(false);
         }
         
         setIsLoading(false);
@@ -103,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         fetchUserRoles(session.user.id);
+        fetchProfile(session.user.id);
       }
       
       setIsLoading(false);
@@ -147,8 +170,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setPasswordResetRequired(false);
     setRoles([]);
     setPermissions([]);
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchProfile(user.id);
+    }
   };
 
   return (
@@ -157,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         isLoading,
+        passwordResetRequired,
         roles,
         permissions,
         hasPermission,
@@ -164,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
+        refreshProfile,
       }}
     >
       {children}

@@ -4,17 +4,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Lock, ShieldCheck, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import heroBg from "@/assets/hero-bg.jpg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,19 +36,29 @@ export default function ResetPassword() {
       } else {
         // Check for access_token in hash (Supabase puts it there)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get("access_token");
-        const type = hashParams.get("type");
+        const accessToken = hashParams.get("access_token") || searchParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token");
+        const type = hashParams.get("type") || searchParams.get("type");
+        const code = searchParams.get("code");
         
         if (accessToken && type === "recovery") {
           // Set the session using the recovery token
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
-            refresh_token: hashParams.get("refresh_token") || "",
+            refresh_token: refreshToken || "",
           });
           
           if (!error) {
             setIsValidSession(true);
             // Clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            setIsValidSession(false);
+          }
+        } else if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error) {
+            setIsValidSession(true);
             window.history.replaceState({}, document.title, window.location.pathname);
           } else {
             setIsValidSession(false);
@@ -57,7 +70,7 @@ export default function ResetPassword() {
     };
 
     checkSession();
-  }, []);
+  }, [searchParams]);
 
   const validateForm = (): boolean => {
     const newErrors: { password?: string; confirm?: string } = {};
@@ -96,6 +109,7 @@ export default function ResetPassword() {
           .from("profiles")
           .update({ password_reset_required: false })
           .eq("user_id", user.id);
+        await refreshProfile();
       }
 
       toast.success("Password updated successfully!");
@@ -169,6 +183,11 @@ export default function ResetPassword() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Alert className="mb-4 border-accent/30 bg-accent/10 text-foreground">
+            <AlertDescription>
+              For security, your first login requires a new password. Please create a strong password and confirm it below.
+            </AlertDescription>
+          </Alert>
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>

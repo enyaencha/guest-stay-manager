@@ -19,7 +19,7 @@ const nameSchema = z.string().min(2, "Name must be at least 2 characters");
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, signIn, signUp, isLoading } = useAuth();
+  const { user, signIn, signUp, isLoading, passwordResetRequired } = useAuth();
   
   const [secretVerified, setSecretVerified] = useState(false);
   const [secretCode, setSecretCode] = useState("");
@@ -37,9 +37,9 @@ export default function Auth() {
   // Redirect if already logged in
   useEffect(() => {
     if (user && !isLoading) {
-      navigate("/dashboard");
+      navigate(passwordResetRequired ? "/reset-password" : "/dashboard");
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, passwordResetRequired]);
 
   // Check if coming with verified secret from landing page
   useEffect(() => {

@@ -12,7 +12,7 @@ export function ProtectedRoute({
   requiredPermission, 
   requiredRole 
 }: ProtectedRouteProps) {
-  const { user, isLoading, hasPermission, hasRole } = useAuth();
+  const { user, isLoading, hasPermission, hasRole, passwordResetRequired } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -26,6 +26,10 @@ export function ProtectedRoute({
   if (!user) {
     // Redirect to auth page with current location for redirect after login
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  if (passwordResetRequired && location.pathname !== "/reset-password") {
+    return <Navigate to="/reset-password" replace />;
   }
 
   // Check permission if required
