@@ -7,6 +7,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePOSItems, usePOSTransactions, useCreatePOSTransaction, POSItem, CartItem } from "@/hooks/usePOS";
+import { useBookings, useGuests } from "@/hooks/useGuests";
 import { PaymentMethod } from "@/types/pos";
 import { 
   ShoppingCart, 
@@ -26,6 +27,8 @@ const POS = () => {
 
   const { data: posItems = [], isLoading: itemsLoading } = usePOSItems();
   const { data: transactions = [], isLoading: transactionsLoading } = usePOSTransactions();
+  const { data: bookings = [] } = useBookings();
+  const { data: guests = [] } = useGuests();
   const createTransaction = useCreatePOSTransaction();
 
   const todayRevenue = transactions
@@ -71,28 +74,41 @@ const POS = () => {
     setCart(prev => prev.filter(i => i.id !== id));
   };
 
-  const handleCheckout = async (roomNumber: string, paymentMethod: PaymentMethod) => {
+  const handleCheckout = async (
+    selection: { roomNumber?: string; guestId?: string; guestName?: string },
+    paymentMethod: PaymentMethod
+  ) => {
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const tax = subtotal * 0.10;
     const total = subtotal + tax;
 
     try {
+      const guestName =
+        selection.guestName ||
+        (selection.roomNumber ? `Guest - Room ${selection.roomNumber}` : "Walk-in Customer");
+
+      const status = paymentMethod === "room-charge" ? "pending" : "completed";
+
       await createTransaction.mutateAsync({
-        room_number: roomNumber || null,
-        guest_id: null,
-        guest_name: roomNumber ? `Guest - Room ${roomNumber}` : null,
+        room_number: selection.roomNumber || null,
+        guest_id: selection.guestId || null,
+        guest_name: guestName,
         items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price * i.quantity })),
         subtotal,
         tax,
         total,
         payment_method: paymentMethod,
-        status: "completed",
+        status,
         staff_id: null,
         staff_name: "Current Staff",
         notes: null,
       });
       setCart([]);
-      toast.success(`Transaction completed! Total: ${formatKsh(total)}`);
+      toast.success(
+        status === "pending"
+          ? `Transaction saved as pending. Total: ${formatKsh(total)}`
+          : `Transaction completed! Total: ${formatKsh(total)}`
+      );
     } catch (error) {
       // Error handled by mutation
     }
@@ -140,6 +156,19 @@ const POS = () => {
     description: item.description || '',
     available: item.is_available,
   }));
+
+  const roomOptions = bookings
+    .filter((booking) => booking.status === "checked-in")
+    .map((booking) => {
+      const guest = guests.find((g) => g.id === booking.guest_id);
+      return {
+        roomNumber: booking.room_number,
+        guestName: guest?.name || "Guest",
+        guestId: booking.guest_id || undefined,
+        bookingId: booking.id,
+        isCheckedIn: true,
+      };
+    });
 
   return (
     <MainLayout>
@@ -248,6 +277,7 @@ const POS = () => {
                   onRemoveItem={removeItem}
                   onCheckout={handleCheckout}
                   onClearCart={clearCart}
+                  roomOptions={roomOptions}
                 />
               </div>
             </div>

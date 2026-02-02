@@ -92,3 +92,27 @@ export const useCreatePOSTransaction = () => {
     },
   });
 };
+
+export const useUpdatePOSTransaction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<POSTransaction> }) => {
+      const { data, error } = await supabase
+        .from("pos_transactions")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos_transactions"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update POS transaction: " + error.message);
+    },
+  });
+};

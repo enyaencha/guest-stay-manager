@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGuests, useBookings, useUpdateBooking } from "@/hooks/useGuests";
+import { usePOSTransactions, useUpdatePOSTransaction } from "@/hooks/usePOS";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Guest, GuestRequest } from "@/types/guest";
@@ -48,7 +49,9 @@ const Guests = () => {
 
   const { data: guests = [], isLoading: guestsLoading } = useGuests();
   const { data: bookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useBookings();
+  const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
   const updateBooking = useUpdateBooking();
+  const updatePOSTransaction = useUpdatePOSTransaction();
   const queryClient = useQueryClient();
 
   // Fetch guest issues for requests
@@ -58,6 +61,18 @@ const Guests = () => {
       const { data, error } = await supabase
         .from("guest_issues")
         .select("*, guests(name)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: roomAssessments = [] } = useQuery({
+    queryKey: ["room_assessments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("room_assessments")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -113,6 +128,7 @@ const Guests = () => {
     name: g.name,
     email: g.email || '',
     phone: g.phone,
+    bookingId: g.booking?.id,
     roomNumber: g.booking?.room_number || '',
     roomType: (g.booking?.room_type || 'single') as Guest['roomType'],
     checkIn: g.booking?.check_in || '',
@@ -123,6 +139,36 @@ const Guests = () => {
     paidAmount: g.booking?.paid_amount || 0,
     guests: g.booking?.guests_count || 1,
     specialRequests: g.booking?.special_requests || undefined,
+    posTransactions: posTransactions
+      .filter((t) =>
+        (t.guest_id && t.guest_id === g.id) ||
+        (g.booking?.room_number && t.room_number === g.booking.room_number)
+      )
+      .map((t) => ({
+        id: t.id,
+        date: t.created_at,
+        total: t.total,
+        paymentMethod: t.payment_method,
+        status: t.status,
+        itemsSummary: Array.isArray(t.items)
+          ? (t.items as { name: string; quantity: number; price: number }[])
+              .map((item) => `${item.quantity}x ${item.name}`)
+              .join(", ")
+          : "",
+      })),
+    lastAssessment: (() => {
+      const assessment = roomAssessments.find((a) => a.guest_id === g.id);
+      if (!assessment) return undefined;
+      const missingItems = Array.isArray(assessment.missing_items) ? assessment.missing_items : [];
+      const missingCost = missingItems.reduce((sum: number, item: any) => sum + (Number(item.cost) || 0), 0);
+      return {
+        overallCondition: assessment.overall_condition,
+        damagesFound: assessment.damages_found || false,
+        missingItemsCount: missingItems.length,
+        damageCost: Number(assessment.damage_cost) || 0,
+        missingCost,
+      };
+    })(),
   }));
 
   // Convert issues to requests
@@ -175,6 +221,61 @@ const Guests = () => {
     }
   };
 
+  const handleRecordPayment = async (
+    id: string,
+    amount: number,
+    method: "mpesa" | "withdraw" | "card" | "bank-transfer"
+  ) => {
+    const guest = guestsWithBookings.find(g => g.id === id);
+    if (!guest?.booking) return;
+    const currentPaid = guest.booking.paid_amount || 0;
+    const total = guest.booking.total_amount || 0;
+
+    const guestPos = posTransactions.filter((t) => {
+      const matchesGuest = t.guest_id && t.guest_id === guest.id;
+      const matchesRoom = guest.booking?.room_number && t.room_number === guest.booking.room_number;
+      return matchesGuest || matchesRoom;
+    });
+    const pendingPos = guestPos.filter((t) => t.status === "pending");
+    const completedPosTotal = guestPos
+      .filter((t) => t.status === "completed")
+      .reduce((sum, t) => sum + t.total, 0);
+    const pendingTotal = pendingPos.reduce((sum, t) => sum + t.total, 0);
+
+    const assessment = roomAssessments.find((a) => a.guest_id === guest.id);
+    const assessmentMissing = assessment && Array.isArray(assessment.missing_items) ? assessment.missing_items : [];
+    const assessmentMissingCost = assessmentMissing.reduce(
+      (sum: number, item: any) => sum + (Number(item.cost) || 0),
+      0
+    );
+    const assessmentCost = (Number(assessment?.damage_cost) || 0) + assessmentMissingCost;
+
+    const paidTotalBefore = currentPaid + completedPosTotal;
+    const totalDue = total + pendingTotal + assessmentCost;
+
+    const nextPaid = currentPaid + amount;
+    await updateBooking.mutateAsync({
+      id: guest.booking.id,
+      updates: { paid_amount: nextPaid },
+    });
+
+    if (pendingPos.length > 0 && paidTotalBefore + amount >= totalDue) {
+      await Promise.all(
+        pendingPos.map((txn) =>
+          updatePOSTransaction.mutateAsync({
+            id: txn.id,
+            updates: { status: "completed", payment_method: method },
+          })
+        )
+      );
+      toast.success("POS charges marked as paid");
+    } else if (pendingPos.length > 0) {
+      toast.warning("Payment recorded. POS charges still pending (partial payment).");
+    }
+
+    toast.success(`Payment of Ksh ${amount} recorded`);
+  };
+
   const handleUpdateRequestStatus = (id: string, status: GuestRequest["status"]) => {
     updateIssue.mutate({ id, resolved: status === 'completed' });
   };
@@ -189,7 +290,7 @@ const Guests = () => {
     queryClient.invalidateQueries({ queryKey: ["rooms"] });
   };
 
-  const isLoading = guestsLoading || bookingsLoading;
+  const isLoadingAll = guestsLoading || bookingsLoading || posLoading;
 
   return (
     <MainLayout>
@@ -238,7 +339,7 @@ const Guests = () => {
           />
         </div>
 
-        {isLoading ? (
+        {isLoadingAll ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -280,6 +381,7 @@ const Guests = () => {
                     guest={guest}
                     onCheckIn={handleCheckIn}
                     onCheckOut={handleCheckOut}
+                    onRecordPayment={handleRecordPayment}
                   />
                 ))}
               </div>

@@ -39,6 +39,25 @@ const Refunds = () => {
 
       if (error) throw error;
 
+      const bookingIds = (data || [])
+        .map((r) => r.booking_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+      const { data: assessmentsData } = bookingIds.length
+        ? await supabase
+            .from("room_assessments")
+            .select("*")
+            .in("booking_id", bookingIds)
+            .order("created_at", { ascending: false })
+        : { data: [] as any[] };
+
+      const assessmentByBooking = new Map<string, any>();
+      (assessmentsData || []).forEach((assessment) => {
+        if (!assessmentByBooking.has(assessment.booking_id)) {
+          assessmentByBooking.set(assessment.booking_id, assessment);
+        }
+      });
+
       const transformedRefunds: RefundRequest[] = (data || []).map(r => ({
         id: r.id,
         booking_id: r.booking_id || '',
@@ -58,23 +77,27 @@ const Refunds = () => {
         created_at: r.created_at,
         updated_at: r.updated_at,
         guest_name: r.guests?.name,
-        assessment: r.room_assessments ? {
-          id: r.room_assessments.id,
-          booking_id: r.room_assessments.booking_id || undefined,
-          guest_id: r.room_assessments.guest_id || undefined,
-          room_number: r.room_assessments.room_number,
-          assessed_by: r.room_assessments.assessed_by || undefined,
-          assessment_date: r.room_assessments.assessment_date,
-          overall_condition: r.room_assessments.overall_condition as OverallCondition,
-          damages_found: r.room_assessments.damages_found || false,
-          damage_description: r.room_assessments.damage_description || undefined,
-          damage_cost: Number(r.room_assessments.damage_cost) || 0,
-          missing_items: Array.isArray(r.room_assessments.missing_items) ? (r.room_assessments.missing_items as unknown as MissingItem[]) : [],
-          extra_cleaning_required: r.room_assessments.extra_cleaning_required || false,
-          notes: r.room_assessments.notes || undefined,
-          photos: Array.isArray(r.room_assessments.photos) ? (r.room_assessments.photos as unknown as string[]) : [],
-          created_at: r.room_assessments.created_at,
-        } : undefined,
+        assessment: (() => {
+          const assessmentSource = r.room_assessments || assessmentByBooking.get(r.booking_id);
+          if (!assessmentSource) return undefined;
+          return {
+            id: assessmentSource.id,
+            booking_id: assessmentSource.booking_id || undefined,
+            guest_id: assessmentSource.guest_id || undefined,
+            room_number: assessmentSource.room_number,
+            assessed_by: assessmentSource.assessed_by || undefined,
+            assessment_date: assessmentSource.assessment_date,
+            overall_condition: assessmentSource.overall_condition as OverallCondition,
+            damages_found: assessmentSource.damages_found || false,
+            damage_description: assessmentSource.damage_description || undefined,
+            damage_cost: Number(assessmentSource.damage_cost) || 0,
+            missing_items: Array.isArray(assessmentSource.missing_items) ? (assessmentSource.missing_items as unknown as MissingItem[]) : [],
+            extra_cleaning_required: assessmentSource.extra_cleaning_required || false,
+            notes: assessmentSource.notes || undefined,
+            photos: Array.isArray(assessmentSource.photos) ? (assessmentSource.photos as unknown as string[]) : [],
+            created_at: assessmentSource.created_at,
+          };
+        })(),
       }));
 
       setRefunds(transformedRefunds);

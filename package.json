@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "backup:db": "node scripts/run-backup.mjs",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",

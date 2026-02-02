@@ -69,39 +69,34 @@ export const BookingRequestModal = ({
     setIsSubmitting(true);
 
     try {
-      // Create or find guest using maybeSingle to handle 0 rows
-      const { data: existingGuest } = await supabase
-        .from("guests")
-        .select("id")
-        .eq("phone", formData.phone)
-        .maybeSingle();
-
-      let guestId: string;
-
-      if (existingGuest) {
-        guestId = existingGuest.id;
-      } else {
-        const { data: newGuest, error: guestError } = await supabase
-          .from("guests")
-          .insert({
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email || null,
-            id_number: formData.idNumber || null,
-          })
-          .select()
-          .single();
-
-        if (guestError) throw guestError;
-        guestId = newGuest.id;
+      if (!selectedRoomType) {
+        toast.error("Selected room type not found");
+        return;
       }
+      // Create or find guest via RPC to avoid direct guests table access
+      const { data: guestRows, error: guestError } = await supabase
+        .rpc("get_or_create_guest", {
+          name_input: formData.name,
+          phone_input: formData.phone,
+          email_input: formData.email || null,
+          id_number_input: formData.idNumber || null,
+        });
+
+      if (guestError || !guestRows || guestRows.length === 0) {
+        throw guestError ?? new Error("Unable to create guest record");
+      }
+
+      const guestId = guestRows[0].id as string;
 
       // Find an available room of the selected type using maybeSingle
       const { data: availableRoom } = await supabase
         .from("rooms")
         .select("number")
-        .eq("name", `${selectedRoomType?.name} Room`)
+        .eq("room_type_id", selectedRoomType?.id)
+        .eq("is_active", true)
         .eq("occupancy_status", "vacant")
+        .eq("cleaning_status", "clean")
+        .eq("maintenance_status", "none")
         .limit(1)
         .maybeSingle();
 
@@ -113,7 +108,7 @@ export const BookingRequestModal = ({
         .insert({
           guest_id: guestId,
           room_number: roomNumber,
-          room_type: formData.roomType,
+          room_type: selectedRoomType?.name || formData.roomType,
           check_in: formData.checkIn,
           check_out: formData.checkOut,
           guests_count: formData.guests,

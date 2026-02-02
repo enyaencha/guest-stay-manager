@@ -3,6 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { RoomGrid } from "@/components/dashboard/RoomGrid";
 import { AvailabilityCalendar } from "@/components/rooms/AvailabilityCalendar";
 import { RoomDetailModal } from "@/components/rooms/RoomDetailModal";
+import { AddRoomModal } from "@/components/rooms/AddRoomModal";
 import { useRooms, useUpdateRoom, Room as DBRoom } from "@/hooks/useRooms";
 import { useBookings, useGuests } from "@/hooks/useGuests";
 import { Room } from "@/types/room";
@@ -35,6 +36,7 @@ const Rooms = () => {
   
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [addRoomOpen, setAddRoomOpen] = useState(false);
   const [calendarStart, setCalendarStart] = useState(new Date());
   const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
 
@@ -46,7 +48,11 @@ const Rooms = () => {
     if (!dbRooms) return [];
     return dbRooms.map((room) => {
       const roomBookings = bookings
-        .filter((booking) => booking.room_number === room.number)
+        .filter((booking) => {
+          const numberMatch = booking.room_number === room.number;
+          const typeMatch = booking.room_type?.toLowerCase() === room.name.toLowerCase();
+          return numberMatch || typeMatch;
+        })
         .sort((a, b) => parseISO(b.check_in).getTime() - parseISO(a.check_in).getTime());
 
       const latestBooking = roomBookings[0];
@@ -103,7 +109,7 @@ const Rooms = () => {
               <Filter className="h-4 w-4" />
               Filter
             </Button>
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2" onClick={() => setAddRoomOpen(true)}>
               <Plus className="h-4 w-4" />
               Add Room
             </Button>
@@ -168,6 +174,8 @@ const Rooms = () => {
         onOpenChange={setModalOpen}
         onUpdateStatus={handleUpdateRoom}
       />
+
+      <AddRoomModal open={addRoomOpen} onOpenChange={setAddRoomOpen} />
     </MainLayout>
   );
 };

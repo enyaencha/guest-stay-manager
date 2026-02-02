@@ -29,6 +29,7 @@ const initialFormData: BookingFormData = {
   guestName: '',
   guestEmail: '',
   guestPhone: '',
+  guestId: undefined,
   guestCount: 1,
   idNumber: '',
   nationality: 'Kenyan',
@@ -91,13 +92,14 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
   const handleComplete = async () => {
     setIsSaving(true);
     try {
-      // Create guest first
-      const guest = await createGuest.mutateAsync({
-        name: formData.guestName,
-        email: formData.guestEmail || null,
-        phone: formData.guestPhone,
-        id_number: formData.idNumber || null,
-      });
+      const guest = formData.guestId
+        ? { id: formData.guestId }
+        : await createGuest.mutateAsync({
+            name: formData.guestName,
+            email: formData.guestEmail || null,
+            phone: formData.guestPhone,
+            id_number: formData.idNumber || null,
+          });
 
       // Create booking with correct nights calculation
       const nights = differenceInDays(formData.checkOut, formData.checkIn);

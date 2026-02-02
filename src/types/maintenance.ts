@@ -1,5 +1,5 @@
 export type IssuePriority = 'low' | 'medium' | 'high' | 'critical';
-export type IssueStatus = 'open' | 'in-progress' | 'resolved' | 'closed';
+export type IssueStatus = 'open' | 'in-progress' | 'resolved' | 'closed' | 'cancelled';
 export type IssueCategory = 'plumbing' | 'electrical' | 'hvac' | 'appliance' | 'furniture' | 'structural' | 'other';
 
 export interface MaintenanceIssue {

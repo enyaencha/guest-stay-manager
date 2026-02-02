@@ -8,6 +8,11 @@ import { formatKsh } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useBookings, useGuests } from "@/hooks/useGuests";
+import { useMaintenanceIssues } from "@/hooks/useMaintenance";
+import { ReportIssueModal } from "@/components/maintenance/ReportIssueModal";
+import { AddHousekeepingTaskModal } from "@/components/housekeeping/AddHousekeepingTaskModal";
+import { RefundRequestModal } from "@/components/refunds/RefundRequestModal";
+import { RoomAssessmentModal } from "@/components/checkout/RoomAssessmentModal";
 import { 
   BedDouble, 
   Users, 
@@ -23,10 +28,12 @@ import {
   Wrench,
   Calendar,
   User,
-  History
+  History,
+  AlertTriangle,
+  ClipboardList
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 
 interface RoomDetailModalProps {
   room: Room | null;
@@ -49,16 +56,31 @@ const amenityIcons: Record<string, typeof Wifi> = {
 export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: RoomDetailModalProps) {
   const { data: bookings = [] } = useBookings();
   const { data: guests = [] } = useGuests();
+  const { data: maintenanceIssues = [] } = useMaintenanceIssues();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [housekeepingOpen, setHousekeepingOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
+  const autoOpenTriggeredRef = useRef(false);
 
   const guestLookup = useMemo(() => {
     return new Map(guests.map((guest) => [guest.id, guest.name]));
   }, [guests]);
 
-  const historyEntries = useMemo(() => {
+  const roomBookings = useMemo(() => {
     if (!room) return [];
     return bookings
-      .filter((booking) => booking.room_number === room.number)
-      .sort((a, b) => parseISO(b.check_in).getTime() - parseISO(a.check_in).getTime())
+      .filter((booking) => {
+        const numberMatch = booking.room_number === room.number;
+        const typeMatch = booking.room_type?.toLowerCase() === room.name.toLowerCase();
+        return numberMatch || typeMatch;
+      })
+      .sort((a, b) => parseISO(b.check_in).getTime() - parseISO(a.check_in).getTime());
+  }, [bookings, room]);
+
+  const historyEntries = useMemo(() => {
+    if (!room) return [];
+    return roomBookings
       .slice(0, 6)
       .map((booking) => ({
         date: booking.check_out || booking.check_in,
@@ -66,7 +88,40 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
         action: booking.status ? booking.status.replace(/-/g, " ") : "Booking",
         amount: booking.total_amount || 0,
       }));
-  }, [bookings, room?.number, guestLookup, room]);
+  }, [roomBookings, guestLookup, room]);
+
+  const latestBooking = roomBookings[0];
+  const latestGuestName = latestBooking?.guest_id ? guestLookup.get(latestBooking.guest_id) || "Guest" : "Guest";
+
+  const roomIssues = useMemo(() => {
+    if (!room) return [];
+    return maintenanceIssues
+      .filter((issue) => {
+        const numberMatch = issue.room_number === room.number;
+        const idMatch = issue.room_id && issue.room_id === room.id;
+        const nameMatch = issue.room_name && issue.room_name.toLowerCase() === room.name.toLowerCase();
+        return numberMatch || idMatch || nameMatch;
+      })
+      .sort((a, b) => parseISO(b.reported_at).getTime() - parseISO(a.reported_at).getTime());
+  }, [maintenanceIssues, room]);
+
+  useEffect(() => {
+    if (!room || !open) {
+      autoOpenTriggeredRef.current = false;
+      return;
+    }
+    if (autoOpenTriggeredRef.current) return;
+
+    if (room.maintenanceStatus !== "none") {
+      setReportOpen(true);
+      autoOpenTriggeredRef.current = true;
+      return;
+    }
+    if (room.cleaningStatus !== "clean") {
+      setHousekeepingOpen(true);
+      autoOpenTriggeredRef.current = true;
+    }
+  }, [open, room?.maintenanceStatus, room?.cleaningStatus, room]);
 
   if (!room) return null;
 
@@ -85,6 +140,21 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
     clean: { label: 'Clean', class: 'status-available' },
     dirty: { label: 'Dirty', class: 'status-maintenance' },
     'in-progress': { label: 'Cleaning', class: 'status-cleaning' },
+    inspecting: { label: 'Inspecting', class: 'status-cleaning' },
+  };
+
+  const maintenanceConfig = {
+    none: { label: 'No Issues', class: 'status-available' },
+    pending: { label: 'Issue Reported', class: 'status-maintenance' },
+    'in-progress': { label: 'Repair In Progress', class: 'status-maintenance' },
+  };
+
+  const issueStatusConfig: Record<string, { label: string; class: string }> = {
+    open: { label: 'Open', class: 'status-maintenance' },
+    'in-progress': { label: 'In Progress', class: 'status-cleaning' },
+    resolved: { label: 'Resolved', class: 'status-available' },
+    closed: { label: 'Closed', class: 'status-available' },
+    cancelled: { label: 'Cancelled', class: 'status-checkout' },
   };
 
   return (
@@ -122,6 +192,7 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
             <TabsList className="w-full">
               <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
               <TabsTrigger value="status" className="flex-1">Status</TabsTrigger>
+              <TabsTrigger value="alerts" className="flex-1">Alerts</TabsTrigger>
               <TabsTrigger value="history" className="flex-1">History</TabsTrigger>
             </TabsList>
 
@@ -228,6 +299,67 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
               </div>
             </TabsContent>
 
+            <TabsContent value="alerts" className="space-y-4 mt-4">
+              <div className="p-4 rounded-lg border space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-status-maintenance" />
+                  <h4 className="font-medium">Attention Summary</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <span>Cleaning</span>
+                    <Badge className={cn("border", cleaningConfig[room.cleaningStatus].class)}>
+                      {cleaningConfig[room.cleaningStatus].label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <span>Maintenance</span>
+                    <Badge className={cn("border", maintenanceConfig[room.maintenanceStatus].class)}>
+                      {maintenanceConfig[room.maintenanceStatus].label}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Reported Issues</span>
+                  <Badge variant="secondary">{roomIssues.length}</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                  Latest Issues
+                </div>
+                {roomIssues.length > 0 ? (
+                  roomIssues.slice(0, 3).map((issue) => {
+                    const status = issueStatusConfig[issue.status] || issueStatusConfig.open;
+                    return (
+                      <div key={issue.id} className="rounded-lg border p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium">{issue.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {issue.category} • {issue.priority} priority
+                            </p>
+                          </div>
+                          <Badge className={cn("border", status.class)}>{status.label}</Badge>
+                        </div>
+                        {issue.description && (
+                          <p className="text-xs text-muted-foreground">{issue.description}</p>
+                        )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Reported {format(parseISO(issue.reported_at), 'MMM d, h:mm a')}</span>
+                          {issue.assigned_to_name && <span>Assigned to {issue.assigned_to_name}</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-sm text-muted-foreground">No issues reported for this room.</div>
+                )}
+              </div>
+            </TabsContent>
+
             <TabsContent value="history" className="mt-4">
               <div className="space-y-3">
                 {historyEntries.length > 0 ? (
@@ -262,12 +394,70 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
               <Button className="flex-1">Create Booking</Button>
             )}
             {room.occupancyStatus === 'occupied' && (
-              <Button variant="outline" className="flex-1">Process Checkout</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setAssessmentOpen(true)}>
+                Process Checkout
+              </Button>
             )}
-            <Button variant="outline">Report Issue</Button>
+            {latestBooking && latestBooking.guest_id && (
+              <Button variant="outline" className="flex-1" onClick={() => setRefundOpen(true)}>
+                Request Refund
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setHousekeepingOpen(true)}>
+              Create Housekeeping Task
+            </Button>
+            <Button variant="outline" onClick={() => setReportOpen(true)}>
+              Report Issue
+            </Button>
           </div>
         </div>
       </DialogContent>
+
+      <ReportIssueModal
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        initialRoomId={room.id}
+        onIssueCreated={(roomId) => {
+          if (room.maintenanceStatus === "none") {
+            onUpdateStatus?.(roomId, { maintenanceStatus: "pending" });
+          }
+        }}
+      />
+
+      <AddHousekeepingTaskModal
+        open={housekeepingOpen}
+        onOpenChange={setHousekeepingOpen}
+        initialRoomId={room.id}
+        initialTaskType={room.occupancyStatus === "checkout" ? "checkout-clean" : "daily-clean"}
+        initialPriority={room.cleaningStatus === "dirty" ? "high" : "normal"}
+        onTaskCreated={(roomId) => {
+          if (room.cleaningStatus === "clean") {
+            onUpdateStatus?.(roomId, { cleaningStatus: "dirty" });
+          }
+        }}
+      />
+
+      {latestBooking && latestBooking.guest_id && (
+        <>
+          <RoomAssessmentModal
+            open={assessmentOpen}
+            onOpenChange={setAssessmentOpen}
+            bookingId={latestBooking.id}
+            guestId={latestBooking.guest_id}
+            guestName={latestGuestName}
+            roomNumber={room.number}
+          />
+          <RefundRequestModal
+            open={refundOpen}
+            onOpenChange={setRefundOpen}
+            bookingId={latestBooking.id}
+            guestId={latestBooking.guest_id}
+            guestName={latestGuestName}
+            roomNumber={room.number}
+            amountPaid={latestBooking.paid_amount || latestBooking.total_amount || 0}
+          />
+        </>
+      )}
     </Dialog>
   );
 }

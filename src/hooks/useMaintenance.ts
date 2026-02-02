@@ -89,3 +89,27 @@ export const useUpdateMaintenanceIssue = () => {
     },
   });
 };
+
+export const useCreateMaintenanceIssue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (issue: Omit<MaintenanceIssue, "id" | "created_at" | "updated_at">) => {
+      const { data, error } = await supabase
+        .from("maintenance_issues")
+        .insert(issue)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance_issues"] });
+      toast.success("Issue reported successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to report issue: " + error.message);
+    },
+  });
+};

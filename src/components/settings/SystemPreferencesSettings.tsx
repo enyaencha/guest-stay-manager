@@ -1,11 +1,13 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SystemPreferences } from "@/types/settings";
-import { Settings2, AlertTriangle } from "lucide-react";
+import { Settings2, AlertTriangle, DatabaseBackup } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 interface SystemPreferencesSettingsProps {
   preferences: SystemPreferences;
@@ -13,11 +15,57 @@ interface SystemPreferencesSettingsProps {
 }
 
 export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPreferencesSettingsProps) => {
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(
+    localStorage.getItem("lastBackupAt")
+  );
+  const [backupError, setBackupError] = useState<string | null>(null);
+
   const handleChange = (field: keyof SystemPreferences, value: string | boolean) => {
     const updated = { ...preferences, [field]: value };
     onUpdate(updated);
     toast.success("System preferences updated");
   };
+
+  const runBackup = async () => {
+    setIsBackingUp(true);
+    setBackupError(null);
+    try {
+      const response = await fetch("/api/backup", { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Backup failed");
+      }
+      const now = new Date().toISOString();
+      localStorage.setItem("lastBackupAt", now);
+      setLastBackupAt(now);
+      toast.success("Backup created and pushed to git");
+    } catch (error: any) {
+      setBackupError(error.message);
+      toast.error(error.message || "Backup failed");
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!preferences.autoBackup) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const last = localStorage.getItem("lastBackupAt");
+    const lastDay = last ? last.slice(0, 10) : null;
+    if (lastDay !== today) {
+      runBackup();
+    }
+    const timer = setInterval(() => {
+      const current = new Date().toISOString().slice(0, 10);
+      const stored = localStorage.getItem("lastBackupAt");
+      const storedDay = stored ? stored.slice(0, 10) : null;
+      if (storedDay !== current) {
+        runBackup();
+      }
+    }, 60 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [preferences.autoBackup]);
 
   return (
     <Card>
@@ -74,6 +122,29 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
           </div>
 
           <div className="border-t pt-6 space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Database Backup</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Full backup saved to `backups/` and pushed to git.
+                  </p>
+                </div>
+                <Button onClick={runBackup} disabled={isBackingUp}>
+                  <DatabaseBackup className="h-4 w-4 mr-2" />
+                  {isBackingUp ? "Backing up..." : "Backup Now"}
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Last backup: {lastBackupAt ? new Date(lastBackupAt).toLocaleString() : "Never"}
+              </div>
+              {backupError && (
+                <div className="text-xs text-destructive">
+                  Backup failed: {backupError}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="autoBackup" className="text-base">Automatic Backup</Label>

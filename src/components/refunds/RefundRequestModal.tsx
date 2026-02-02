@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, AlertCircle, Calculator } from "lucide-react";
 import type { UtilizedItem, RoomAssessment, OverallCondition, MissingItem } from "@/types/assessment";
+import { RoomAssessmentModal } from "@/components/checkout/RoomAssessmentModal";
 
 interface RefundRequestModalProps {
   open: boolean;
@@ -41,48 +42,52 @@ export function RefundRequestModal({
   const [newItemCost, setNewItemCost] = useState(0);
   const [assessment, setAssessment] = useState<RoomAssessment | null>(null);
   const [loadingAssessment, setLoadingAssessment] = useState(true);
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
+
+  const fetchAssessment = useCallback(async () => {
+    setLoadingAssessment(true);
+    try {
+      const { data, error } = await supabase
+        .from("room_assessments")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        const transformedAssessment: RoomAssessment = {
+          id: data.id,
+          booking_id: data.booking_id || undefined,
+          guest_id: data.guest_id || undefined,
+          room_number: data.room_number,
+          assessed_by: data.assessed_by || undefined,
+          assessment_date: data.assessment_date,
+          overall_condition: data.overall_condition as OverallCondition,
+          damages_found: data.damages_found || false,
+          damage_description: data.damage_description || undefined,
+          damage_cost: Number(data.damage_cost) || 0,
+          missing_items: Array.isArray(data.missing_items) ? (data.missing_items as unknown as MissingItem[]) : [],
+          extra_cleaning_required: data.extra_cleaning_required || false,
+          notes: data.notes || undefined,
+          photos: Array.isArray(data.photos) ? (data.photos as unknown as string[]) : [],
+          created_at: data.created_at,
+        };
+        setAssessment(transformedAssessment);
+      } else {
+        setAssessment(null);
+      }
+    } catch (error) {
+      console.log("No assessment found");
+      setAssessment(null);
+    } finally {
+      setLoadingAssessment(false);
+    }
+  }, [bookingId]);
 
   useEffect(() => {
-    const fetchAssessment = async () => {
-      setLoadingAssessment(true);
-      try {
-        const { data, error } = await supabase
-          .from("room_assessments")
-          .select("*")
-          .eq("booking_id", bookingId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (!error && data) {
-          const transformedAssessment: RoomAssessment = {
-            id: data.id,
-            booking_id: data.booking_id || undefined,
-            guest_id: data.guest_id || undefined,
-            room_number: data.room_number,
-            assessed_by: data.assessed_by || undefined,
-            assessment_date: data.assessment_date,
-            overall_condition: data.overall_condition as OverallCondition,
-            damages_found: data.damages_found || false,
-            damage_description: data.damage_description || undefined,
-            damage_cost: Number(data.damage_cost) || 0,
-            missing_items: Array.isArray(data.missing_items) ? (data.missing_items as unknown as MissingItem[]) : [],
-            extra_cleaning_required: data.extra_cleaning_required || false,
-            notes: data.notes || undefined,
-            photos: Array.isArray(data.photos) ? (data.photos as unknown as string[]) : [],
-            created_at: data.created_at,
-          };
-          setAssessment(transformedAssessment);
-        }
-      } catch (error) {
-        console.log("No assessment found");
-      } finally {
-        setLoadingAssessment(false);
-      }
-    };
-
     if (bookingId && open) fetchAssessment();
-  }, [bookingId, open]);
+  }, [bookingId, open, fetchAssessment]);
 
   const addUtilizedItem = () => {
     if (!newItemName.trim()) return;
@@ -200,10 +205,15 @@ export function RefundRequestModal({
             )}
             {!loadingAssessment && !assessment && (
               <CardContent>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Room assessment recommended before processing refund
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Room assessment pending. You can submit now and attach assessment later.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setAssessmentOpen(true)}>
+                    Complete Assessment
+                  </Button>
+                </div>
               </CardContent>
             )}
           </Card>
@@ -313,6 +323,20 @@ export function RefundRequestModal({
           </div>
         </div>
       </DialogContent>
+
+      <RoomAssessmentModal
+        open={assessmentOpen}
+        onOpenChange={(nextOpen) => {
+          setAssessmentOpen(nextOpen);
+          if (!nextOpen) {
+            fetchAssessment();
+          }
+        }}
+        bookingId={bookingId}
+        guestId={guestId}
+        guestName={guestName}
+        roomNumber={roomNumber}
+      />
     </Dialog>
   );
 }

@@ -24,7 +24,7 @@ interface PaymentStepProps {
 
 const paymentMethods = [
   { id: 'mpesa', label: 'M-Pesa', icon: Smartphone, description: 'Pay via M-Pesa mobile money' },
-  { id: 'cash', label: 'Cash', icon: Banknote, description: 'Pay in cash at reception' },
+  { id: 'withdraw', label: 'Withdraw', icon: Banknote, description: 'Pay via withdraw at reception' },
   { id: 'card', label: 'Card', icon: CreditCard, description: 'Credit or debit card' },
   { id: 'bank-transfer', label: 'Bank Transfer', icon: Building2, description: 'Direct bank transfer' },
 ];

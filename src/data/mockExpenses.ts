@@ -26,7 +26,7 @@ export interface ExpenseRecord {
   nonEtimsAmount: number; // Non-eTIMS amount
   supplier?: string;
   reference?: string;
-  paymentMethod: 'cash' | 'mpesa' | 'bank_transfer' | 'credit';
+  paymentMethod: 'withdraw' | 'mpesa' | 'bank_transfer' | 'credit';
   status: 'paid' | 'pending' | 'partial';
 }
 
@@ -83,7 +83,7 @@ export const mockExpenseRecords: ExpenseRecord[] = [
     etimsAmount: 800,
     nonEtimsAmount: 0,
     supplier: 'Beverage Supplier',
-    paymentMethod: 'cash',
+    paymentMethod: 'withdraw',
     status: 'paid',
   },
   {
@@ -157,7 +157,7 @@ export const mockExpenseRecords: ExpenseRecord[] = [
     etimsAmount: 0,
     nonEtimsAmount: 3500,
     supplier: 'Local Plumber',
-    paymentMethod: 'cash',
+    paymentMethod: 'withdraw',
     status: 'paid',
   },
   {

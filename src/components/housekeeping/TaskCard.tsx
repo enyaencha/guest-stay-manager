@@ -25,13 +25,15 @@ const statusConfig = {
   pending: { label: 'Pending', className: 'bg-status-checkout/10 text-status-checkout' },
   'in-progress': { label: 'In Progress', className: 'bg-status-cleaning/10 text-status-cleaning' },
   completed: { label: 'Completed', className: 'bg-status-available/10 text-status-available' },
+  cancelled: { label: 'Cancelled', className: 'bg-muted text-muted-foreground' },
 };
 
 const typeLabels = {
   'checkout-clean': 'Checkout Clean',
   'daily-clean': 'Daily Clean',
   'deep-clean': 'Deep Clean',
-  'turnover': 'Turnover',
+  'turndown': 'Turndown',
+  'inspection': 'Inspection',
 };
 
 export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNotesUpdate }: TaskCardProps) {

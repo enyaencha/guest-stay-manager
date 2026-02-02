@@ -107,6 +107,30 @@ export const useUpdateRoom = () => {
   });
 };
 
+export const useCreateRoom = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (room: Omit<Room, "id" | "created_at" | "updated_at">) => {
+      const { data, error } = await supabase
+        .from("rooms")
+        .insert(room)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      toast.success("Room added successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to add room: " + error.message);
+    },
+  });
+};
+
 export const useRoomTypes = () => {
   return useQuery({
     queryKey: ["room_types"],

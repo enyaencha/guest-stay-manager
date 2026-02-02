@@ -1,12 +1,12 @@
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
-export type TaskStatus = 'pending' | 'in-progress' | 'completed';
+export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'cancelled';
 
 export interface HousekeepingTask {
   id: string;
   roomId: string;
   roomNumber: string;
   roomName: string;
-  type: 'checkout-clean' | 'daily-clean' | 'deep-clean' | 'turnover';
+  type: 'checkout-clean' | 'daily-clean' | 'deep-clean' | 'turndown' | 'inspection';
   priority: TaskPriority;
   status: TaskStatus;
   assignedTo?: string;

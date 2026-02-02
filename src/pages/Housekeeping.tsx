@@ -2,9 +2,11 @@ import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TaskCard } from "@/components/housekeeping/TaskCard";
 import { StaffCard } from "@/components/housekeeping/StaffCard";
+import { AddHousekeepingTaskModal } from "@/components/housekeeping/AddHousekeepingTaskModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHousekeepingTasks, useHousekeepingStaff, useUpdateHousekeepingTask, HousekeepingTask as DBTask } from "@/hooks/useHousekeeping";
+import { useUpdateRoom } from "@/hooks/useRooms";
 import { HousekeepingTask, HousekeepingStaff } from "@/types/housekeeping";
 import { 
   ClipboardList, 
@@ -50,8 +52,10 @@ const Housekeeping = () => {
   const { data: dbTasks, isLoading: tasksLoading } = useHousekeepingTasks();
   const { data: dbStaff, isLoading: staffLoading } = useHousekeepingStaff();
   const updateTask = useUpdateHousekeepingTask();
+  const updateRoom = useUpdateRoom();
   
   const [filter, setFilter] = useState("all");
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   const tasks = useMemo(() => {
     if (!dbTasks) return [];
@@ -91,6 +95,18 @@ const Housekeeping = () => {
         completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
       },
     });
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (task?.roomId) {
+      const cleaningStatus =
+        newStatus === "in-progress" ? "in-progress" : newStatus === "pending" ? "dirty" : "clean";
+      updateRoom.mutate({
+        id: task.roomId,
+        updates: {
+          cleaning_status: cleaningStatus,
+        },
+      });
+    }
   };
 
   const handleAmenitiesUpdate = (taskId: string, amenities: NonNullable<HousekeepingTask['actualAdded']>) => {
@@ -132,7 +148,7 @@ const Housekeeping = () => {
               Manage cleaning tasks and coordinate staff
             </p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setAddTaskOpen(true)}>
             <Plus className="h-4 w-4" />
             New Task
           </Button>
@@ -224,6 +240,8 @@ const Housekeeping = () => {
           </div>
         </div>
       </div>
+
+      <AddHousekeepingTaskModal open={addTaskOpen} onOpenChange={setAddTaskOpen} />
     </MainLayout>
   );
 };

@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'room-charge' | 'mpesa';
+export type PaymentMethod = 'withdraw' | 'card' | 'mobile' | 'room-charge' | 'mpesa' | 'bank-transfer';
 export type TransactionStatus = 'pending' | 'completed' | 'refunded' | 'cancelled';
 export type POSCategory = 'services' | 'food-beverage' | 'amenities' | 'experiences' | 'packages' | 'beverages' | 'health';
 

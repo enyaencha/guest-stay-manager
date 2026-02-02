@@ -37,7 +37,11 @@ export function AvailabilityCalendar({
 
     return rooms.map(room => {
       const roomBookings = bookings
-        .filter((booking) => booking.room_number === room.number)
+        .filter((booking) => {
+          const numberMatch = booking.room_number === room.number;
+          const typeMatch = booking.room_type?.toLowerCase() === room.name.toLowerCase();
+          return numberMatch || typeMatch;
+        })
         .map((booking) => ({
           booking,
           start: parseISO(booking.check_in),

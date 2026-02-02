@@ -34,6 +34,7 @@ const statusConfig = {
   'in-progress': { label: 'In Progress', className: 'bg-status-cleaning/10 text-status-cleaning' },
   resolved: { label: 'Resolved', className: 'bg-status-available/10 text-status-available' },
   closed: { label: 'Closed', className: 'bg-muted text-muted-foreground' },
+  cancelled: { label: 'Cancelled', className: 'bg-muted text-muted-foreground' },
 };
 
 const categoryConfig = {

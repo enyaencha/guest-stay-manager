@@ -1,9 +1,12 @@
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingFormData } from "@/types/booking";
-import { User, Mail, Phone, Globe, CreditCard } from "lucide-react";
+import { User, Mail, Phone, Globe, CreditCard, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useGuests } from "@/hooks/useGuests";
 
 interface GuestDetailsStepProps {
   formData: BookingFormData;
@@ -26,8 +29,86 @@ const nationalities = [
 ];
 
 export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepProps) {
+  const { data: guests = [] } = useGuests();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showResults, setShowResults] = useState(false);
+
+  const filteredGuests = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return [];
+    return guests.filter((guest) =>
+      guest.name.toLowerCase().includes(query) ||
+      guest.phone.toLowerCase().includes(query) ||
+      (guest.email || "").toLowerCase().includes(query)
+    ).slice(0, 6);
+  }, [guests, searchTerm]);
+
+  const handleSelectGuest = (guest: { id: string; name: string; email: string | null; phone: string; id_number: string | null; }) => {
+    updateFormData({
+      guestId: guest.id,
+      guestName: guest.name,
+      guestEmail: guest.email || "",
+      guestPhone: guest.phone,
+      idNumber: guest.id_number || "",
+    });
+    setSearchTerm(`${guest.name} • ${guest.phone}`);
+    setShowResults(false);
+  };
+
+  const handleClearGuest = () => {
+    updateFormData({ guestId: undefined });
+    setSearchTerm("");
+  };
+
   return (
     <div className="space-y-6">
+      {/* Guest Lookup */}
+      <div className="space-y-2">
+        <Label htmlFor="guestLookup">Search Existing Guest</Label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="guestLookup"
+            placeholder="Search by name, phone, or email"
+            className="pl-10"
+            value={searchTerm}
+            onFocus={() => setShowResults(true)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setShowResults(true);
+            }}
+          />
+          {formData.guestId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              onClick={handleClearGuest}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        {showResults && filteredGuests.length > 0 && (
+          <div className="rounded-md border bg-card shadow-sm">
+            {filteredGuests.map((guest) => (
+              <button
+                key={guest.id}
+                type="button"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                onClick={() => handleSelectGuest(guest)}
+              >
+                <div className="font-medium">{guest.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {guest.phone} {guest.email ? `• ${guest.email}` : ""}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Primary Guest Info */}
       <div className="space-y-4">
         <h3 className="font-medium">Primary Guest Information</h3>

@@ -31,21 +31,23 @@ import { usePOSTransactions } from "@/hooks/usePOS";
 import { formatKsh } from "@/lib/formatters";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useInventoryItems } from "@/hooks/useInventory";
 
 export default function Finance() {
   const [activeTab, setActiveTab] = useState("overview");
   
   const { data: transactions = [], isLoading: transactionsLoading } = useFinanceTransactions();
   const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
+  const { data: inventoryItems = [], isLoading: inventoryLoading } = useInventoryItems();
   
-  // Fetch room supplies for amenity costs
-  const { data: roomSupplies = [], isLoading: suppliesLoading } = useQuery({
-    queryKey: ["room_supplies"],
+  // Fetch housekeeping tasks to derive actual amenity usage
+  const { data: housekeepingTasks = [], isLoading: housekeepingLoading } = useQuery({
+    queryKey: ["housekeeping_tasks_costs"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("room_supplies")
-        .select("*")
-        .order("restocked_at", { ascending: false });
+        .from("housekeeping_tasks")
+        .select("id, room_number, assigned_to_name, actual_added, completed_at, updated_at, created_at")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -61,9 +63,37 @@ export default function Finance() {
   const totalPOSSales = posTransactions
     .filter(t => t.status === 'completed')
     .reduce((sum, s) => sum + s.total, 0);
-  const totalAmenityCosts = roomSupplies.reduce((sum, c) => sum + Number(c.total_cost), 0);
+  const inventoryLookup = new Map(
+    inventoryItems.map((item) => [item.name.toLowerCase(), item])
+  );
 
-  const isLoading = transactionsLoading || posLoading || suppliesLoading;
+  const roomCostsData = housekeepingTasks.flatMap((task: any) => {
+    const addedItems = Array.isArray(task.actual_added) ? task.actual_added : [];
+    if (addedItems.length === 0) return [];
+    return addedItems.map((amenity: any, index: number) => {
+      const inventoryItem = inventoryLookup.get(String(amenity.name || "").toLowerCase());
+      const unitCost = inventoryItem ? Number(inventoryItem.unit_cost) : 0;
+      const quantity = Number(amenity.quantity ?? 0);
+      return {
+        id: `${task.id}-${index}`,
+        date: task.completed_at || task.updated_at || task.created_at,
+        roomNumber: task.room_number,
+        itemName: amenity.name || "Unknown item",
+        quantity,
+        unitCost,
+        totalCost: unitCost * quantity,
+        isComplimentary: true,
+        restockedBy: task.assigned_to_name || "Cleaner",
+      };
+    });
+  });
+
+  const totalAmenityCosts = roomCostsData.reduce((sum, c) => sum + c.totalCost, 0);
+  const restockEvents = housekeepingTasks.filter((task: any) =>
+    Array.isArray(task.actual_added) && task.actual_added.length > 0
+  ).length;
+
+  const isLoading = transactionsLoading || posLoading || inventoryLoading || housekeepingLoading;
 
   // Convert transactions for table
   const tableTransactions = transactions.map(t => ({
@@ -81,26 +111,14 @@ export default function Finance() {
   }));
 
   // Convert POS transactions for table
-  const posSalesData = posTransactions.filter(t => t.status === 'completed').map(t => ({
+  const posSalesData = posTransactions.map(t => ({
     id: t.id,
     date: t.created_at,
     roomNumber: t.room_number || 'Walk-in',
     items: Array.isArray(t.items) ? (t.items as { name: string; quantity: number; price: number }[]).map(i => i.name).join(', ') : '',
     totalAmount: t.total,
-    paymentMethod: t.payment_method,
+    paymentMethod: t.status === "pending" ? `${t.payment_method} (pending)` : t.payment_method,
     staffName: t.staff_name || 'Unknown',
-  }));
-
-  // Convert room supplies for table
-  const roomCostsData = roomSupplies.map(s => ({
-    id: s.id,
-    date: s.restocked_at,
-    roomNumber: s.room_number,
-    itemName: s.item_name,
-    quantity: s.quantity,
-    unitCost: Number(s.unit_cost),
-    totalCost: Number(s.total_cost),
-    isComplimentary: s.is_complimentary ?? true,
   }));
 
   // Mock monthly data for chart (we'd need to aggregate this from transactions)
@@ -159,7 +177,7 @@ export default function Finance() {
                   <div>
                     <h2 className="text-xl font-semibold text-foreground">Kenyan Shilling Series</h2>
                     <p className="text-sm text-muted-foreground">
-                      Visual reference for daily cash handling and reconciliation.
+                      Visual reference for daily withdraw handling and reconciliation.
                     </p>
                   </div>
                   <Badge variant="outline" className="border-primary/20 text-primary w-fit">
@@ -267,11 +285,31 @@ export default function Finance() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="bg-muted/50">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="transactions">All Transactions</TabsTrigger>
-                <TabsTrigger value="pos-sales">POS Sales</TabsTrigger>
-                <TabsTrigger value="room-costs">Room Costs</TabsTrigger>
+              <TabsList className="bg-muted/50 p-1 rounded-full">
+                <TabsTrigger
+                  value="overview"
+                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="transactions"
+                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  All Transactions
+                </TabsTrigger>
+                <TabsTrigger
+                  value="pos-sales"
+                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  POS Sales
+                </TabsTrigger>
+                <TabsTrigger
+                  value="room-costs"
+                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Room Costs
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
@@ -364,7 +402,7 @@ export default function Finance() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Restock Events</p>
-                      <p className="font-bold text-lg text-foreground">{roomCostsData.length}</p>
+                      <p className="font-bold text-lg text-foreground">{restockEvents}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">

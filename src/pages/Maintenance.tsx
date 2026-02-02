@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { IssueCard } from "@/components/maintenance/IssueCard";
+import { ReportIssueModal } from "@/components/maintenance/ReportIssueModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useMaintenanceIssues, useMaintenanceStaff, useUpdateMaintenanceIssue, MaintenanceIssue as DBIssue, MaintenanceStaff as DBStaff } from "@/hooks/useMaintenance";
+import { useUpdateRoom } from "@/hooks/useRooms";
 import { MaintenanceIssue } from "@/types/maintenance";
 import { 
   Wrench, 
@@ -38,8 +40,10 @@ const Maintenance = () => {
   const { data: dbIssues, isLoading: issuesLoading } = useMaintenanceIssues();
   const { data: dbStaff, isLoading: staffLoading } = useMaintenanceStaff();
   const updateIssue = useUpdateMaintenanceIssue();
+  const updateRoom = useUpdateRoom();
   
   const [filter, setFilter] = useState("all");
+  const [reportOpen, setReportOpen] = useState(false);
 
   const issues = useMemo(() => {
     if (!dbIssues) return [];
@@ -65,7 +69,7 @@ const Maintenance = () => {
       case "in-progress":
         return issues.filter(i => i.status === 'in-progress');
       case "resolved":
-        return issues.filter(i => i.status === 'resolved' || i.status === 'closed');
+        return issues.filter(i => i.status === 'resolved' || i.status === 'closed' || i.status === 'cancelled');
       default:
         return issues;
     }
@@ -79,6 +83,18 @@ const Maintenance = () => {
         resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null,
       },
     });
+
+    const issue = issues.find((i) => i.id === issueId);
+    if (issue?.roomId) {
+      const maintenanceStatus =
+        newStatus === "in-progress" ? "in-progress" : newStatus === "open" ? "pending" : "none";
+      updateRoom.mutate({
+        id: issue.roomId,
+        updates: {
+          maintenance_status: maintenanceStatus,
+        },
+      });
+    }
   };
 
   const categoryLabels: Record<string, string> = {
@@ -88,6 +104,7 @@ const Maintenance = () => {
     appliance: 'Appliance',
     furniture: 'Furniture',
     structural: 'Structural',
+    other: 'Other',
   };
 
   if (issuesLoading || staffLoading) {
@@ -111,7 +128,7 @@ const Maintenance = () => {
               Track issues and manage repairs
             </p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setReportOpen(true)}>
             <Plus className="h-4 w-4" />
             Report Issue
           </Button>
@@ -227,6 +244,8 @@ const Maintenance = () => {
           </div>
         </div>
       </div>
+
+      <ReportIssueModal open={reportOpen} onOpenChange={setReportOpen} />
     </MainLayout>
   );
 };

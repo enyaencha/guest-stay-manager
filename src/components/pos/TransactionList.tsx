@@ -1,7 +1,7 @@
 import { Transaction } from "@/types/pos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Receipt, CreditCard, Banknote, Smartphone, DoorOpen } from "lucide-react";
+import { Receipt, CreditCard, Banknote, Smartphone, DoorOpen, Building2 } from "lucide-react";
 import { formatKsh } from "@/lib/formatters";
 
 interface TransactionListProps {
@@ -17,10 +17,11 @@ const statusConfig: Record<Transaction["status"], { label: string; className: st
 
 const paymentIcons: Record<Transaction["paymentMethod"], React.ReactNode> = {
   card: <CreditCard className="h-4 w-4" />,
-  cash: <Banknote className="h-4 w-4" />,
+  withdraw: <Banknote className="h-4 w-4" />,
   mobile: <Smartphone className="h-4 w-4" />,
   mpesa: <Smartphone className="h-4 w-4" />,
   "room-charge": <DoorOpen className="h-4 w-4" />,
+  "bank-transfer": <Building2 className="h-4 w-4" />,
 };
 
 export const TransactionList = ({ transactions }: TransactionListProps) => {

@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatKsh } from "@/lib/formatters";
 import { format } from "date-fns";
+import { RefundRequestModal } from "@/components/refunds/RefundRequestModal";
 import { 
   User, 
   Mail, 
@@ -18,6 +21,7 @@ import {
   Eye,
   MessageSquare,
   Receipt,
+  LogOut,
   Loader2
 } from "lucide-react";
 import {
@@ -32,6 +36,7 @@ interface GuestCardProps {
   guest: Guest;
   onCheckIn?: (id: string) => void;
   onCheckOut?: (id: string) => void;
+  onRecordPayment?: (id: string, amount: number, method: "mpesa" | "withdraw" | "card" | "bank-transfer") => void;
 }
 
 const statusConfig: Record<Guest["status"], { label: string; className: string }> = {
@@ -42,10 +47,15 @@ const statusConfig: Record<Guest["status"], { label: string; className: string }
   "cancelled": { label: "Cancelled", className: "bg-destructive/20 text-destructive" },
 };
 
-export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
+export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: GuestCardProps) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+  const [showOverpayRefund, setShowOverpayRefund] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "withdraw" | "card" | "bank-transfer">("mpesa");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
 
@@ -57,6 +67,118 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
   const paymentColor = paymentStatus === "Paid" 
     ? "bg-status-available/20 text-status-available" 
     : "bg-status-checkout/20 text-status-checkout";
+  const hasAssessmentFlags = !!guest.lastAssessment && (guest.lastAssessment.damagesFound || guest.lastAssessment.missingItemsCount > 0);
+  const assessmentBadge = hasAssessmentFlags
+    ? "bg-destructive/20 text-destructive"
+    : guest.lastAssessment
+      ? "bg-status-available/20 text-status-available"
+      : "bg-muted text-muted-foreground";
+  const assessmentCost =
+    (guest.lastAssessment?.damageCost || 0) + (guest.lastAssessment?.missingCost || 0);
+  const posPendingTotal =
+    guest.posTransactions
+      ?.filter((t) => t.status === "pending")
+      .reduce((sum, t) => sum + Number(t.total), 0) || 0;
+  const posCompletedTotal =
+    guest.posTransactions
+      ?.filter((t) => t.status === "completed")
+      .reduce((sum, t) => sum + Number(t.total), 0) || 0;
+  const totalDue = Number(totalAmount) + posPendingTotal + assessmentCost;
+  const paidTotal = Number(paidAmount) + posCompletedTotal;
+  const balanceDue = Math.max(0, totalDue - paidTotal);
+  const overpayment = Math.max(0, paidTotal - totalDue);
+  const paymentStatusCombined =
+    overpayment > 0 ? "Overpaid" : paidTotal >= totalDue ? "Paid" : paidTotal > 0 ? "Partial" : "Unpaid";
+  const paymentColorCombined =
+    paymentStatusCombined === "Paid"
+      ? "bg-status-available/20 text-status-available"
+      : paymentStatusCombined === "Overpaid"
+        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+        : "bg-status-checkout/20 text-status-checkout";
+
+  const handlePrint = (mode: "invoice" | "receipt") => {
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return;
+
+    const posLines = (guest.posTransactions || []).map((txn) => `
+      <tr>
+        <td>${new Date(txn.date).toLocaleString()}</td>
+        <td>${txn.itemsSummary || "POS Items"}</td>
+        <td>${txn.paymentMethod}</td>
+        <td class="right">${formatKsh(txn.total)}</td>
+      </tr>
+    `).join("");
+
+    const title = mode === "invoice" ? "Invoice" : "Receipt";
+    const summaryRows = mode === "invoice"
+      ? `
+        <tr><td>Room Total</td><td class="right">${formatKsh(totalAmount)}</td></tr>
+        <tr><td>POS Pending</td><td class="right">${formatKsh(posPendingTotal)}</td></tr>
+        <tr><td>Total Due</td><td class="right">${formatKsh(totalDue)}</td></tr>
+      `
+      : `
+        <tr><td>Room Paid</td><td class="right">${formatKsh(paidAmount)}</td></tr>
+        <tr><td>POS Paid</td><td class="right">${formatKsh(posCompletedTotal)}</td></tr>
+        <tr><td>Total Paid</td><td class="right">${formatKsh(paidTotal)}</td></tr>
+      `;
+
+    const extraRow = overpayment > 0
+      ? `<tr><td>Overpayment</td><td class="right">${formatKsh(overpayment)}</td></tr>`
+      : `<tr><td>Balance</td><td class="right">${formatKsh(balanceDue)}</td></tr>`;
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>${title} - ${guest.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+            h1 { margin: 0 0 4px; font-size: 20px; }
+            .muted { color: #666; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border-bottom: 1px solid #eee; padding: 8px; font-size: 12px; vertical-align: top; }
+            th { text-align: left; background: #fafafa; }
+            .right { text-align: right; }
+            .section { margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>${title}</h1>
+          <div class="muted">Guest: ${guest.name} • Room ${guest.roomNumber}</div>
+          <div class="muted">Stay: ${guest.checkIn} - ${guest.checkOut}</div>
+
+          <div class="section">
+            <h2 style="font-size: 14px; margin-bottom: 6px;">Summary</h2>
+            <table>
+              <tbody>
+                ${summaryRows}
+                ${extraRow}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <h2 style="font-size: 14px; margin-bottom: 6px;">POS Line Items</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Items</th>
+                  <th>Method</th>
+                  <th class="right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${posLines || `<tr><td colspan="4">No POS items</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
 
   const handleSendMessage = async () => {
     if (!message.trim()) {
@@ -88,9 +210,17 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
             </div>
             <div className="flex items-center gap-2">
               <Badge className={status.className}>{status.label}</Badge>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+              {paymentStatusCombined === "Overpaid" && (
+                <Badge className={paymentColorCombined}>Overpaid</Badge>
+              )}
+              {guest.lastAssessment && (
+                <Badge className={assessmentBadge}>
+                  {hasAssessmentFlags ? "Assessment Issues" : "Assessment OK"}
+                </Badge>
+              )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -101,7 +231,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
                     </DropdownMenuItem>
                   )}
                   {guest.status === "checked-in" && (
-                    <DropdownMenuItem onClick={() => onCheckOut?.(guest.id)}>
+                    <DropdownMenuItem onClick={() => setShowCheckout(true)}>
                       Check Out Guest
                     </DropdownMenuItem>
                   )}
@@ -208,7 +338,69 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
                   <p className="bg-muted/50 rounded p-2 text-sm">{guest.specialRequests}</p>
                 </div>
               )}
+              {guest.lastAssessment && (
+                <div className="py-2">
+                  <span className="text-muted-foreground block mb-1">Latest Room Assessment</span>
+                  <div className="bg-muted/50 rounded p-2 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span>Condition</span>
+                      <span className="capitalize">{guest.lastAssessment.overallCondition}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Damages</span>
+                      <span>{guest.lastAssessment.damagesFound ? "Yes" : "No"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Missing Items</span>
+                      <span>{guest.lastAssessment.missingItemsCount}</span>
+                    </div>
+                    {(guest.lastAssessment.damageCost > 0 || guest.lastAssessment.missingCost > 0) && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Cost</span>
+                        <span>{formatKsh(guest.lastAssessment.damageCost + guest.lastAssessment.missingCost)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Checkout Type Dialog */}
+      <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Checkout Type</DialogTitle>
+            <DialogDescription>
+              Select how you want to checkout {guest.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Button
+              className="w-full justify-start"
+              onClick={() => {
+                onCheckOut?.(guest.id);
+                setShowCheckout(false);
+              }}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Standard Checkout
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                setShowCheckout(false);
+                if (guest.bookingId) {
+                  setShowRefund(true);
+                }
+              }}
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              Early Checkout + Refund Request
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -258,39 +450,166 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut }: GuestCardProps) => {
                 <Badge className={status.className}>{status.label}</Badge>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Room Type</span>
-                  <span className="capitalize">{guest.roomType}</span>
+            <div className="space-y-3">
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Room Type</span>
+                <span className="capitalize">{guest.roomType}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Stay Period</span>
+                <span>{guest.checkIn} - {guest.checkOut}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Room Total</span>
+                <span className="font-medium">{formatKsh(totalAmount)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">POS Pending</span>
+                <span className="font-medium">{formatKsh(posPendingTotal)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Damages / Missing</span>
+                <span className="font-medium">{formatKsh(assessmentCost)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Total Due (Room + POS)</span>
+                <span className="font-medium">{formatKsh(totalDue)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Paid Amount (Room + POS)</span>
+                <span className="font-medium text-status-available">{formatKsh(paidTotal)}</span>
+              </div>
+              {overpayment > 0 ? (
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Overpayment</span>
+                  <span className="font-semibold text-blue-600">{formatKsh(overpayment)}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Stay Period</span>
-                  <span>{guest.checkIn} - {guest.checkOut}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Total Amount</span>
-                  <span className="font-medium">{formatKsh(totalAmount)}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Paid Amount</span>
-                  <span className="font-medium text-status-available">{formatKsh(paidAmount)}</span>
-                </div>
+              ) : (
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Balance</span>
-                  <span className={`font-semibold ${totalAmount - paidAmount > 0 ? 'text-status-maintenance' : 'text-status-available'}`}>
-                    {formatKsh(totalAmount - paidAmount)}
+                  <span className={`font-semibold ${balanceDue > 0 ? 'text-status-maintenance' : 'text-status-available'}`}>
+                    {formatKsh(balanceDue)}
                   </span>
                 </div>
-              </div>
+              )}
             </div>
+          </div>
 
-            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="font-medium">Payment Status</span>
-              <Badge className={paymentColor}>{paymentStatus}</Badge>
+          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+            <span className="font-medium">Payment Status</span>
+            <Badge className={paymentColorCombined}>{paymentStatusCombined}</Badge>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => handlePrint("invoice")}>
+              Print Invoice
+            </Button>
+            <Button variant="outline" onClick={() => handlePrint("receipt")}>
+              Print Receipt
+            </Button>
+            {overpayment > 0 && guest.bookingId && (
+              <Button variant="outline" onClick={() => setShowOverpayRefund(true)}>
+                Request Overpayment Refund
+              </Button>
+            )}
+          </div>
+
+            {guest.posTransactions && guest.posTransactions.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">POS Purchases</span>
+                  <span className="text-sm font-semibold">{formatKsh(posPendingTotal + posCompletedTotal)}</span>
+                </div>
+                <div className="space-y-2">
+                  {guest.posTransactions.map((txn) => (
+                    <div key={txn.id} className="rounded-md border bg-muted/50 p-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{formatKsh(txn.total)}</span>
+                        <span className="capitalize">{txn.paymentMethod}</span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {new Date(txn.date).toLocaleString()} • {txn.itemsSummary || "Items"} • {txn.status}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor={`payment-${guest.id}`}>Record Payment</Label>
+              <div className="flex gap-2">
+                <Input
+                  id={`payment-${guest.id}`}
+                  type="number"
+                  min={0}
+                  placeholder="Amount"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                />
+                <Button
+                  onClick={() => {
+                    if (paymentAmount <= 0) return;
+                    onRecordPayment?.(guest.id, paymentAmount, paymentMethod);
+                    setPaymentAmount(0);
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "mpesa", label: "M-Pesa" },
+                    { value: "withdraw", label: "Withdraw" },
+                    { value: "card", label: "Card" },
+                    { value: "bank-transfer", label: "Bank Transfer" },
+                  ].map((method) => (
+                    <Button
+                      key={method.value}
+                      type="button"
+                      variant={paymentMethod === method.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPaymentMethod(method.value as typeof paymentMethod)}
+                    >
+                      {method.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Add a payment received from the guest.
+              </p>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {guest.bookingId && (
+        <RefundRequestModal
+          open={showRefund}
+          onOpenChange={setShowRefund}
+          bookingId={guest.bookingId}
+          guestId={guest.id}
+          guestName={guest.name}
+          roomNumber={guest.roomNumber}
+          amountPaid={paidAmount}
+          onComplete={() => onCheckOut?.(guest.id)}
+        />
+      )}
+
+      {guest.bookingId && overpayment > 0 && (
+        <RefundRequestModal
+          open={showOverpayRefund}
+          onOpenChange={setShowOverpayRefund}
+          bookingId={guest.bookingId}
+          guestId={guest.id}
+          guestName={guest.name}
+          roomNumber={guest.roomNumber}
+          amountPaid={overpayment}
+        />
+      )}
     </>
   );
 };

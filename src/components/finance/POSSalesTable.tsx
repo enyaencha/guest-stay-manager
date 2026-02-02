@@ -16,8 +16,8 @@ interface POSSalesTableProps {
 }
 
 const paymentMethodStyles: Record<string, string> = {
-  'cash': 'bg-status-available/10 text-status-available border-status-available/20',
-  'Cash': 'bg-status-available/10 text-status-available border-status-available/20',
+  'withdraw': 'bg-status-available/10 text-status-available border-status-available/20',
+  'Withdraw': 'bg-status-available/10 text-status-available border-status-available/20',
   'card': 'bg-primary/10 text-primary border-primary/20',
   'Card': 'bg-primary/10 text-primary border-primary/20',
   'mpesa': 'bg-status-checkout/10 text-status-checkout border-status-checkout/20',

@@ -12,6 +12,7 @@ export interface BookingFormData {
   guestName: string;
   guestEmail: string;
   guestPhone: string;
+  guestId?: string;
   guestCount: number;
   idNumber: string;
   nationality: string;
@@ -20,7 +21,7 @@ export interface BookingFormData {
   // Step 3: Payment
   totalAmount: number;
   depositAmount: number;
-  paymentMethod: 'cash' | 'mpesa' | 'card' | 'bank-transfer';
+  paymentMethod: 'withdraw' | 'mpesa' | 'card' | 'bank-transfer';
   paymentStatus: 'pending' | 'partial' | 'paid';
 }
 

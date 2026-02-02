@@ -5,11 +5,27 @@ export interface Guest {
   name: string;
   email: string;
   phone: string;
+  bookingId?: string;
   roomNumber: string;
   roomType: string;
   checkIn: string;
   checkOut: string;
   status: GuestStatus;
+  posTransactions?: Array<{
+    id: string;
+    date: string;
+    total: number;
+    paymentMethod: string;
+    itemsSummary: string;
+    status: string;
+  }>;
+  lastAssessment?: {
+    overallCondition: string;
+    damagesFound: boolean;
+    missingItemsCount: number;
+    damageCost: number;
+    missingCost: number;
+  };
   guests?: number;
   specialRequests?: string;
   totalAmount?: number;

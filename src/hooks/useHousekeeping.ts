@@ -90,3 +90,27 @@ export const useUpdateHousekeepingTask = () => {
     },
   });
 };
+
+export const useCreateHousekeepingTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (task: Omit<HousekeepingTask, "id" | "created_at" | "updated_at">) => {
+      const { data, error } = await supabase
+        .from("housekeeping_tasks")
+        .insert(task)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["housekeeping_tasks"] });
+      toast.success("Task created successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to create task: " + error.message);
+    },
+  });
+};

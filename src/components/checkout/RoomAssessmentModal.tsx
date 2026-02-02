@@ -93,6 +93,11 @@ export function RoomAssessmentModal({
 
       if (assessmentError) throw assessmentError;
 
+      await supabase
+        .from("refund_requests")
+        .update({ room_assessment_id: assessment.id })
+        .eq("booking_id", bookingId);
+
       // If issue should be tagged to guest
       if (tagIssue && (damagesFound || missingItems.length > 0)) {
         const { error: issueError } = await supabase

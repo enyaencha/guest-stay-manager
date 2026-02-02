@@ -1,7 +1,6 @@
 import { CartItem, PaymentMethod } from "@/types/pos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Select,
@@ -14,12 +13,24 @@ import { ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Smartphone, Do
 import { useState } from "react";
 import { formatKsh } from "@/lib/formatters";
 
+interface RoomOption {
+  roomNumber: string;
+  guestName: string;
+  guestId?: string;
+  bookingId?: string;
+  isCheckedIn: boolean;
+}
+
 interface CartPanelProps {
   items: CartItem[];
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemoveItem: (id: string) => void;
-  onCheckout: (roomNumber: string, paymentMethod: PaymentMethod) => void;
+  onCheckout: (
+    selection: { roomNumber?: string; guestId?: string; guestName?: string },
+    paymentMethod: PaymentMethod
+  ) => void;
   onClearCart: () => void;
+  roomOptions: RoomOption[];
 }
 
 const TAX_RATE = 0.10;
@@ -29,19 +40,29 @@ export const CartPanel = ({
   onUpdateQuantity, 
   onRemoveItem, 
   onCheckout,
-  onClearCart 
+  onClearCart,
+  roomOptions
 }: CartPanelProps) => {
-  const [roomNumber, setRoomNumber] = useState("");
+  const [roomNumber, setRoomNumber] = useState<string>("walk-in");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
+  const selectedRoom =
+    roomNumber === "walk-in" ? undefined : roomOptions.find((room) => room.roomNumber === roomNumber);
 
   const handleCheckout = () => {
-    if (!roomNumber) return;
-    onCheckout(roomNumber, paymentMethod);
-    setRoomNumber("");
+    if (paymentMethod === "room-charge" && roomNumber === "walk-in") return;
+    onCheckout(
+      {
+        roomNumber: roomNumber === "walk-in" ? undefined : roomNumber,
+        guestId: selectedRoom?.guestId,
+        guestName: selectedRoom?.guestName,
+      },
+      paymentMethod
+    );
+    setRoomNumber("walk-in");
   };
 
   return (
@@ -112,13 +133,26 @@ export const CartPanel = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="room">Room Number</Label>
-                <Input 
-                  id="room" 
-                  placeholder="e.g., 101" 
-                  value={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.value)}
-                />
+                <Label>Room (optional)</Label>
+                <Select value={roomNumber} onValueChange={setRoomNumber}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Walk-in / No room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="walk-in">Walk-in / No room</SelectItem>
+                    {roomOptions.map((room) => (
+                      <SelectItem key={room.roomNumber} value={room.roomNumber}>
+                        Room {room.roomNumber} • {room.guestName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedRoom && (
+                  <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    Guest: <span className="font-medium text-foreground">{selectedRoom.guestName}</span> •{" "}
+                    {selectedRoom.isCheckedIn ? "Checked In" : "Not Checked In"}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -134,10 +168,10 @@ export const CartPanel = ({
                         Credit Card
                       </div>
                     </SelectItem>
-                    <SelectItem value="cash">
+                    <SelectItem value="withdraw">
                       <div className="flex items-center gap-2">
                         <Banknote className="h-4 w-4" />
-                        Cash
+                        Withdraw
                       </div>
                     </SelectItem>
                     <SelectItem value="mobile">
@@ -160,7 +194,11 @@ export const CartPanel = ({
                 <Button variant="outline" className="flex-1" onClick={onClearCart}>
                   Clear
                 </Button>
-                <Button className="flex-1" disabled={!roomNumber} onClick={handleCheckout}>
+                <Button
+                  className="flex-1"
+                  disabled={paymentMethod === "room-charge" && roomNumber === "walk-in"}
+                  onClick={handleCheckout}
+                >
                   Checkout
                 </Button>
               </div>

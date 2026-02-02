@@ -35,6 +35,22 @@ interface Booking {
   created_at: string;
 }
 
+interface BookingLookupRow {
+  guest_id: string;
+  guest_name: string;
+  booking_id: string;
+  room_number: string;
+  room_type: string;
+  check_in: string;
+  check_out: string;
+  guests_count: number;
+  total_amount: number;
+  paid_amount: number;
+  status: string;
+  special_requests: string | null;
+  created_at: string;
+}
+
 interface ReservationLookupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,37 +89,32 @@ export const ReservationLookupModal = ({ open, onOpenChange }: ReservationLookup
     setBookings(null);
 
     try {
-      // Find guest by phone
-      const { data: guest, error: guestError } = await supabase
-        .from("guests")
-        .select("id, name")
-        .eq("phone", phone)
-        .single();
+      const { data: rows, error: lookupError } = await supabase
+        .rpc("lookup_bookings_by_phone", { phone_input: phone });
 
-      if (guestError || !guest) {
+      if (lookupError || !rows || rows.length === 0) {
         toast.error("No bookings found for this phone number");
         setIsSearching(false);
         return;
       }
 
-      setGuestName(guest.name);
-
-      // Get all bookings for this guest
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("guest_id", guest.id)
-        .order("check_in", { ascending: false });
-
-      if (bookingsError) throw bookingsError;
-
-      if (!bookingsData || bookingsData.length === 0) {
-        toast.error("No bookings found");
-        setIsSearching(false);
-        return;
-      }
-
-      setBookings(bookingsData);
+      const typedRows = rows as BookingLookupRow[];
+      setGuestName(typedRows[0].guest_name);
+      setBookings(
+        typedRows.map((row) => ({
+          id: row.booking_id,
+          room_number: row.room_number,
+          room_type: row.room_type,
+          check_in: row.check_in,
+          check_out: row.check_out,
+          guests_count: row.guests_count,
+          total_amount: row.total_amount,
+          paid_amount: row.paid_amount,
+          status: row.status,
+          special_requests: row.special_requests,
+          created_at: row.created_at,
+        }))
+      );
     } catch (error: any) {
       console.error("Search error:", error);
       toast.error("Failed to find bookings");

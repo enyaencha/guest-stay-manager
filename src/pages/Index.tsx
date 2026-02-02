@@ -6,6 +6,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FilterTabs } from "@/components/dashboard/FilterTabs";
 import { SystemStatusWidget } from "@/components/dashboard/SystemStatusWidget";
 import { BookingWizard } from "@/components/booking/BookingWizard";
+import { AddRoomModal } from "@/components/rooms/AddRoomModal";
 import { useRooms, useRoomStats, Room } from "@/hooks/useRooms";
 import { useGuests } from "@/hooks/useGuests";
 import { 
@@ -20,6 +21,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 // Map database room to legacy Room type for RoomGrid
 const mapToLegacyRoom = (room: Room) => ({
@@ -40,6 +42,8 @@ const mapToLegacyRoom = (room: Room) => ({
 const Index = () => {
   const [filter, setFilter] = useState("all");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [addRoomOpen, setAddRoomOpen] = useState(false);
+  const navigate = useNavigate();
   
   const { data: rooms, isLoading } = useRooms();
   const { data: guests = [] } = useGuests();
@@ -106,7 +110,12 @@ const Index = () => {
               <Plus className="h-4 w-4 mr-2" />
               New Booking
             </Button>
-            <QuickActions />
+            <QuickActions
+              onAddRoom={() => setAddRoomOpen(true)}
+              onHousekeeping={() => navigate("/housekeeping")}
+              onMaintenance={() => navigate("/maintenance")}
+              onNewSale={() => navigate("/pos")}
+            />
           </div>
         </div>
 
@@ -182,6 +191,7 @@ const Index = () => {
       </div>
 
       <BookingWizard open={bookingOpen} onOpenChange={setBookingOpen} />
+      <AddRoomModal open={addRoomOpen} onOpenChange={setAddRoomOpen} />
     </MainLayout>
   );
 };

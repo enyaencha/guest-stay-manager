@@ -101,7 +101,7 @@ export const ForecastChart = ({
                     className="text-muted-foreground"
                   />
                   <Tooltip 
-                    formatter={(value: number) => formatKsh(value)}
+                    formatter={(value: number | null) => (value == null ? "-" : formatKsh(value))}
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--background))',
                       border: '1px solid hsl(var(--border))',
