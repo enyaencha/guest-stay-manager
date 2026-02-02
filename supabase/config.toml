@@ -1,1 +1,7 @@
 project_id = "dhmikjnotrvewpwtehfl"
+
+[functions.ai-analytics]
+verify_jwt = false
+
+[functions.database-backup]
+verify_jwt = false

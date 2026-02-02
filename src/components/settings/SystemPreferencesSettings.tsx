@@ -4,10 +4,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SystemPreferences } from "@/types/settings";
-import { Settings2, AlertTriangle, DatabaseBackup } from "lucide-react";
+import { Settings2, AlertTriangle, DatabaseBackup, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SystemPreferencesSettingsProps {
   preferences: SystemPreferences;
@@ -31,16 +32,38 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
     setIsBackingUp(true);
     setBackupError(null);
     try {
-      const response = await fetch("/api/backup", { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || "Backup failed");
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("You must be logged in to perform a backup");
       }
+
+      const { data, error } = await supabase.functions.invoke("database-backup", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Backup failed");
+      }
+
+      // Download the backup as a JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
       const now = new Date().toISOString();
       localStorage.setItem("lastBackupAt", now);
       setLastBackupAt(now);
-      toast.success("Backup created and pushed to git");
+      toast.success("Backup downloaded successfully");
     } catch (error: any) {
+      console.error("Backup error:", error);
       setBackupError(error.message);
       toast.error(error.message || "Backup failed");
     } finally {
@@ -127,12 +150,12 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
                 <div className="space-y-0.5">
                   <Label className="text-base">Database Backup</Label>
                   <p className="text-sm text-muted-foreground">
-                    Full backup saved to `backups/` and pushed to git.
+                    Export all database tables as a JSON file download.
                   </p>
                 </div>
                 <Button onClick={runBackup} disabled={isBackingUp}>
-                  <DatabaseBackup className="h-4 w-4 mr-2" />
-                  {isBackingUp ? "Backing up..." : "Backup Now"}
+                  <Download className="h-4 w-4 mr-2" />
+                  {isBackingUp ? "Exporting..." : "Export Backup"}
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground">
