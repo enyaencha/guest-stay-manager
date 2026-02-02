@@ -166,7 +166,7 @@ const Guests = () => {
         damagesFound: assessment.damages_found || false,
         missingItemsCount: missingItems.length,
         damageCost: Number(assessment.damage_cost) || 0,
-        missingCost,
+        missingCost: Number(missingCost),
       };
     })(),
   }));
@@ -248,7 +248,7 @@ const Guests = () => {
       (sum: number, item: any) => sum + (Number(item.cost) || 0),
       0
     );
-    const assessmentCost = (Number(assessment?.damage_cost) || 0) + assessmentMissingCost;
+    const assessmentCost = Number(assessment?.damage_cost || 0) + Number(assessmentMissingCost);
 
     const paidTotalBefore = currentPaid + completedPosTotal;
     const totalDue = total + pendingTotal + assessmentCost;

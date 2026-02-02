@@ -75,18 +75,18 @@ export const BookingRequestModal = ({
       }
       // Create or find guest via RPC to avoid direct guests table access
       const { data: guestRows, error: guestError } = await supabase
-        .rpc("get_or_create_guest", {
+        .rpc("get_or_create_guest" as any, {
           name_input: formData.name,
           phone_input: formData.phone,
           email_input: formData.email || null,
           id_number_input: formData.idNumber || null,
         });
 
-      if (guestError || !guestRows || guestRows.length === 0) {
+      if (guestError || !guestRows || (guestRows as any[]).length === 0) {
         throw guestError ?? new Error("Unable to create guest record");
       }
 
-      const guestId = guestRows[0].id as string;
+      const guestId = (guestRows as any[])[0].id as string;
 
       // Find an available room of the selected type using maybeSingle
       const { data: availableRoom } = await supabase

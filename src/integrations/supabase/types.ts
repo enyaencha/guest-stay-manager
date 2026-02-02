@@ -1481,6 +1481,18 @@ export type Database = {
     }
     Functions: {
       deactivate_expired_staff: { Args: never; Returns: undefined }
+      get_or_create_guest: {
+        Args: {
+          email_input: string
+          id_number_input: string
+          name_input: string
+          phone_input: string
+        }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
       has_permission: {
         Args: { _permission: string; _user_id: string }
@@ -1499,6 +1511,24 @@ export type Database = {
           _old_values?: Json
         }
         Returns: string
+      }
+      lookup_bookings_by_phone: {
+        Args: { phone_input: string }
+        Returns: {
+          booking_id: string
+          check_in: string
+          check_out: string
+          created_at: string
+          guest_id: string
+          guest_name: string
+          guests_count: number
+          paid_amount: number
+          room_number: string
+          room_type: string
+          special_requests: string
+          status: string
+          total_amount: number
+        }[]
       }
       verify_staff_secret: { Args: { _secret: string }; Returns: boolean }
     }
