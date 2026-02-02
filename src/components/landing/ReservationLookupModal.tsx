@@ -90,15 +90,15 @@ export const ReservationLookupModal = ({ open, onOpenChange }: ReservationLookup
 
     try {
       const { data: rows, error: lookupError } = await supabase
-        .rpc("lookup_bookings_by_phone", { phone_input: phone });
+        .rpc("lookup_bookings_by_phone" as any, { phone_input: phone });
 
-      if (lookupError || !rows || rows.length === 0) {
+      if (lookupError || !rows || (rows as any[]).length === 0) {
         toast.error("No bookings found for this phone number");
         setIsSearching(false);
         return;
       }
 
-      const typedRows = rows as BookingLookupRow[];
+      const typedRows = rows as unknown as BookingLookupRow[];
       setGuestName(typedRows[0].guest_name);
       setBookings(
         typedRows.map((row) => ({
