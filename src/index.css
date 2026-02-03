@@ -19,38 +19,38 @@
 @layer base {
   :root {
     /* Luxury Gold & Ivory + Emerald Palette */
-    --background: 209 40% 96%;
-    --foreground: 222 47% 11%;
+    --background: 45 30% 98%;
+    --foreground: 35 25% 12%;
 
-    --card: 210 40% 98%;
-    --card-foreground: 222 47% 11%;
+    --card: 45 30% 100%;
+    --card-foreground: 35 25% 12%;
 
-    --popover: 214 31% 91%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 45 30% 100%;
+    --popover-foreground: 35 25% 12%;
 
     /* Deep emerald - trust & luxury */
-    --primary: 216 19% 26%;
-    --primary-foreground: 210 19% 98%;
+    --primary: 158 45% 22%;
+    --primary-foreground: 45 50% 96%;
 
     /* Warm gold accent */
-    --secondary: 215 19% 34%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 42 75% 92%;
+    --secondary-foreground: 35 55% 28%;
 
-    --muted: 215 20% 65%;
-    --muted-foreground: 222 47% 11%;
+    --muted: 45 20% 95%;
+    --muted-foreground: 35 15% 45%;
 
     /* Gold accent for highlights */
-    --accent: 210 40% 98%;
-    --accent-foreground: 215 16% 46%;
+    --accent: 42 85% 50%;
+    --accent-foreground: 35 25% 12%;
 
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 45 50% 98%;
 
-    --border: 212 26% 83%;
-    --input: 212 26% 83%;
-    --ring: 216 19% 26%;
+    --border: 42 25% 88%;
+    --input: 42 25% 88%;
+    --ring: 158 45% 35%;
 
-    --radius: 0rem;
+    --radius: 0.625rem;
 
     /* Luxury status colors */
     --status-available: 158 55% 38%;
@@ -68,13 +68,13 @@
 
     /* Luxury Sidebar - Deep Emerald */
     --sidebar-background: 158 45% 12%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 216 19% 26%;
-    --sidebar-primary-foreground: 210 19% 98%;
-    --sidebar-accent: 215 19% 34%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 212 26% 83%;
-    --sidebar-ring: 216 19% 26%;
+    --sidebar-foreground: 45 30% 92%;
+    --sidebar-primary: 42 85% 55%;
+    --sidebar-primary-foreground: 35 25% 12%;
+    --sidebar-accent: 158 40% 18%;
+    --sidebar-accent-foreground: 45 30% 95%;
+    --sidebar-border: 158 35% 20%;
+    --sidebar-ring: 42 85% 55%;
     --chart-1: 217 10% 64%;
     --chart-2: 215 20% 65%;
     --chart-3: 215 16% 46%;
@@ -97,42 +97,42 @@
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    --background: 158 25% 8%;
+    --foreground: 45 30% 95%;
 
-    --card: 217 32% 17%;
-    --card-foreground: 210 40% 98%;
+    --card: 158 25% 11%;
+    --card-foreground: 45 30% 95%;
 
-    --popover: 215 24% 26%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 158 25% 11%;
+    --popover-foreground: 45 30% 95%;
 
-    --primary: 212 26% 83%;
-    --primary-foreground: 228 84% 4%;
+    --primary: 42 85% 55%;
+    --primary-foreground: 158 45% 12%;
 
-    --secondary: 215 19% 34%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 158 30% 18%;
+    --secondary-foreground: 45 30% 90%;
 
-    --muted: 215 16% 46%;
-    --muted-foreground: 210 40% 98%;
+    --muted: 158 25% 15%;
+    --muted-foreground: 45 20% 60%;
 
-    --accent: 228 84% 4%;
-    --accent-foreground: 215 20% 65%;
+    --accent: 42 85% 55%;
+    --accent-foreground: 158 45% 12%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 45 50% 98%;
 
-    --border: 215 19% 34%;
-    --input: 215 19% 34%;
-    --ring: 212 26% 83%;
+    --border: 158 25% 20%;
+    --input: 158 25% 20%;
+    --ring: 42 85% 55%;
 
     --sidebar-background: 158 45% 6%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 212 26% 83%;
-    --sidebar-primary-foreground: 228 84% 4%;
-    --sidebar-accent: 215 20% 65%;
-    --sidebar-accent-foreground: 228 84% 4%;
-    --sidebar-border: 215 19% 34%;
-    --sidebar-ring: 212 26% 83%;
+    --sidebar-foreground: 45 30% 90%;
+    --sidebar-primary: 42 85% 55%;
+    --sidebar-primary-foreground: 158 45% 12%;
+    --sidebar-accent: 158 40% 12%;
+    --sidebar-accent-foreground: 45 30% 95%;
+    --sidebar-border: 158 30% 15%;
+    --sidebar-ring: 42 85% 55%;
     --chart-1: 215 12% 83%;
     --chart-2: 212 26% 83%;
     --chart-3: 215 20% 65%;
