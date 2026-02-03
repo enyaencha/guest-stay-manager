@@ -12,41 +12,45 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
 
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
+
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap");
+
 @layer base {
   :root {
     /* Luxury Gold & Ivory + Emerald Palette */
-    --background: 45 30% 98%;
-    --foreground: 35 25% 12%;
+    --background: 209 40% 96%;
+    --foreground: 222 47% 11%;
 
-    --card: 45 30% 100%;
-    --card-foreground: 35 25% 12%;
+    --card: 210 40% 98%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 45 30% 100%;
-    --popover-foreground: 35 25% 12%;
+    --popover: 214 31% 91%;
+    --popover-foreground: 222 47% 11%;
 
     /* Deep emerald - trust & luxury */
-    --primary: 158 45% 22%;
-    --primary-foreground: 45 50% 96%;
+    --primary: 216 19% 26%;
+    --primary-foreground: 210 19% 98%;
 
     /* Warm gold accent */
-    --secondary: 42 75% 92%;
-    --secondary-foreground: 35 55% 28%;
+    --secondary: 215 19% 34%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 45 20% 95%;
-    --muted-foreground: 35 15% 45%;
+    --muted: 215 20% 65%;
+    --muted-foreground: 222 47% 11%;
 
     /* Gold accent for highlights */
-    --accent: 42 85% 50%;
-    --accent-foreground: 35 25% 12%;
+    --accent: 210 40% 98%;
+    --accent-foreground: 215 16% 46%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 45 50% 98%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 85% 97%;
 
-    --border: 42 25% 88%;
-    --input: 42 25% 88%;
-    --ring: 158 45% 35%;
+    --border: 212 26% 83%;
+    --input: 212 26% 83%;
+    --ring: 216 19% 26%;
 
-    --radius: 0.625rem;
+    --radius: 0rem;
 
     /* Luxury status colors */
     --status-available: 158 55% 38%;
@@ -64,22 +68,22 @@
 
     /* Luxury Sidebar - Deep Emerald */
     --sidebar-background: 158 45% 12%;
-    --sidebar-foreground: 45 30% 92%;
-    --sidebar-primary: 42 85% 55%;
-    --sidebar-primary-foreground: 35 25% 12%;
-    --sidebar-accent: 158 40% 18%;
-    --sidebar-accent-foreground: 45 30% 95%;
-    --sidebar-border: 158 35% 20%;
-    --sidebar-ring: 42 85% 55%;
-    --chart-1: 41 22.2% 64.6%;
-    --chart-2: 185 11.8% 60%;
-    --chart-3: 227 7% 39.8%;
-    --chart-4: 84 18.9% 82.8%;
-    --chart-5: 70 18.8% 76.9%;
-    --sidebar: 248 0.3% 98.4%;
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 216 19% 26%;
+    --sidebar-primary-foreground: 210 19% 98%;
+    --sidebar-accent: 215 19% 34%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 212 26% 83%;
+    --sidebar-ring: 216 19% 26%;
+    --chart-1: 217 10% 64%;
+    --chart-2: 215 20% 65%;
+    --chart-3: 215 16% 46%;
+    --chart-4: 219 8% 46%;
+    --chart-5: 215 19% 34%;
+    --sidebar: 210 40% 98%;
+    --font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-serif: 'Crimson Pro', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
@@ -93,48 +97,48 @@
   }
 
   .dark {
-    --background: 158 25% 8%;
-    --foreground: 45 30% 95%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 158 25% 11%;
-    --card-foreground: 45 30% 95%;
+    --card: 217 32% 17%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 158 25% 11%;
-    --popover-foreground: 45 30% 95%;
+    --popover: 215 24% 26%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 42 85% 55%;
-    --primary-foreground: 158 45% 12%;
+    --primary: 212 26% 83%;
+    --primary-foreground: 228 84% 4%;
 
-    --secondary: 158 30% 18%;
-    --secondary-foreground: 45 30% 90%;
+    --secondary: 215 19% 34%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 158 25% 15%;
-    --muted-foreground: 45 20% 60%;
+    --muted: 215 16% 46%;
+    --muted-foreground: 210 40% 98%;
 
-    --accent: 42 85% 55%;
-    --accent-foreground: 158 45% 12%;
+    --accent: 228 84% 4%;
+    --accent-foreground: 215 20% 65%;
 
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 45 50% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 85% 97%;
 
-    --border: 158 25% 20%;
-    --input: 158 25% 20%;
-    --ring: 42 85% 55%;
+    --border: 215 19% 34%;
+    --input: 215 19% 34%;
+    --ring: 212 26% 83%;
 
     --sidebar-background: 158 45% 6%;
-    --sidebar-foreground: 45 30% 90%;
-    --sidebar-primary: 42 85% 55%;
-    --sidebar-primary-foreground: 158 45% 12%;
-    --sidebar-accent: 158 40% 12%;
-    --sidebar-accent-foreground: 45 30% 95%;
-    --sidebar-border: 158 30% 15%;
-    --sidebar-ring: 42 85% 55%;
-    --chart-1: 264 24.3% 48.8%;
-    --chart-2: 162 17% 69.6%;
-    --chart-3: 70 18.8% 76.9%;
-    --chart-4: 304 26.5% 62.7%;
-    --chart-5: 16 24.6% 64.5%;
-    --sidebar: 266 4% 20.8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 212 26% 83%;
+    --sidebar-primary-foreground: 228 84% 4%;
+    --sidebar-accent: 215 20% 65%;
+    --sidebar-accent-foreground: 228 84% 4%;
+    --sidebar-border: 215 19% 34%;
+    --sidebar-ring: 212 26% 83%;
+    --chart-1: 215 12% 83%;
+    --chart-2: 212 26% 83%;
+    --chart-3: 215 20% 65%;
+    --chart-4: 217 10% 64%;
+    --chart-5: 215 16% 46%;
+    --sidebar: 217 32% 17%;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
