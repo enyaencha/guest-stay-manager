@@ -485,6 +485,7 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          brand: string
           category: string
           created_at: string
           current_stock: number
@@ -505,6 +506,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand: string
           category: string
           created_at?: string
           current_stock?: number
@@ -525,6 +527,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand?: string
           category?: string
           created_at?: string
           current_stock?: number
@@ -545,6 +548,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inventory_transactions: {
+        Row: {
+          brand: string
+          created_at: string
+          direction: string
+          id: string
+          inventory_item_id: string
+          item_name: string
+          notes: string | null
+          quantity: number
+          reference: string | null
+          total_value: number
+          transaction_type: string
+          unit: string
+          unit_cost: number
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          direction: string
+          id?: string
+          inventory_item_id: string
+          item_name: string
+          notes?: string | null
+          quantity?: number
+          reference?: string | null
+          total_value?: number
+          transaction_type: string
+          unit: string
+          unit_cost?: number
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          inventory_item_id?: string
+          item_name?: string
+          notes?: string | null
+          quantity?: number
+          reference?: string | null
+          total_value?: number
+          transaction_type?: string
+          unit?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       maintenance_issues: {
         Row: {

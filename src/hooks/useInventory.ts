@@ -70,7 +70,7 @@ export const useInventoryTransactions = () => {
   return useQuery({
     queryKey: ["inventory_transactions"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("inventory_transactions")
         .select("*")
         .order("created_at", { ascending: false });
@@ -158,7 +158,7 @@ export const useCreateInventoryTransaction = () => {
 
   return useMutation({
     mutationFn: async (transaction: Omit<InventoryTransaction, "id" | "created_at">) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("inventory_transactions")
         .insert(transaction)
         .select()

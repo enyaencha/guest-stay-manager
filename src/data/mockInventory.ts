@@ -8,6 +8,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '1',
     name: 'Tissues',
+    brand: 'Generic',
     category: 'amenities',
     sku: 'AMN-TIS-001',
     currentStock: 80,
@@ -15,7 +16,7 @@ export const mockInventoryItems: InventoryItem[] = [
     maxStock: 300,
     unit: 'packs',
     unitCost: 20,
-    sellingPrice: 0, // For room use only
+    sellingPrice: 0,
     lastRestocked: '2026-01-01',
     supplier: 'Local Supplier',
     openingStock: 218,
@@ -25,6 +26,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '2',
     name: 'Sawa Soap',
+    brand: 'Sawa',
     category: 'bathroom',
     sku: 'BTH-SWS-001',
     currentStock: 432,
@@ -32,7 +34,7 @@ export const mockInventoryItems: InventoryItem[] = [
     maxStock: 600,
     unit: 'pieces',
     unitCost: 6.15,
-    sellingPrice: 0, // For room use only
+    sellingPrice: 0,
     lastRestocked: '2026-01-16',
     supplier: 'Wholesale Supplier',
     openingStock: 269,
@@ -42,6 +44,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '3',
     name: 'Water 1LT',
+    brand: 'Generic',
     category: 'kitchen',
     sku: 'KIT-W1L-001',
     currentStock: 12,
@@ -59,6 +62,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '4',
     name: 'Water 500ML (Sales)',
+    brand: 'Generic',
     category: 'kitchen',
     sku: 'KIT-W5S-001',
     currentStock: 72,
@@ -76,6 +80,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '5',
     name: 'Water 500ML (Rooms)',
+    brand: 'Generic',
     category: 'amenities',
     sku: 'AMN-W5R-001',
     currentStock: 0,
@@ -93,6 +98,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '6',
     name: 'Trust Condoms',
+    brand: 'Trust',
     category: 'amenities',
     sku: 'AMN-TRS-001',
     currentStock: 72,
@@ -110,6 +116,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '7',
     name: 'Vaseline',
+    brand: 'Vaseline',
     category: 'amenities',
     sku: 'AMN-VAS-001',
     currentStock: 24,
@@ -127,6 +134,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '8',
     name: 'Toothpaste & Brush Kit',
+    brand: 'Generic',
     category: 'amenities',
     sku: 'AMN-TPB-001',
     currentStock: 114,
@@ -144,6 +152,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '9',
     name: 'Soda 500ML',
+    brand: 'Coca-Cola',
     category: 'kitchen',
     sku: 'KIT-SOD-001',
     currentStock: 24,
@@ -161,6 +170,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '10',
     name: 'Predator Energy 500ML',
+    brand: 'Predator',
     category: 'kitchen',
     sku: 'KIT-PRE-001',
     currentStock: 0,
@@ -178,6 +188,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '11',
     name: 'Panadol Extra',
+    brand: 'Panadol',
     category: 'amenities',
     sku: 'AMN-PAN-001',
     currentStock: 100,
@@ -195,6 +206,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '12',
     name: 'Mara Moja',
+    brand: 'Mara Moja',
     category: 'amenities',
     sku: 'AMN-MAR-001',
     currentStock: 100,
@@ -212,6 +224,7 @@ export const mockInventoryItems: InventoryItem[] = [
   {
     id: '13',
     name: 'VIM Cleaning Powder',
+    brand: 'VIM',
     category: 'cleaning',
     sku: 'CLN-VIM-001',
     currentStock: 12,
@@ -219,7 +232,7 @@ export const mockInventoryItems: InventoryItem[] = [
     maxStock: 30,
     unit: 'containers',
     unitCost: 94.58,
-    sellingPrice: 0, // For cleaning use only
+    sellingPrice: 0,
     lastRestocked: '2026-01-01',
     supplier: 'Cleaning Supplies Ltd',
     openingStock: 13,
