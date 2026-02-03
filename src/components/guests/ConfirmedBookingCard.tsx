@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatKsh } from "@/lib/formatters";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { 
   User, 
   Phone, 
@@ -32,6 +32,11 @@ interface ConfirmedBookingCardProps {
 }
 
 export function ConfirmedBookingCard({ booking, onAssignRoom }: ConfirmedBookingCardProps) {
+  const formatDateTime = (value: string) => {
+    const parsed = parseISO(value);
+    if (!isValid(parsed)) return value;
+    return format(parsed, "MMM d, yyyy • HH:mm");
+  };
   const isToday = new Date(booking.check_in).toDateString() === new Date().toDateString();
 
   return (
@@ -74,7 +79,7 @@ export function ConfirmedBookingCard({ booking, onAssignRoom }: ConfirmedBooking
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
           <Calendar className="h-4 w-4" />
           <span>
-            {format(new Date(booking.check_in), "MMM d")} - {format(new Date(booking.check_out), "MMM d, yyyy")}
+            {formatDateTime(booking.check_in)} - {formatDateTime(booking.check_out)}
           </span>
         </div>
 

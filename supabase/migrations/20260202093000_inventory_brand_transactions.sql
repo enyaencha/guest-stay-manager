@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS public.inventory_transactions (
   unit TEXT NOT NULL,
   unit_cost NUMERIC NOT NULL DEFAULT 0,
   total_value NUMERIC NOT NULL DEFAULT 0,
+  batch_code TEXT,
+  expiry_date DATE,
+  transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
   reference TEXT,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()

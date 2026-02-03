@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePOSItems, usePOSTransactions, useCreatePOSTransaction, POSItem, CartItem } from "@/hooks/usePOS";
 import { useBookings, useGuests } from "@/hooks/useGuests";
-import { useInventoryItems, useUpdateInventoryItem, useCreateInventoryTransaction } from "@/hooks/useInventory";
+import { useInventoryItems, useInventoryLots, useUpdateInventoryItem, useUpdateInventoryLot, useCreateInventoryTransaction } from "@/hooks/useInventory";
 import { PaymentMethod } from "@/types/pos";
 import { 
   ShoppingCart, 
@@ -31,7 +31,9 @@ const POS = () => {
   const { data: bookings = [] } = useBookings();
   const { data: guests = [] } = useGuests();
   const { data: inventoryItems = [] } = useInventoryItems();
+  const { data: inventoryLots = [] } = useInventoryLots();
   const updateInventory = useUpdateInventoryItem();
+  const updateLot = useUpdateInventoryLot();
   const createInventoryTx = useCreateInventoryTransaction();
   const createTransaction = useCreatePOSTransaction();
 
@@ -47,21 +49,108 @@ const POS = () => {
     itemsInCart: cart.reduce((sum, item) => sum + item.quantity, 0),
   };
 
-  const categories = [...new Set(posItems.map(item => item.category))];
+  const mapInventoryCategoryToPOS = (category: string) => {
+    switch (category) {
+      case "beverages":
+        return "beverages";
+      case "health":
+      case "medical":
+        return "health";
+      case "amenities":
+      case "bathroom":
+      case "toiletries":
+        return "amenities";
+      case "kitchen":
+      case "food":
+      case "food-beverage":
+        return "food-beverage";
+      case "services":
+      case "maintenance":
+      default:
+        return "services";
+    }
+  };
+
+  const getLotTotalQty = (inventoryItemId: string | null) => {
+    if (!inventoryItemId) return null;
+    return inventoryLots
+      .filter((lot) => lot.inventory_item_id === inventoryItemId)
+      .reduce((sum, lot) => sum + Number(lot.quantity || 0), 0);
+  };
+
+  const enrichedPosItems = posItems.map((item) => {
+    const inventoryItem = item.inventory_item_id
+      ? inventoryItems.find((inv) => inv.id === item.inventory_item_id)
+      : null;
+    const lotQty = inventoryItem ? getLotTotalQty(inventoryItem.id) : null;
+    return {
+      ...item,
+      price: inventoryItem?.selling_price ?? item.price,
+      cost: inventoryItem?.unit_cost ?? item.cost,
+      stock_quantity: inventoryItem?.current_stock ?? item.stock_quantity,
+      is_available: inventoryItem ? (lotQty || 0) > 0 : item.is_available,
+    };
+  });
+
+  const inventoryDerivedItems = inventoryItems
+    .filter((inv) => inv.selling_price !== null && inv.selling_price !== undefined)
+    .filter((inv) => !posItems.some((p) => p.inventory_item_id === inv.id))
+    .map((inv) => ({
+      id: `inv-${inv.id}`,
+      name: inv.name,
+      category: mapInventoryCategoryToPOS(inv.category),
+      price: inv.selling_price || 0,
+      cost: inv.unit_cost,
+      description: inv.supplier,
+      inventory_item_id: inv.id,
+      stock_quantity: inv.current_stock,
+      is_available: (getLotTotalQty(inv.id) || 0) > 0,
+      created_at: inv.created_at,
+      updated_at: inv.updated_at,
+    }));
+
+  const mergedPosItems = [...enrichedPosItems, ...inventoryDerivedItems];
+
+  const categories = [...new Set(mergedPosItems.map(item => item.category))];
   
-  const filteredItems = posItems.filter(item => {
+  const filteredItems = mergedPosItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
     return matchesSearch && matchesCategory && item.is_available;
   });
 
+  const getDefaultLotForItem = (inventoryItemId: string | null) => {
+    if (!inventoryItemId) return null;
+    const lots = inventoryLots
+      .filter((lot) => lot.inventory_item_id === inventoryItemId && lot.quantity > 0)
+      .sort((a, b) => {
+        if (!a.expiry_date && !b.expiry_date) return 0;
+        if (!a.expiry_date) return 1;
+        if (!b.expiry_date) return -1;
+        return a.expiry_date.localeCompare(b.expiry_date);
+      });
+    return lots[0] || null;
+  };
+
   const addToCart = (item: POSItem) => {
+    const defaultLot = getDefaultLotForItem(item.inventory_item_id);
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
         return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [
+        ...prev,
+        {
+          ...item,
+          quantity: 1,
+          inventory_lot_id: defaultLot?.id || null,
+          lot_label: defaultLot
+            ? `${defaultLot.brand}${defaultLot.batch_code ? ` · ${defaultLot.batch_code}` : ""}`
+            : null,
+          lot_expiry: defaultLot?.expiry_date || null,
+        },
+      ];
     });
     toast.success(`Added ${item.name} to cart`);
   };
@@ -72,6 +161,24 @@ const POS = () => {
     } else {
       setCart(prev => prev.map(i => i.id === id ? { ...i, quantity } : i));
     }
+  };
+
+  const updateLotSelection = (id: string, lotId: string | null) => {
+    const lot = lotId ? inventoryLots.find((l) => l.id === lotId) : null;
+    setCart(prev =>
+      prev.map(i =>
+        i.id === id
+          ? {
+              ...i,
+              inventory_lot_id: lotId,
+              lot_label: lot
+                ? `${lot.brand}${lot.batch_code ? ` · ${lot.batch_code}` : ""}`
+                : null,
+              lot_expiry: lot?.expiry_date || null,
+            }
+          : i
+      )
+    );
   };
 
   const removeItem = (id: string) => {
@@ -97,7 +204,13 @@ const POS = () => {
         room_number: selection.roomNumber || null,
         guest_id: selection.guestId || null,
         guest_name: guestName,
-        items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price * i.quantity })),
+        items: cart.map(i => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price * i.quantity,
+          lot: i.lot_label || null,
+          expiry: i.lot_expiry || null,
+        })),
         subtotal,
         tax,
         total,
@@ -108,10 +221,18 @@ const POS = () => {
         notes: null,
       });
       setCart([]);
-      cart.forEach((item) => {
+      for (const item of cart) {
         if (!item.inventory_item_id) return;
         const inventoryItem = inventoryItems.find((inv) => inv.id === item.inventory_item_id);
         if (!inventoryItem) return;
+        const lot =
+          (item.inventory_lot_id &&
+            inventoryLots.find((l) => l.id === item.inventory_lot_id)) ||
+          getDefaultLotForItem(item.inventory_item_id);
+        if (!lot || lot.quantity < item.quantity) {
+          toast.error(`Not enough stock in selected lot for ${item.name}.`);
+          throw new Error("Insufficient lot stock");
+        }
         const quantity = item.quantity;
         updateInventory.mutate({
           id: inventoryItem.id,
@@ -120,10 +241,17 @@ const POS = () => {
             stock_out: (inventoryItem.stock_out || 0) + quantity,
           },
         });
+        updateLot.mutate({
+          id: lot.id,
+          updates: {
+            quantity: Math.max(0, lot.quantity - quantity),
+          },
+        });
         createInventoryTx.mutate({
           inventory_item_id: inventoryItem.id,
+          inventory_lot_id: lot.id,
           item_name: inventoryItem.name,
-          brand: inventoryItem.brand,
+          brand: lot.brand,
           transaction_type: "sale",
           direction: "out",
           quantity,
@@ -133,7 +261,7 @@ const POS = () => {
           reference: selection.roomNumber || null,
           notes: "POS sale",
         });
-      });
+      }
       toast.success(
         status === "pending"
           ? `Transaction saved as pending. Total: ${formatKsh(total)}`
@@ -175,16 +303,10 @@ const POS = () => {
     category: item.category as any,
     description: item.description || '',
     available: item.is_available,
-  }));
-
-  // Convert items for POSItemCard
-  const posItemCardData = filteredItems.map(item => ({
-    id: item.id,
-    name: item.name,
-    category: item.category as any,
-    price: item.price,
-    description: item.description || '',
-    available: item.is_available,
+    inventoryItemId: item.inventory_item_id,
+    inventoryLotId: item.inventory_lot_id,
+    lotLabel: item.lot_label || undefined,
+    lotExpiry: item.lot_expiry || undefined,
   }));
 
   const roomOptions = bookings
@@ -274,19 +396,16 @@ const POS = () => {
 
                 <TabsContent value={categoryFilter} className="mt-4">
                   <div className="grid sm:grid-cols-2 gap-4">
-                    {posItemCardData.map((item) => (
+                    {filteredItems.map((item) => (
                       <POSItemCard 
                         key={item.id} 
                         item={item}
-                        onAddToCart={() => {
-                          const fullItem = posItems.find(i => i.id === item.id);
-                          if (fullItem) addToCart(fullItem);
-                        }}
+                        onAddToCart={addToCart}
                       />
                     ))}
                   </div>
 
-                  {posItemCardData.length === 0 && (
+                  {filteredItems.length === 0 && (
                     <div className="text-center py-12 text-muted-foreground">
                       No items found
                     </div>
@@ -301,14 +420,16 @@ const POS = () => {
             {/* Cart Panel */}
             <div className="lg:col-span-1">
               <div className="sticky top-6">
-                <CartPanel 
-                  items={cartPanelItems}
-                  onUpdateQuantity={updateQuantity}
-                  onRemoveItem={removeItem}
-                  onCheckout={handleCheckout}
-                  onClearCart={clearCart}
-                  roomOptions={roomOptions}
-                />
+        <CartPanel 
+          items={cartPanelItems}
+          onUpdateQuantity={updateQuantity}
+          onRemoveItem={removeItem}
+          onUpdateLot={updateLotSelection}
+          onCheckout={handleCheckout}
+          onClearCart={clearCart}
+          roomOptions={roomOptions}
+          lots={inventoryLots}
+        />
               </div>
             </div>
           </div>

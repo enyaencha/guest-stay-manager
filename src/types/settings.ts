@@ -1,5 +1,6 @@
 export interface PropertySettings {
   id?: string;
+  applySettings?: boolean;
   name: string;
   address: string;
   city: string;
@@ -55,6 +56,7 @@ export interface NotificationSettings {
 }
 
 export interface SystemPreferences {
+  applySettings?: boolean;
   language: string;
   dateFormat: string;
   timeFormat: string;

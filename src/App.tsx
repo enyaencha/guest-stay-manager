@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
 import Guests from "./pages/Guests";
+import GuestProfile from "./pages/GuestProfile";
 import Reservations from "./pages/Reservations";
 import POS from "./pages/POS";
 import Housekeeping from "./pages/Housekeeping";
@@ -57,6 +58,11 @@ const App = () => (
             <Route path="/guests" element={
               <ProtectedRoute requiredPermission="guests.view">
                 <Guests />
+              </ProtectedRoute>
+            } />
+            <Route path="/guests/:guestId" element={
+              <ProtectedRoute requiredPermission="guests.view">
+                <GuestProfile />
               </ProtectedRoute>
             } />
             <Route path="/pos" element={

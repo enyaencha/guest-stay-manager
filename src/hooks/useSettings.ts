@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 export interface PropertySettings {
   id: string;
+  apply_settings: boolean | null;
   name: string;
   address: string | null;
   city: string | null;
@@ -37,6 +38,7 @@ export interface NotificationSettings {
 
 export interface SystemPreferences {
   id: string;
+  apply_settings: boolean | null;
   language: string | null;
   date_format: string | null;
   time_format: string | null;

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { formatKsh } from "@/lib/formatters";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { 
   BedDouble, 
   Users, 
@@ -282,7 +282,15 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>Requested: <span className="capitalize font-medium">{booking.room_type}</span></p>
-                <p>{format(new Date(booking.check_in), "MMM d")} - {format(new Date(booking.check_out), "MMM d, yyyy")}</p>
+                <p>
+                  {(() => {
+                    const checkIn = parseISO(booking.check_in);
+                    const checkOut = parseISO(booking.check_out);
+                    const checkInLabel = isValid(checkIn) ? format(checkIn, "MMM d, yyyy • HH:mm") : booking.check_in;
+                    const checkOutLabel = isValid(checkOut) ? format(checkOut, "MMM d, yyyy • HH:mm") : booking.check_out;
+                    return `${checkInLabel} - ${checkOutLabel}`;
+                  })()}
+                </p>
               </div>
             </div>
 

@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { formatKsh } from "@/lib/formatters";
 import { format } from "date-fns";
 import { 
   User, 
@@ -23,16 +22,18 @@ import { toast } from "sonner";
 
 interface ReservationRequest {
   id: string;
-  guest_id: string | null;
   guest_name: string;
   guest_phone: string;
   guest_email: string | null;
-  room_number: string;
-  room_type: string;
-  check_in: string;
-  check_out: string;
-  guests_count: number;
-  total_amount: number;
+  source: string | null;
+  request_items: Array<{
+    room_type: string;
+    package?: string | null;
+    rooms_count: number;
+    guests_count: number;
+    check_in: string;
+    check_out: string;
+  }>;
   special_requests: string | null;
   status: string;
   created_at: string;
@@ -44,7 +45,7 @@ interface ReservationCardProps {
 }
 
 const statusConfig: Record<string, { label: string; class: string }> = {
-  reserved: { label: "Pending", class: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  pending: { label: "Pending", class: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
   confirmed: { label: "Confirmed", class: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
   cancelled: { label: "Cancelled", class: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
 };
@@ -90,9 +91,13 @@ export function ReservationCard({ reservation, onStatusChange }: ReservationCard
     }
   };
 
-  const nights = Math.ceil(
-    (new Date(reservation.check_out).getTime() - new Date(reservation.check_in).getTime()) / 
-    (1000 * 60 * 60 * 24)
+  const totalRooms = reservation.request_items.reduce(
+    (sum, item) => sum + (Number(item.rooms_count) || 0),
+    0
+  );
+  const totalGuests = reservation.request_items.reduce(
+    (sum, item) => sum + (Number(item.guests_count) || 0),
+    0
   );
 
   return (
@@ -113,30 +118,16 @@ export function ReservationCard({ reservation, onStatusChange }: ReservationCard
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Room & Dates */}
+        {/* Summary */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <BedDouble className="h-4 w-4 text-muted-foreground" />
-            <span>Room {reservation.room_number}</span>
+            <span>{totalRooms} Room{totalRooms === 1 ? "" : "s"}</span>
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <span>{reservation.guests_count} Guest{reservation.guests_count > 1 ? 's' : ''}</span>
+            <span>{totalGuests} Guest{totalGuests === 1 ? "" : "s"}</span>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span>
-            {format(new Date(reservation.check_in), "MMM d")} - {format(new Date(reservation.check_out), "MMM d, yyyy")}
-            <span className="text-muted-foreground ml-1">({nights} night{nights > 1 ? 's' : ''})</span>
-          </span>
-        </div>
-
-        {/* Amount */}
-        <div className="flex justify-between items-center py-2 px-3 bg-muted/50 rounded-lg">
-          <span className="text-sm text-muted-foreground">Total Amount</span>
-          <span className="font-semibold">{formatKsh(reservation.total_amount)}</span>
         </div>
 
         {/* Expandable Details */}
@@ -159,9 +150,38 @@ export function ReservationCard({ reservation, onStatusChange }: ReservationCard
               </div>
             )}
 
-            <div className="text-sm">
-              <span className="text-muted-foreground">Room Type:</span>{' '}
-              <span className="capitalize">{reservation.room_type}</span>
+            {reservation.source && (
+              <div className="text-sm">
+                <span className="text-muted-foreground">Source:</span>{' '}
+                <span>{reservation.source}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Requested Stay Details
+              </div>
+              <div className="space-y-2">
+                {reservation.request_items.map((item, index) => (
+                  <div key={index} className="rounded-md border p-2 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium">{item.room_type}</span>
+                      <span className="text-muted-foreground">
+                        {item.rooms_count} room{item.rooms_count > 1 ? "s" : ""} • {item.guests_count} guest
+                        {item.guests_count > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    {item.package && (
+                      <div className="text-xs text-muted-foreground">Package: {item.package}</div>
+                    )}
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(item.check_in), "MMM d, yyyy HH:mm")} →{" "}
+                      {format(new Date(item.check_out), "MMM d, yyyy HH:mm")}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {reservation.special_requests && (
@@ -181,7 +201,7 @@ export function ReservationCard({ reservation, onStatusChange }: ReservationCard
         )}
 
         {/* Note Input */}
-        {showNoteInput && reservation.status === "reserved" && (
+        {showNoteInput && reservation.status === "pending" && (
           <div className="space-y-2">
             <Textarea
               placeholder="Add a note (required for cancellation)..."
@@ -193,7 +213,7 @@ export function ReservationCard({ reservation, onStatusChange }: ReservationCard
         )}
 
         {/* Actions */}
-        {reservation.status === "reserved" && (
+        {reservation.status === "pending" && (
           <div className="flex gap-2 pt-2">
             {!showNoteInput ? (
               <>

@@ -8,6 +8,7 @@ export interface Guest {
   email: string | null;
   phone: string;
   id_number: string | null;
+  id_photo_url: string | null;
   created_at: string;
   updated_at: string;
 }

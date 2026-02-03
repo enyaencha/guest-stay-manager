@@ -2,6 +2,8 @@ export interface BookingFormData {
   // Step 1: Dates & Room
   checkIn: Date;
   checkOut: Date;
+  checkInTime: string;
+  checkOutTime: string;
   roomId: string;
   roomType: string;
   roomNumber: string;
@@ -15,7 +17,10 @@ export interface BookingFormData {
   guestId?: string;
   guestCount: number;
   idNumber: string;
+  idPhotoFile?: File | null;
+  idPhotoUrl?: string | null;
   nationality: string;
+  bookingSource: string;
   specialRequests: string;
   
   // Step 3: Payment

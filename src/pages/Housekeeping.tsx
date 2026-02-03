@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHousekeepingTasks, useHousekeepingStaff, useUpdateHousekeepingTask, HousekeepingTask as DBTask } from "@/hooks/useHousekeeping";
 import { useUpdateRoom } from "@/hooks/useRooms";
-import { useInventoryItems, useUpdateInventoryItem, useCreateInventoryTransaction } from "@/hooks/useInventory";
+import { useInventoryItems, useInventoryLots, useUpdateInventoryItem, useUpdateInventoryLot, useCreateInventoryTransaction } from "@/hooks/useInventory";
 import { HousekeepingTask, HousekeepingStaff } from "@/types/housekeeping";
 import { 
   ClipboardList, 
@@ -53,9 +53,11 @@ const Housekeeping = () => {
   const { data: dbTasks, isLoading: tasksLoading } = useHousekeepingTasks();
   const { data: dbStaff, isLoading: staffLoading } = useHousekeepingStaff();
   const { data: inventoryItems = [] } = useInventoryItems();
+  const { data: inventoryLots = [] } = useInventoryLots();
   const updateTask = useUpdateHousekeepingTask();
   const updateRoom = useUpdateRoom();
   const updateInventory = useUpdateInventoryItem();
+  const updateLot = useUpdateInventoryLot();
   const createInventoryTx = useCreateInventoryTransaction();
   
   const [filter, setFilter] = useState("all");
@@ -116,32 +118,63 @@ const Housekeeping = () => {
       task.actualAdded.forEach((amenity) => {
         const inventoryItem = amenity.itemId
           ? inventoryItems.find((item) => item.id === amenity.itemId)
-          : inventoryItems.find((item) => item.name === amenity.name && (!amenity.brand || item.brand === amenity.brand));
+          : inventoryItems.find((item) => item.name === amenity.name);
         if (!inventoryItem) return;
         const quantity = Number(amenity.quantity || 0);
         if (quantity <= 0) return;
 
-        updateInventory.mutate({
-          id: inventoryItem.id,
-          updates: {
-            current_stock: Math.max(0, inventoryItem.current_stock - quantity),
-            stock_out: (inventoryItem.stock_out || 0) + quantity,
-          },
+        const candidateLots = amenity.lotId
+          ? inventoryLots.filter((lot) => lot.id === amenity.lotId)
+          : inventoryLots
+              .filter((lot) => lot.inventory_item_id === inventoryItem.id)
+              .filter((lot) => (amenity.brand ? lot.brand === amenity.brand : true))
+              .filter((lot) => lot.quantity > 0)
+              .sort((a, b) => {
+                if (!a.expiry_date && !b.expiry_date) return 0;
+                if (!a.expiry_date) return 1;
+                if (!b.expiry_date) return -1;
+                return a.expiry_date.localeCompare(b.expiry_date);
+              });
+
+        let remaining = quantity;
+        candidateLots.forEach((lot) => {
+          if (remaining <= 0) return;
+          const consumeQty = Math.min(lot.quantity, remaining);
+          remaining -= consumeQty;
+
+          updateLot.mutate({
+            id: lot.id,
+            updates: {
+              quantity: Math.max(0, lot.quantity - consumeQty),
+            },
+          });
+
+          createInventoryTx.mutate({
+            inventory_item_id: inventoryItem.id,
+            inventory_lot_id: lot.id,
+            item_name: inventoryItem.name,
+            brand: lot.brand,
+            transaction_type: "room-use",
+            direction: "out",
+            quantity: consumeQty,
+            unit: inventoryItem.unit,
+            unit_cost: lot.unit_cost,
+            total_value: lot.unit_cost * consumeQty,
+            reference: task.roomNumber || null,
+            notes: "Housekeeping usage",
+          });
         });
 
-        createInventoryTx.mutate({
-          inventory_item_id: inventoryItem.id,
-          item_name: inventoryItem.name,
-          brand: inventoryItem.brand,
-          transaction_type: "room-use",
-          direction: "out",
-          quantity,
-          unit: inventoryItem.unit,
-          unit_cost: inventoryItem.unit_cost,
-          total_value: inventoryItem.unit_cost * quantity,
-          reference: task.roomNumber || null,
-          notes: "Housekeeping usage",
-        });
+        const consumed = quantity - remaining;
+        if (consumed > 0) {
+          updateInventory.mutate({
+            id: inventoryItem.id,
+            updates: {
+              current_stock: Math.max(0, inventoryItem.current_stock - consumed),
+              stock_out: (inventoryItem.stock_out || 0) + consumed,
+            },
+          });
+        }
       });
     }
   };

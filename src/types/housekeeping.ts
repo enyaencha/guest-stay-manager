@@ -15,6 +15,8 @@ export interface HousekeepingTask {
     itemId?: string;
     name: string;
     brand?: string;
+    lotId?: string;
+    expiryDate?: string | null;
     quantity: number;
     unit: string;
   }>;
@@ -22,6 +24,8 @@ export interface HousekeepingTask {
     itemId?: string;
     name: string;
     brand?: string;
+    lotId?: string;
+    expiryDate?: string | null;
     quantity: number;
     unit: string;
   }>;

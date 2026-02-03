@@ -47,7 +47,13 @@ export function SystemStatusWidget() {
   const lastBackup = new Date();
   lastBackup.setHours(lastBackup.getHours() - 2);
 
-  const autoBackupEnabled = Boolean(systemPreferences?.auto_backup);
+  const applySystemPreferences = systemPreferences?.apply_settings ?? true;
+  const autoBackupEnabled = applySystemPreferences
+    ? Boolean(systemPreferences?.auto_backup)
+    : true;
+  const maintenanceEnabled = applySystemPreferences
+    ? Boolean(systemPreferences?.maintenance_mode)
+    : false;
   const notificationsEnabled = Boolean(
     notificationSettings?.email_notifications || notificationSettings?.sms_notifications
   );
@@ -56,7 +62,7 @@ export function SystemStatusWidget() {
     database: 'online' as const,
     backup: autoBackupEnabled ? 'online' as const : 'warning' as const,
     notifications: notificationsEnabled ? 'online' as const : 'warning' as const,
-    maintenance: systemPreferences?.maintenance_mode ? 'warning' as const : 'online' as const,
+    maintenance: maintenanceEnabled ? 'warning' as const : 'online' as const,
   };
 
   return (
@@ -82,11 +88,11 @@ export function SystemStatusWidget() {
           label="Auto Backup" 
           status={systemStatus.backup}
           detail={
-            systemPreferences
+            applySystemPreferences
               ? autoBackupEnabled
                 ? format(lastBackup, 'HH:mm')
                 : 'Disabled'
-              : 'Unknown'
+              : 'Defaults'
           }
         />
         <StatusItem 
@@ -97,11 +103,11 @@ export function SystemStatusWidget() {
           label="Maintenance Mode" 
           status={systemStatus.maintenance}
           detail={
-            systemPreferences
-              ? systemPreferences.maintenance_mode
+            applySystemPreferences
+              ? maintenanceEnabled
                 ? 'Active'
                 : 'Off'
-              : 'Unknown'
+              : 'Defaults'
           }
         />
       </div>

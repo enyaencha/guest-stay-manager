@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { PropertySettings } from "@/types/settings";
 import { Building2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +17,7 @@ interface PropertySettingsFormProps {
 export const PropertySettingsForm = ({ settings, onSave }: PropertySettingsFormProps) => {
   const [formData, setFormData] = useState<PropertySettings>(settings);
 
-  const handleChange = (field: keyof PropertySettings, value: string) => {
+  const handleChange = (field: keyof PropertySettings, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -39,6 +40,18 @@ export const PropertySettingsForm = ({ settings, onSave }: PropertySettingsFormP
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-1">
+              <Label className="text-base">Enable Property Settings</Label>
+              <p className="text-sm text-muted-foreground">
+                When disabled, the app uses built-in defaults.
+              </p>
+            </div>
+            <Switch
+              checked={formData.applySettings ?? true}
+              onCheckedChange={(checked) => handleChange("applySettings", checked)}
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Property Name</Label>

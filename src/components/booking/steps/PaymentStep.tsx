@@ -63,11 +63,11 @@ export function PaymentStep({ formData, updateFormData, onComplete }: PaymentSte
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Check-in</span>
-            <span>{format(formData.checkIn, 'PPP')}</span>
+            <span>{format(formData.checkIn, 'PPP p')}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Check-out</span>
-            <span>{format(formData.checkOut, 'PPP')}</span>
+            <span>{format(formData.checkOut, 'PPP p')}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Duration</span>

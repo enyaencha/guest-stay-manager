@@ -16,6 +16,15 @@ interface DateRoomStepProps {
 
 export function DateRoomStep({ formData, updateFormData }: DateRoomStepProps) {
   const { data: rooms = [], isLoading } = useRooms();
+
+  const applyTime = (date: Date, time: string) => {
+    const [hours, minutes] = time.split(":").map((val) => Number(val));
+    const next = new Date(date);
+    if (!Number.isNaN(hours)) next.setHours(hours);
+    if (!Number.isNaN(minutes)) next.setMinutes(minutes);
+    next.setSeconds(0, 0);
+    return next;
+  };
   
   const availableRooms = rooms.filter(room => 
     room.occupancy_status === 'vacant' && 
@@ -59,7 +68,9 @@ export function DateRoomStep({ formData, updateFormData }: DateRoomStepProps) {
               <Calendar
                 mode="single"
                 selected={formData.checkIn}
-                onSelect={(date) => date && updateFormData({ checkIn: date })}
+                onSelect={(date) =>
+                  date && updateFormData({ checkIn: applyTime(date, formData.checkInTime) })
+                }
                 disabled={(date) => date < new Date()}
                 initialFocus
               />
@@ -86,12 +97,45 @@ export function DateRoomStep({ formData, updateFormData }: DateRoomStepProps) {
               <Calendar
                 mode="single"
                 selected={formData.checkOut}
-                onSelect={(date) => date && updateFormData({ checkOut: date })}
+                onSelect={(date) =>
+                  date && updateFormData({ checkOut: applyTime(date, formData.checkOutTime) })
+                }
                 disabled={(date) => date <= formData.checkIn}
                 initialFocus
               />
             </PopoverContent>
           </Popover>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Check-in Time</Label>
+          <input
+            type="time"
+            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={formData.checkInTime}
+            onChange={(e) =>
+              updateFormData({
+                checkInTime: e.target.value,
+                checkIn: applyTime(formData.checkIn, e.target.value),
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Check-out Time</Label>
+          <input
+            type="time"
+            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={formData.checkOutTime}
+            onChange={(e) =>
+              updateFormData({
+                checkOutTime: e.target.value,
+                checkOut: applyTime(formData.checkOut, e.target.value),
+              })
+            }
+          />
         </div>
       </div>
 

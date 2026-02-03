@@ -5,6 +5,8 @@ export interface Guest {
   name: string;
   email: string;
   phone: string;
+  idNumber?: string | null;
+  idPhotoUrl?: string | null;
   bookingId?: string;
   roomNumber: string;
   roomType: string;
@@ -15,8 +17,17 @@ export interface Guest {
     id: string;
     date: string;
     total: number;
+    subtotal?: number;
+    tax?: number;
     paymentMethod: string;
     itemsSummary: string;
+    items?: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+      lot_label?: string | null;
+      lot_expiry?: string | null;
+    }>;
     status: string;
   }>;
   lastAssessment?: {

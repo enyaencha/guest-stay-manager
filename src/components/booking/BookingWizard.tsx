@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format, differenceInDays, addDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,32 @@ import { BookingConfirmation } from "./steps/BookingConfirmation";
 import { toast } from "sonner";
 import { useCreateGuest, useCreateBooking } from "@/hooks/useGuests";
 import { useUpdateRoom } from "@/hooks/useRooms";
+import { usePropertySettings } from "@/hooks/useSettings";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete?: (booking: BookingFormData) => void;
+  bookingStatus?: 'pre-arrival' | 'reserved';
 }
 
+const buildInitialDates = () => {
+  const now = new Date();
+  const checkIn = new Date(now);
+  checkIn.setHours(14, 0, 0, 0);
+  const checkOut = addDays(new Date(now), 1);
+  checkOut.setHours(12, 0, 0, 0);
+  return { checkIn, checkOut };
+};
+
+const { checkIn: initialCheckIn, checkOut: initialCheckOut } = buildInitialDates();
+
 const initialFormData: BookingFormData = {
-  checkIn: new Date(),
-  checkOut: addDays(new Date(), 1),
+  checkIn: initialCheckIn,
+  checkOut: initialCheckOut,
+  checkInTime: "14:00",
+  checkOutTime: "12:00",
   roomId: '',
   roomType: '',
   roomNumber: '',
@@ -32,7 +48,10 @@ const initialFormData: BookingFormData = {
   guestId: undefined,
   guestCount: 1,
   idNumber: '',
+  idPhotoFile: null,
+  idPhotoUrl: null,
   nationality: 'Kenyan',
+  bookingSource: '',
   specialRequests: '',
   totalAmount: 0,
   depositAmount: 0,
@@ -40,11 +59,12 @@ const initialFormData: BookingFormData = {
   paymentStatus: 'pending',
 };
 
-export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardProps) {
+export function BookingWizard({ open, onOpenChange, onComplete, bookingStatus = 'pre-arrival' }: BookingWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<BookingFormData>(initialFormData);
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { data: propertySettings } = usePropertySettings();
 
   const createGuest = useCreateGuest();
   const createBooking = useCreateBooking();
@@ -77,6 +97,17 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
     });
   };
 
+  useEffect(() => {
+    if (!propertySettings) return;
+    const applySettings = propertySettings.apply_settings ?? true;
+    if (!applySettings) return;
+    setFormData((prev) => ({
+      ...prev,
+      checkInTime: propertySettings.check_in_time || prev.checkInTime,
+      checkOutTime: propertySettings.check_out_time || prev.checkOutTime,
+    }));
+  }, [propertySettings]);
+
   const handleNext = () => {
     if (currentStep < 4) {
       setCurrentStep(prev => prev + 1);
@@ -92,6 +123,18 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
   const handleComplete = async () => {
     setIsSaving(true);
     try {
+      let idPhotoUrl: string | null = formData.idPhotoUrl || null;
+      if (formData.idPhotoFile) {
+        const fileExt = formData.idPhotoFile.name.split(".").pop() || "jpg";
+        const filePath = `guest-${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("guest-ids")
+          .upload(filePath, formData.idPhotoFile, { upsert: false });
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from("guest-ids").getPublicUrl(filePath);
+        idPhotoUrl = data.publicUrl;
+      }
+
       const guest = formData.guestId
         ? { id: formData.guestId }
         : await createGuest.mutateAsync({
@@ -99,24 +142,28 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
             email: formData.guestEmail || null,
             phone: formData.guestPhone,
             id_number: formData.idNumber || null,
+            id_photo_url: idPhotoUrl,
           });
 
       // Create booking with correct nights calculation
       const nights = differenceInDays(formData.checkOut, formData.checkIn);
       const actualNights = nights > 0 ? nights : 1;
 
+      const sourceNote = formData.bookingSource ? `Source: ${formData.bookingSource}` : "";
+      const combinedRequests = [sourceNote, formData.specialRequests].filter(Boolean).join(" | ");
+
       await createBooking.mutateAsync({
         guest_id: guest.id,
         room_number: formData.roomNumber,
         room_type: formData.roomType,
-        check_in: format(formData.checkIn, 'yyyy-MM-dd'),
-        check_out: format(formData.checkOut, 'yyyy-MM-dd'),
+        check_in: format(formData.checkIn, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+        check_out: format(formData.checkOut, "yyyy-MM-dd'T'HH:mm:ssxxx"),
         guests_count: formData.guestCount,
         total_amount: formData.basePrice * actualNights,
         paid_amount: formData.depositAmount,
         payment_method: formData.paymentMethod,
-        status: 'pre-arrival',
-        special_requests: formData.specialRequests || null,
+        status: bookingStatus,
+        special_requests: combinedRequests || null,
       });
 
       // Update room status to reserved
@@ -152,9 +199,9 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
       case 1:
         return formData.roomId && formData.checkIn && formData.checkOut;
       case 2:
-        return formData.guestName && formData.guestPhone && formData.guestEmail;
+        return formData.guestName && formData.guestPhone && formData.guestEmail && formData.idNumber;
       case 3:
-        return formData.depositAmount > 0;
+        return bookingStatus === "reserved" ? formData.depositAmount >= 0 : formData.depositAmount > 0;
       default:
         return true;
     }
@@ -164,7 +211,9 @@ export function BookingWizard({ open, onOpenChange, onComplete }: BookingWizardP
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">New Booking</DialogTitle>
+          <DialogTitle className="text-xl">
+            {bookingStatus === "reserved" ? "New Reservation" : "New Booking"}
+          </DialogTitle>
         </DialogHeader>
 
         <StepIndicator steps={steps} />

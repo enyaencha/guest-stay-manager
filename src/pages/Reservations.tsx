@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ReservationCard } from "@/components/reservations/ReservationCard";
+import { ReservationRequestModal } from "@/components/reservations/ReservationRequestModal";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useRoomTypes } from "@/hooks/useRooms";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   CalendarCheck, 
@@ -11,21 +14,24 @@ import {
   CheckCircle, 
   XCircle, 
   Search,
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react";
 
 interface ReservationRequest {
   id: string;
-  guest_id: string | null;
   guest_name: string;
   guest_phone: string;
   guest_email: string | null;
-  room_number: string;
-  room_type: string;
-  check_in: string;
-  check_out: string;
-  guests_count: number;
-  total_amount: number;
+  source: string | null;
+  request_items: Array<{
+    room_type: string;
+    package?: string | null;
+    rooms_count: number;
+    guests_count: number;
+    check_in: string;
+    check_out: string;
+  }>;
   special_requests: string | null;
   status: string;
   created_at: string;
@@ -36,6 +42,8 @@ const Reservations = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [newReservationOpen, setNewReservationOpen] = useState(false);
+  const { data: roomTypes = [] } = useRoomTypes();
 
   useEffect(() => {
     fetchReservations();
@@ -44,30 +52,21 @@ const Reservations = () => {
   const fetchReservations = async () => {
     setLoading(true);
     try {
-      // Fetch bookings with 'reserved' status (pending requests)
+      // Fetch reservation requests
       const { data, error } = await supabase
-        .from("bookings")
-        .select(`
-          *,
-          guests (name, phone, email)
-        `)
-        .in("status", ["reserved", "confirmed", "cancelled"])
+        .from("reservation_requests")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       const transformedData: ReservationRequest[] = (data || []).map(b => ({
         id: b.id,
-        guest_id: b.guest_id,
-        guest_name: b.guests?.name || 'Unknown',
-        guest_phone: b.guests?.phone || '',
-        guest_email: b.guests?.email || null,
-        room_number: b.room_number,
-        room_type: b.room_type,
-        check_in: b.check_in,
-        check_out: b.check_out,
-        guests_count: b.guests_count,
-        total_amount: b.total_amount,
+        guest_name: b.guest_name || 'Unknown',
+        guest_phone: b.guest_phone || '',
+        guest_email: b.guest_email || null,
+        source: b.source || null,
+        request_items: Array.isArray(b.request_items) ? b.request_items : [],
         special_requests: b.special_requests,
         status: b.status,
         created_at: b.created_at,
@@ -86,34 +85,21 @@ const Reservations = () => {
       const reservation = reservations.find(r => r.id === id);
       if (!reservation) throw new Error("Reservation not found");
 
-      // Update booking status
-      const { error: bookingError } = await supabase
-        .from("bookings")
+      const { error: updateError } = await supabase
+        .from("reservation_requests")
         .update({ status: newStatus })
         .eq("id", id);
 
-      if (bookingError) throw bookingError;
-
-      // If confirmed, update the room's occupancy status to 'reserved'
-      if (newStatus === 'confirmed') {
-        const { error: roomError } = await supabase
-          .from("rooms")
-          .update({ occupancy_status: 'reserved' })
-          .eq("number", reservation.room_number);
-
-        if (roomError) {
-          console.error("Error updating room status:", roomError);
-        }
-      }
+      if (updateError) throw updateError;
 
       // Create booking notification
       await supabase.from("booking_notifications").insert({
-        booking_id: id,
+        reservation_request_id: id,
         type: newStatus === 'confirmed' ? 'reservation_confirmed' : 'reservation_cancelled',
         title: newStatus === 'confirmed' ? 'Reservation Confirmed' : 'Reservation Cancelled',
         message: note || (newStatus === 'confirmed' 
-          ? `Reservation for Room ${reservation.room_number} has been confirmed.`
-          : `Reservation for Room ${reservation.room_number} has been cancelled. Reason: ${note}`),
+          ? `Reservation request for ${reservation.guest_name} has been confirmed.`
+          : `Reservation request for ${reservation.guest_name} has been cancelled. Reason: ${note}`),
       });
 
       // Update local state
@@ -128,7 +114,7 @@ const Reservations = () => {
 
   const stats = {
     total: reservations.length,
-    pending: reservations.filter(r => r.status === "reserved").length,
+    pending: reservations.filter(r => r.status === "pending").length,
     confirmed: reservations.filter(r => r.status === "confirmed").length,
     cancelled: reservations.filter(r => r.status === "cancelled").length,
   };
@@ -136,8 +122,10 @@ const Reservations = () => {
   const filteredReservations = reservations.filter(reservation => {
     const matchesSearch = 
       reservation.guest_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reservation.room_number.includes(searchTerm) ||
-      reservation.guest_phone.includes(searchTerm);
+      reservation.guest_phone.includes(searchTerm) ||
+      reservation.request_items.some((item) =>
+        String(item.room_type || "").toLowerCase().includes(searchTerm.toLowerCase())
+      );
     const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -146,11 +134,17 @@ const Reservations = () => {
     <MainLayout>
       <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reservation Requests</h1>
-          <p className="text-muted-foreground">
-            Review and approve guest booking requests
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Reservation Requests</h1>
+            <p className="text-muted-foreground">
+              Review and approve guest booking requests
+            </p>
+          </div>
+          <Button onClick={() => setNewReservationOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Reservation
+          </Button>
         </div>
 
         {/* Stats */}
@@ -196,7 +190,7 @@ const Reservations = () => {
           <Tabs value={statusFilter} onValueChange={setStatusFilter}>
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="reserved">Pending</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
               <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
               <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
             </TabsList>
@@ -224,6 +218,12 @@ const Reservations = () => {
           </div>
         )}
       </div>
+      <ReservationRequestModal
+        open={newReservationOpen}
+        onOpenChange={setNewReservationOpen}
+        roomTypes={roomTypes.map((type) => ({ id: type.id, name: type.name, code: type.code }))}
+        onCreated={() => fetchReservations()}
+      />
     </MainLayout>
   );
 };

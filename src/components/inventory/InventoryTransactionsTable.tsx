@@ -28,6 +28,8 @@ export function InventoryTransactionsTable({ transactions }: InventoryTransactio
             <TableHead className="text-right">Qty</TableHead>
             <TableHead className="text-right">Unit Cost</TableHead>
             <TableHead className="text-right">Total</TableHead>
+            <TableHead>Batch</TableHead>
+            <TableHead>Expiry</TableHead>
             <TableHead>Reference</TableHead>
           </TableRow>
         </TableHeader>
@@ -52,6 +54,8 @@ export function InventoryTransactionsTable({ transactions }: InventoryTransactio
               <TableCell className="text-right">{txn.quantity}</TableCell>
               <TableCell className="text-right">Ksh {txn.unit_cost}</TableCell>
               <TableCell className="text-right">Ksh {txn.total_value}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{txn.batch_code || "-"}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{txn.expiry_date || "-"}</TableCell>
               <TableCell className="text-sm text-muted-foreground">{txn.reference || "-"}</TableCell>
             </TableRow>
           ))}

@@ -4,7 +4,7 @@ export type StockLevel = 'out-of-stock' | 'low' | 'adequate' | 'full';
 export interface InventoryItem {
   id: string;
   name: string;
-  brand: string;
+  brand?: string | null;
   category: SupplyCategory;
   sku: string;
   currentStock: number;
@@ -19,6 +19,16 @@ export interface InventoryItem {
   openingStock?: number;
   purchasesIn?: number;
   stockOut?: number;
+}
+
+export interface InventoryLot {
+  id: string;
+  inventoryItemId: string;
+  brand: string;
+  batchCode?: string | null;
+  expiryDate?: string | null;
+  quantity: number;
+  unitCost: number;
 }
 
 export interface StockAlert {

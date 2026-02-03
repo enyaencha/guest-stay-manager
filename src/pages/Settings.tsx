@@ -51,6 +51,7 @@ const Settings = () => {
   // Convert property settings for form
   const propertyFormData: PropertySettings = propertySettings ? {
     id: propertySettings.id,
+    applySettings: propertySettings.apply_settings ?? true,
     name: propertySettings.name,
     address: propertySettings.address || '',
     city: propertySettings.city || '',
@@ -65,6 +66,7 @@ const Settings = () => {
     logoUrl: propertySettings.logo_url || undefined,
   } : {
     id: '',
+    applySettings: true,
     name: '',
     address: '',
     city: '',
@@ -113,12 +115,14 @@ const Settings = () => {
 
   // Convert system preferences for form
   const systemFormData: SystemPreferences = systemPreferences ? {
+    applySettings: systemPreferences.apply_settings ?? true,
     language: systemPreferences.language || 'en',
     dateFormat: systemPreferences.date_format || 'DD/MM/YYYY',
     timeFormat: (systemPreferences.time_format || '24h') as SystemPreferences['timeFormat'],
     autoBackup: systemPreferences.auto_backup ?? true,
     maintenanceMode: systemPreferences.maintenance_mode ?? false,
   } : {
+    applySettings: true,
     language: 'en',
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
@@ -131,6 +135,7 @@ const Settings = () => {
       updatePropertySettings.mutate({
         id: propertySettings.id,
         updates: {
+          apply_settings: settings.applySettings ?? true,
           name: settings.name,
           address: settings.address,
           city: settings.city,
@@ -170,6 +175,7 @@ const Settings = () => {
       updateSystemPreferences.mutate({
         id: systemPreferences.id,
         updates: {
+          apply_settings: prefs.applySettings ?? true,
           language: prefs.language,
           date_format: prefs.dateFormat,
           time_format: prefs.timeFormat,

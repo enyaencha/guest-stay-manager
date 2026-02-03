@@ -54,6 +54,9 @@ export function BookingConfirmation({ formData, onClose }: BookingConfirmationPr
               <p className="font-medium">
                 {format(formData.checkIn, 'EEE, dd MMM')} → {format(formData.checkOut, 'EEE, dd MMM yyyy')}
               </p>
+              <p className="text-sm text-muted-foreground">
+                {format(formData.checkIn, "p")} check-in · {format(formData.checkOut, "p")} check-out
+              </p>
               <p className="text-sm text-muted-foreground">{formData.nights} night{formData.nights > 1 ? 's' : ''}</p>
             </div>
           </div>

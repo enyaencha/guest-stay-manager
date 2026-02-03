@@ -1,4 +1,5 @@
 import { InventoryItem } from '@/types/inventory';
+import { InventoryLot } from '@/hooks/useInventory';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -10,13 +11,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Minus } from 'lucide-react';
+import { ClipboardEdit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 interface InventoryTableProps {
   items: InventoryItem[];
-  onAdjustStock?: (itemId: string, adjustment: number) => void;
+  lots: InventoryLot[];
+  onOpenAdjustment?: (options: {
+    itemId?: string;
+    type?: "purchase" | "adjustment";
+    direction?: "in" | "out";
+  }) => void;
 }
 
 const stockLevelConfig = {
@@ -42,18 +48,18 @@ const getStockLevel = (item: InventoryItem): 'out-of-stock' | 'low' | 'adequate'
   return 'adequate';
 };
 
-export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
+export function InventoryTable({ items, lots, onOpenAdjustment }: InventoryTableProps) {
   return (
     <div className="border rounded-lg overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead>Item</TableHead>
-            <TableHead>Brand</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>SKU</TableHead>
+            <TableHead>Lots</TableHead>
             <TableHead>Stock Level</TableHead>
-            <TableHead>Unit Cost</TableHead>
+            <TableHead>Pricing</TableHead>
             <TableHead>Last Restocked</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -63,6 +69,9 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
             const level = getStockLevel(item);
             const levelConfig = stockLevelConfig[level];
             const stockPercent = Math.min((item.currentStock / item.maxStock) * 100, 100);
+            const itemLots = lots.filter((lot) => lot.inventory_item_id === item.id);
+            const lotCount = itemLots.length;
+            const lotSummary = itemLots.slice(0, 2).map((lot) => lot.brand).join(", ");
 
             return (
               <TableRow key={item.id}>
@@ -72,9 +81,6 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
                     <p className="text-xs text-muted-foreground">{item.supplier}</p>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {item.brand}
-                </TableCell>
                 <TableCell>
                   <Badge variant="outline" className="text-xs">
                     {categoryLabels[item.category]}
@@ -82,6 +88,15 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {item.sku}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  <div className="text-xs">
+                    {lotCount} lots
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {lotSummary || "No lots"}
+                    {lotCount > 2 ? "…" : ""}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1 min-w-[140px]">
@@ -109,7 +124,14 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
                   </div>
                 </TableCell>
                 <TableCell className="text-sm">
-                  Ksh {item.unitCost.toFixed(2)} / {item.unit.slice(0, -1) || item.unit}
+                  <div className="text-sm">
+                    <div>Ksh {item.unitCost.toFixed(2)} / {item.unit}</div>
+                    {item.sellingPrice ? (
+                      <div className="text-xs text-muted-foreground">Sell: Ksh {item.sellingPrice.toFixed(2)}</div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">Sell: -</div>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {item.lastRestocked 
@@ -120,20 +142,32 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
                     <Button
-                      size="icon"
+                      size="sm"
                       variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => onAdjustStock?.(item.id, -1)}
+                      className="h-7"
+                      onClick={() =>
+                        onOpenAdjustment?.({
+                          itemId: item.id,
+                          type: "purchase",
+                          direction: "in",
+                        })
+                      }
                     >
-                      <Minus className="h-3 w-3" />
+                      Add Stock
                     </Button>
                     <Button
                       size="icon"
                       variant="outline"
                       className="h-7 w-7"
-                      onClick={() => onAdjustStock?.(item.id, 10)}
+                      onClick={() =>
+                        onOpenAdjustment?.({
+                          itemId: item.id,
+                          type: "adjustment",
+                          direction: "out",
+                        })
+                      }
                     >
-                      <Plus className="h-3 w-3" />
+                      <ClipboardEdit className="h-3 w-3" />
                     </Button>
                   </div>
                 </TableCell>

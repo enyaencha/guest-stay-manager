@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Guest } from "@/types/guest";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatKsh } from "@/lib/formatters";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { RefundRequestModal } from "@/components/refunds/RefundRequestModal";
 import { 
   User, 
+  UserCircle,
   Mail, 
   Phone, 
   Calendar, 
@@ -47,7 +49,15 @@ const statusConfig: Record<Guest["status"], { label: string; className: string }
   "cancelled": { label: "Cancelled", className: "bg-destructive/20 text-destructive" },
 };
 
+const formatDateTime = (value?: string) => {
+  if (!value) return "—";
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+  return format(parsed, "MMM d, yyyy • HH:mm");
+};
+
 export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: GuestCardProps) => {
+  const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
@@ -100,14 +110,44 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
 
-    const posLines = (guest.posTransactions || []).map((txn) => `
-      <tr>
-        <td>${new Date(txn.date).toLocaleString()}</td>
-        <td>${txn.itemsSummary || "POS Items"}</td>
-        <td>${txn.paymentMethod}</td>
-        <td class="right">${formatKsh(txn.total)}</td>
-      </tr>
-    `).join("");
+    const posLines = (guest.posTransactions || [])
+      .flatMap((txn) => {
+        const items = txn.items && txn.items.length > 0
+          ? txn.items
+          : [{ name: txn.itemsSummary || "POS Items", quantity: 1, price: txn.total }];
+
+        const itemRows = items.map((item) => {
+          const lotMeta = item.lot_label ? ` • ${item.lot_label}` : "";
+          const expMeta = item.lot_expiry ? ` • Exp ${item.lot_expiry}` : "";
+          const lineTotal = (item.price || 0) * (item.quantity || 0);
+          return `
+            <tr>
+              <td>${new Date(txn.date).toLocaleString()}</td>
+              <td>${item.name}${lotMeta}${expMeta}</td>
+              <td class="right">${item.quantity}</td>
+              <td class="right">${formatKsh(item.price || 0)}</td>
+              <td class="right">${formatKsh(lineTotal)}</td>
+            </tr>
+          `;
+        });
+
+        const taxRow = txn.tax && txn.tax > 0
+          ? [
+              `
+              <tr>
+                <td>${new Date(txn.date).toLocaleString()}</td>
+                <td>Tax (10%)</td>
+                <td class="right">-</td>
+                <td class="right">-</td>
+                <td class="right">${formatKsh(txn.tax)}</td>
+              </tr>
+            `,
+            ]
+          : [];
+
+        return [...itemRows, ...taxRow];
+      })
+      .join("");
 
     const title = mode === "invoice" ? "Invoice" : "Receipt";
     const summaryRows = mode === "invoice"
@@ -144,7 +184,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
         <body>
           <h1>${title}</h1>
           <div class="muted">Guest: ${guest.name} • Room ${guest.roomNumber}</div>
-          <div class="muted">Stay: ${guest.checkIn} - ${guest.checkOut}</div>
+          <div class="muted">Stay: ${formatDateTime(guest.checkIn)} - ${formatDateTime(guest.checkOut)}</div>
 
           <div class="section">
             <h2 style="font-size: 14px; margin-bottom: 6px;">Summary</h2>
@@ -162,13 +202,14 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Items</th>
-                  <th>Method</th>
+                  <th>Item</th>
+                  <th class="right">Qty</th>
+                  <th class="right">Unit</th>
                   <th class="right">Total</th>
                 </tr>
               </thead>
               <tbody>
-                ${posLines || `<tr><td colspan="4">No POS items</td></tr>`}
+                ${posLines || `<tr><td colspan="5">No POS items</td></tr>`}
               </tbody>
             </table>
           </div>
@@ -239,6 +280,10 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate(`/guests/${guest.id}`)}>
+                    <UserCircle className="h-4 w-4 mr-2" />
+                    Open Profile
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowMessage(true)}>
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Send Message
@@ -263,7 +308,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              <span>{guest.checkIn} → {guest.checkOut}</span>
+              <span>{formatDateTime(guest.checkIn)} → {formatDateTime(guest.checkOut)}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Users className="h-4 w-4" />
@@ -321,12 +366,36 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
                 <span>{guest.phone}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">ID Number</span>
+                <span>{guest.idNumber || "—"}</span>
+              </div>
+              {guest.idPhotoUrl && (
+                <div className="py-2 border-b">
+                  <span className="text-muted-foreground block mb-1">ID Photo</span>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={guest.idPhotoUrl}
+                      alt={`ID for ${guest.name}`}
+                      className="h-20 w-32 rounded-md border object-cover"
+                    />
+                    <a
+                      href={guest.idPhotoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary"
+                    >
+                      View full size
+                    </a>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-between py-2 border-b">
                 <span className="text-muted-foreground">Check-in</span>
-                <span>{guest.checkIn}</span>
+                <span>{formatDateTime(guest.checkIn)}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-muted-foreground">Check-out</span>
-                <span>{guest.checkOut}</span>
+                <span>{formatDateTime(guest.checkOut)}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-muted-foreground">Guests</span>
@@ -457,7 +526,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-muted-foreground">Stay Period</span>
-                <span>{guest.checkIn} - {guest.checkOut}</span>
+                <span>{formatDateTime(guest.checkIn)} - {formatDateTime(guest.checkOut)}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-muted-foreground">Room Total</span>

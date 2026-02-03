@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateInventoryItem, useCreateInventoryTransaction } from "@/hooks/useInventory";
+import { useCreateInventoryItem, useCreateInventoryLot, useCreateInventoryTransaction } from "@/hooks/useInventory";
 
 interface AddInventoryItemModalProps {
   open: boolean;
@@ -23,11 +23,11 @@ const categories = [
 
 export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemModalProps) {
   const createItem = useCreateInventoryItem();
+  const createLot = useCreateInventoryLot();
   const createTx = useCreateInventoryTransaction();
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    brand: "",
     category: "amenities",
     sku: "",
     unit: "pieces",
@@ -37,15 +37,18 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
     currentStock: 0,
     minStock: 10,
     maxStock: 100,
+    lotBrand: "",
+    lotBatch: "",
+    lotExpiry: "",
   });
 
   const handleSubmit = async () => {
-    if (!form.name.trim() || !form.brand.trim()) return;
+    if (!form.name.trim()) return;
     setIsSaving(true);
     try {
       const item = await createItem.mutateAsync({
         name: form.name,
-        brand: form.brand,
+        brand: "Generic",
         category: form.category,
         sku: form.sku || null,
         current_stock: form.currentStock,
@@ -63,10 +66,19 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
       } as any);
 
       if (form.currentStock > 0) {
+        const lot = await createLot.mutateAsync({
+          inventory_item_id: item.id,
+          brand: form.lotBrand?.trim() || "Generic",
+          batch_code: form.lotBatch?.trim() || null,
+          expiry_date: form.lotExpiry || null,
+          quantity: form.currentStock,
+          unit_cost: form.unitCost,
+        });
         await createTx.mutateAsync({
           inventory_item_id: item.id,
+          inventory_lot_id: lot.id,
           item_name: item.name,
-          brand: item.brand,
+          brand: lot.brand,
           transaction_type: "purchase",
           direction: "in",
           quantity: form.currentStock,
@@ -81,7 +93,6 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
       onOpenChange(false);
       setForm({
         name: "",
-        brand: "",
         category: "amenities",
         sku: "",
         unit: "pieces",
@@ -91,6 +102,9 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
         currentStock: 0,
         minStock: 10,
         maxStock: 100,
+        lotBrand: "",
+        lotBatch: "",
+        lotExpiry: "",
       });
     } finally {
       setIsSaving(false);
@@ -108,10 +122,6 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
             <div className="space-y-2">
               <Label>Name *</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Brand *</Label>
-              <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -165,6 +175,33 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
               />
             </div>
             <div className="space-y-2">
+              <Label>Opening Brand</Label>
+              <Input
+                value={form.lotBrand}
+                onChange={(e) => setForm({ ...form, lotBrand: e.target.value })}
+                placeholder="Brand for opening stock"
+                disabled={form.currentStock <= 0}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Opening Batch</Label>
+              <Input
+                value={form.lotBatch}
+                onChange={(e) => setForm({ ...form, lotBatch: e.target.value })}
+                placeholder="Optional batch code"
+                disabled={form.currentStock <= 0}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Opening Expiry</Label>
+              <Input
+                type="date"
+                value={form.lotExpiry}
+                onChange={(e) => setForm({ ...form, lotExpiry: e.target.value })}
+                disabled={form.currentStock <= 0}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Min Stock</Label>
               <Input
                 type="number"
@@ -185,7 +222,7 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isSaving || !form.name.trim() || !form.brand.trim()}>
+            <Button onClick={handleSubmit} disabled={isSaving || !form.name.trim()}>
               {isSaving ? "Saving..." : "Add Item"}
             </Button>
           </div>

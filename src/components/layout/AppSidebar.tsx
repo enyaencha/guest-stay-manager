@@ -13,11 +13,12 @@ import {
   CalendarCheck,
   ReceiptText,
   Star,
+  UserCircle,
   LogOut
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -65,6 +66,18 @@ const settingsItems: NavItem[] = [
 export function AppSidebar() {
   const { hasPermission, signOut, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const showGuestProfileLink =
+    location.pathname.startsWith("/guests/") && location.pathname !== "/guests";
+  const guestProfileItem: NavItem | null = showGuestProfileLink
+    ? {
+        title: "Guest Profile",
+        url: location.pathname,
+        icon: UserCircle,
+        permission: "guests.view",
+      }
+    : null;
 
   const handleSignOut = async () => {
     await signOut();
@@ -122,6 +135,20 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {guestProfileItem && hasPermission("guests.view") && (
+                <SidebarMenuItem key="Guest Profile">
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={guestProfileItem.url}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <guestProfileItem.icon className="h-4 w-4" />
+                      <span>{guestProfileItem.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

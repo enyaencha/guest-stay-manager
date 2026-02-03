@@ -1,4 +1,5 @@
 import { CartItem, PaymentMethod } from "@/types/pos";
+import { InventoryLot } from "@/hooks/useInventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,12 +26,14 @@ interface CartPanelProps {
   items: CartItem[];
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemoveItem: (id: string) => void;
+  onUpdateLot: (id: string, lotId: string | null) => void;
   onCheckout: (
     selection: { roomNumber?: string; guestId?: string; guestName?: string },
     paymentMethod: PaymentMethod
   ) => void;
   onClearCart: () => void;
   roomOptions: RoomOption[];
+  lots: InventoryLot[];
 }
 
 const TAX_RATE = 0.10;
@@ -39,9 +42,11 @@ export const CartPanel = ({
   items, 
   onUpdateQuantity, 
   onRemoveItem, 
+  onUpdateLot,
   onCheckout,
   onClearCart,
-  roomOptions
+  roomOptions,
+  lots
 }: CartPanelProps) => {
   const [roomNumber, setRoomNumber] = useState<string>("walk-in");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
@@ -86,6 +91,30 @@ export const CartPanel = ({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{item.name}</p>
                     <p className="text-sm text-muted-foreground">{formatKsh(item.price)} each</p>
+                    {item.inventoryItemId && (
+                      <div className="mt-1">
+                        <Select
+                          value={item.inventoryLotId || "auto"}
+                          onValueChange={(value) => onUpdateLot(item.id, value === "auto" ? null : value)}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="Select lot" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Auto (earliest expiry)</SelectItem>
+                            {lots
+                              .filter((lot) => lot.inventory_item_id === item.inventoryItemId)
+                              .map((lot) => (
+                                <SelectItem key={lot.id} value={lot.id}>
+                                  {lot.brand}
+                                  {lot.batch_code ? ` · ${lot.batch_code}` : ""} ·{" "}
+                                  {lot.expiry_date || "No expiry"} · Qty {lot.quantity}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <Button 

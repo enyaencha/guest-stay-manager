@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Clock, User, BedDouble, Play, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useEffect, useMemo, useState } from 'react';
 
 interface TaskCardProps {
   task: HousekeepingTask;
@@ -41,6 +42,8 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
   const status = statusConfig[task.status];
   const plannedAmenities = task.amenities ?? [];
   const actualAdded = task.actualAdded ?? [];
+  const [draftAdded, setDraftAdded] = useState(actualAdded);
+  const [draftNotes, setDraftNotes] = useState(task.actualAddedNotes ?? "");
   const requiresAdded = plannedAmenities.length > 0;
   const hasAllAdded = !requiresAdded || plannedAmenities.every((amenity) => {
     const added = actualAdded.find((item) =>
@@ -49,11 +52,16 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
     return added && added.quantity > 0;
   });
 
+  useEffect(() => {
+    setDraftAdded(actualAdded);
+    setDraftNotes(task.actualAddedNotes ?? "");
+  }, [task.actualAddedNotes, actualAdded]);
+
   const handleAmenityChange = (name: string, itemId: string | undefined, value: string) => {
     const parsedValue = Number(value);
     const quantity = Number.isFinite(parsedValue) ? Math.max(parsedValue, 0) : 0;
     const nextAmenities = plannedAmenities.map((amenity) => {
-      const existing = actualAdded.find((item) =>
+      const existing = draftAdded.find((item) =>
         (item.itemId && amenity.itemId && item.itemId === amenity.itemId) || item.name === amenity.name
       );
       return {
@@ -66,8 +74,14 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
           : (existing?.quantity ?? 0),
       };
     });
-    onAmenitiesUpdate?.(task.id, nextAmenities);
+    setDraftAdded(nextAmenities);
   };
+
+  const hasDraftChanges = useMemo(() => {
+    const notesChanged = (task.actualAddedNotes ?? "") !== draftNotes;
+    const addedChanged = JSON.stringify(actualAdded) !== JSON.stringify(draftAdded);
+    return notesChanged || addedChanged;
+  }, [actualAdded, draftAdded, task.actualAddedNotes, draftNotes]);
 
   return (
     <Card className="shadow-card hover:shadow-card-hover transition-shadow">
@@ -172,11 +186,24 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
                 })}
               </div>
               <Textarea
-                value={task.actualAddedNotes ?? ''}
-                onChange={(event) => onActualNotesUpdate?.(task.id, event.target.value)}
+                value={draftNotes}
+                onChange={(event) => setDraftNotes(event.target.value)}
                 placeholder="Extra items added by cleaner (optional)"
                 className="min-h-[64px] text-xs"
               />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!hasDraftChanges}
+                  onClick={() => {
+                    onAmenitiesUpdate?.(task.id, draftAdded);
+                    onActualNotesUpdate?.(task.id, draftNotes);
+                  }}
+                >
+                  Save Updates
+                </Button>
+              </div>
             </div>
           )}
 

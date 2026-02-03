@@ -1,6 +1,7 @@
 import { PropertySettings, StaffMember, RoomTypeConfig, NotificationSettings, SystemPreferences, UserRole } from '@/types/settings';
 
 export const mockPropertySettings: PropertySettings = {
+  applySettings: true,
   name: "Safari Lodge Hotel",
   address: "123 Kenyatta Avenue",
   city: "Nairobi",
@@ -150,6 +151,7 @@ export const mockNotificationSettings: NotificationSettings = {
 };
 
 export const mockSystemPreferences: SystemPreferences = {
+  applySettings: true,
   language: "en",
   dateFormat: "DD/MM/YYYY",
   timeFormat: "24h",

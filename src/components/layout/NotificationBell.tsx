@@ -14,7 +14,8 @@ import { useNavigate } from "react-router-dom";
 
 interface Notification {
   id: string;
-  booking_id: string;
+  booking_id: string | null;
+  reservation_request_id?: string | null;
   type: string;
   title: string;
   message: string;

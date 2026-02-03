@@ -44,6 +44,8 @@ export const BookingRequestModal = ({
     idNumber: "",
     checkIn: "",
     checkOut: "",
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
     guests: 1,
     roomType: preselectedRoom || "",
     specialRequests: "",
@@ -86,36 +88,37 @@ export const BookingRequestModal = ({
         throw guestError ?? new Error("Unable to create guest record");
       }
 
-      const guestId = (guestRows as any[])[0].id as string;
+      // Guest record created for lookup/reference
 
-      // Find an available room of the selected type using maybeSingle
-      const { data: availableRoom } = await supabase
-        .from("rooms")
-        .select("number")
-        .eq("room_type_id", selectedRoomType?.id)
-        .eq("is_active", true)
-        .eq("occupancy_status", "vacant")
-        .eq("cleaning_status", "clean")
-        .eq("maintenance_status", "none")
-        .limit(1)
-        .maybeSingle();
+      // No room assignment at request stage
 
-      const roomNumber = availableRoom?.number || "TBA";
+      const checkInDateTime = formData.checkIn
+        ? new Date(`${formData.checkIn}T${formData.checkInTime}`)
+        : null;
+      const checkOutDateTime = formData.checkOut
+        ? new Date(`${formData.checkOut}T${formData.checkOutTime}`)
+        : null;
 
-      // Create booking with 'reserved' status (pending confirmation)
+      // Create reservation request (not a booking)
       const { data: booking, error: bookingError } = await supabase
-        .from("bookings")
+        .from("reservation_requests")
         .insert({
-          guest_id: guestId,
-          room_number: roomNumber,
-          room_type: selectedRoomType?.name || formData.roomType,
-          check_in: formData.checkIn,
-          check_out: formData.checkOut,
-          guests_count: formData.guests,
-          total_amount: totalAmount,
-          paid_amount: 0,
-          status: "reserved", // Customer reservation request
+          guest_name: formData.name,
+          guest_phone: formData.phone,
+          guest_email: formData.email || null,
+          source: "Website",
+          status: "pending",
           special_requests: formData.specialRequests || null,
+          request_items: [
+            {
+              room_type: selectedRoomType?.name || formData.roomType,
+              package: selectedRoomType?.name || null,
+              rooms_count: 1,
+              guests_count: formData.guests,
+              check_in: checkInDateTime ? checkInDateTime.toISOString() : formData.checkIn,
+              check_out: checkOutDateTime ? checkOutDateTime.toISOString() : formData.checkOut,
+            },
+          ],
         })
         .select()
         .single();
@@ -124,10 +127,10 @@ export const BookingRequestModal = ({
 
       // Create notification for new reservation
       await supabase.from("booking_notifications").insert({
-        booking_id: booking.id,
+        reservation_request_id: booking.id,
         type: "new_reservation",
         title: "New Reservation Request",
-        message: `${formData.name} has requested a ${selectedRoomType?.name} room from ${formData.checkIn} to ${formData.checkOut} (${nights} nights). Total: Ksh ${totalAmount.toLocaleString()}`,
+        message: `${formData.name} has requested a ${selectedRoomType?.name} room from ${formData.checkIn} ${formData.checkInTime} to ${formData.checkOut} ${formData.checkOutTime} (${nights} nights). Total: Ksh ${totalAmount.toLocaleString()}`,
       });
 
       setBookingReference(booking.id.slice(0, 8).toUpperCase());
@@ -150,6 +153,8 @@ export const BookingRequestModal = ({
       idNumber: "",
       checkIn: "",
       checkOut: "",
+      checkInTime: "14:00",
+      checkOutTime: "12:00",
       guests: 1,
       roomType: preselectedRoom || "",
       specialRequests: "",
@@ -188,6 +193,24 @@ export const BookingRequestModal = ({
                   value={formData.checkOut}
                   min={formData.checkIn || format(new Date(), "yyyy-MM-dd")}
                   onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Check-in Time *</Label>
+                <Input
+                  type="time"
+                  value={formData.checkInTime}
+                  onChange={(e) => setFormData({ ...formData, checkInTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Check-out Time *</Label>
+                <Input
+                  type="time"
+                  value={formData.checkOutTime}
+                  onChange={(e) => setFormData({ ...formData, checkOutTime: e.target.value })}
                 />
               </div>
             </div>

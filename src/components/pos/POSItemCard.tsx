@@ -1,4 +1,4 @@
-import { POSItem } from "@/types/pos";
+import { POSItem } from "@/hooks/usePOS";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ interface POSItemCardProps {
   onAddToCart: (item: POSItem) => void;
 }
 
-const categoryLabels: Record<POSItem["category"], string> = {
+const categoryLabels: Record<string, string> = {
   services: "Service",
   "food-beverage": "F&B",
   amenities: "Amenity",
@@ -22,7 +22,7 @@ const categoryLabels: Record<POSItem["category"], string> = {
 
 export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
   return (
-    <Card className={`hover:shadow-md transition-shadow ${!item.available ? "opacity-50" : ""}`}>
+    <Card className={`hover:shadow-md transition-shadow ${!item.is_available ? "opacity-50" : ""}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div>
@@ -30,7 +30,7 @@ export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
             <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
           </div>
           <Badge variant="secondary" className="shrink-0 ml-2">
-            {categoryLabels[item.category]}
+            {categoryLabels[item.category] || item.category}
           </Badge>
         </div>
         <div className="flex items-center justify-between mt-4">
@@ -39,7 +39,7 @@ export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
           </span>
           <Button 
             size="sm" 
-            disabled={!item.available}
+            disabled={!item.is_available}
             onClick={() => onAddToCart(item)}
           >
             <Plus className="h-4 w-4 mr-1" />

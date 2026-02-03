@@ -43,10 +43,10 @@ const roomTypeImages: Record<string, string> = {
 
 export function RoomCard({ room, onClick }: RoomCardProps) {
   const statusStyles: Record<string, string> = {
-    vacant: "border-status-available/70 bg-status-available-bg/70 text-foreground",
-    occupied: "border-status-occupied/70 bg-[hsl(var(--status-occupied-bg))]/70 text-foreground",
-    checkout: "border-status-checkout/70 bg-[hsl(var(--status-checkout-bg))]/70 text-foreground",
-    reserved: "border-status-reserved/80 bg-[hsl(var(--status-reserved-bg))]/80 text-foreground ring-1 ring-status-reserved/30",
+    vacant: "border-status-available/80 bg-status-available-bg/85 text-foreground",
+    occupied: "border-status-occupied/80 bg-[hsl(var(--status-occupied-bg))]/85 text-foreground",
+    checkout: "border-status-checkout/80 bg-[hsl(var(--status-checkout-bg))]/85 text-foreground",
+    reserved: "border-status-reserved/85 bg-[hsl(var(--status-reserved-bg))]/85 text-foreground ring-1 ring-status-reserved/40",
   };
 
   const stripStyles: Record<string, string> = {
@@ -57,9 +57,9 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
   };
 
   const priorityBorder = room.maintenanceStatus !== "none"
-    ? "border-status-maintenance/80 ring-1 ring-status-maintenance/30 bg-status-maintenance/15 text-foreground"
+    ? "border-status-maintenance/85 ring-1 ring-status-maintenance/40 bg-status-maintenance/20 text-foreground"
     : room.cleaningStatus !== "clean"
-      ? "border-status-cleaning/80 ring-1 ring-status-cleaning/30 bg-status-cleaning/15 text-foreground"
+      ? "border-status-cleaning/85 ring-1 ring-status-cleaning/40 bg-status-cleaning/20 text-foreground"
       : statusStyles[room.occupancyStatus];
 
   const stripClass = room.maintenanceStatus !== "none"

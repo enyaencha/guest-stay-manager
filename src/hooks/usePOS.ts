@@ -37,6 +37,9 @@ export interface POSTransaction {
 
 export interface CartItem extends POSItem {
   quantity: number;
+  inventory_lot_id?: string | null;
+  lot_label?: string | null;
+  lot_expiry?: string | null;
 }
 
 export const usePOSItems = () => {

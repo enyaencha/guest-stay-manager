@@ -11,6 +11,7 @@ import { FeedbackModal } from "@/components/landing/FeedbackModal";
 import { StaffSecretModal } from "@/components/auth/StaffSecretModal";
 import { FeaturedSuitesGallery } from "@/components/landing/FeaturedSuitesGallery";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { usePropertySettings } from "@/hooks/useSettings";
 import { 
   BedDouble, 
   Star, 
@@ -71,6 +72,23 @@ const Landing = () => {
   const [galleryTitle, setGalleryTitle] = useState("");
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const { data: propertySettings } = usePropertySettings();
+
+  const applyPropertySettings = propertySettings?.apply_settings ?? true;
+  const propertyName = applyPropertySettings
+    ? propertySettings?.name || "HavenStay"
+    : "HavenStay";
+  const propertyAddress = applyPropertySettings
+    ? [propertySettings?.address, propertySettings?.city]
+        .filter(Boolean)
+        .join(", ") || "123 Haven Street, City Center"
+    : "123 Haven Street, City Center";
+  const propertyPhone = applyPropertySettings
+    ? propertySettings?.phone || "+254 700 123 456"
+    : "+254 700 123 456";
+  const propertyEmail = applyPropertySettings
+    ? propertySettings?.email || "reservations@havenstay.com"
+    : "reservations@havenstay.com";
 
   // Fetch room types and reviews from database
   useEffect(() => {
@@ -221,7 +239,7 @@ const Landing = () => {
               <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
                 <BedDouble className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">HavenStay</span>
+              <span className="text-xl font-bold">{propertyName}</span>
             </div>
 
             {/* Desktop Navigation */}
@@ -313,7 +331,7 @@ const Landing = () => {
                 Your Perfect <span className="text-accent">Getaway</span> Awaits
               </h1>
               <p className="text-lg text-primary-foreground/80 max-w-lg">
-                Experience luxury and comfort at HavenStay. Modern rooms, exceptional service, 
+                Experience luxury and comfort at {propertyName}. Modern rooms, exceptional service, 
                 and unforgettable moments in the heart of the city.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -529,7 +547,7 @@ const Landing = () => {
               What Our Guests Say
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Read genuine reviews from guests who've experienced HavenStay.
+              Read genuine reviews from guests who've experienced {propertyName}.
             </p>
           </div>
 
@@ -588,7 +606,7 @@ const Landing = () => {
                   </div>
                   <div>
                     <p className="font-medium">Address</p>
-                    <p className="text-muted-foreground">123 Haven Street, City Center</p>
+                    <p className="text-muted-foreground">{propertyAddress}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -597,7 +615,7 @@ const Landing = () => {
                   </div>
                   <div>
                     <p className="font-medium">Phone</p>
-                    <p className="text-muted-foreground">+254 700 123 456</p>
+                    <p className="text-muted-foreground">{propertyPhone}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -606,7 +624,7 @@ const Landing = () => {
                   </div>
                   <div>
                     <p className="font-medium">Email</p>
-                    <p className="text-muted-foreground">reservations@havenstay.com</p>
+                    <p className="text-muted-foreground">{propertyEmail}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -662,7 +680,7 @@ const Landing = () => {
                 <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
                   <BedDouble className="h-5 w-5 text-accent-foreground" />
                 </div>
-                <span className="text-lg font-bold">HavenStay</span>
+                <span className="text-lg font-bold">{propertyName}</span>
               </div>
               <p className="text-sm text-primary-foreground/70">
                 Your home away from home. Experience comfort and luxury at its finest.
@@ -701,7 +719,7 @@ const Landing = () => {
 
           <div className="border-t border-primary-foreground/20 mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-primary-foreground/70">
-              © 2026 HavenStay. All rights reserved.
+              © 2026 {propertyName}. All rights reserved.
             </p>
             <div className="flex gap-4 text-sm text-primary-foreground/70">
               <a href="#" className="hover:text-accent">Privacy Policy</a>

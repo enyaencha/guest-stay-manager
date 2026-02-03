@@ -41,6 +41,7 @@ interface StaffFormData {
   status: string;
   employment_type: 'permanent' | 'temporary';
   contract_end_date: Date | null;
+  contract_end_time: string;
 }
 
 interface RoleAssignmentData {
@@ -77,6 +78,7 @@ export const StaffManagement = () => {
     status: "active",
     employment_type: "permanent",
     contract_end_date: null,
+    contract_end_time: "17:00",
   });
 
   const [roleAssignment, setRoleAssignment] = useState<RoleAssignmentData>({
@@ -84,6 +86,16 @@ export const StaffManagement = () => {
     role_id: "",
     valid_until: null,
   });
+  const [validUntilTime, setValidUntilTime] = useState("23:59");
+
+  const applyTime = (date: Date, time: string) => {
+    const [hours, minutes] = time.split(":").map((val) => Number(val));
+    const next = new Date(date);
+    if (!Number.isNaN(hours)) next.setHours(hours);
+    if (!Number.isNaN(minutes)) next.setMinutes(minutes);
+    next.setSeconds(0, 0);
+    return next;
+  };
 
   // Check and deactivate expired staff on component mount
   useEffect(() => {
@@ -96,6 +108,14 @@ export const StaffManagement = () => {
     };
     checkExpiredStaff();
   }, []);
+
+  useEffect(() => {
+    if (roleAssignment.valid_until) {
+      const hours = String(roleAssignment.valid_until.getHours()).padStart(2, "0");
+      const minutes = String(roleAssignment.valid_until.getMinutes()).padStart(2, "0");
+      setValidUntilTime(`${hours}:${minutes}`);
+    }
+  }, [roleAssignment.valid_until]);
 
   const filteredStaff = staff.filter(member =>
     member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -118,6 +138,7 @@ export const StaffManagement = () => {
       status: "active",
       employment_type: "permanent",
       contract_end_date: null,
+      contract_end_time: "17:00",
     });
     setEditingStaff(null);
   };
@@ -135,7 +156,9 @@ export const StaffManagement = () => {
       department: formData.department,
       status: formData.status,
       employment_type: formData.employment_type,
-      contract_end_date: formData.contract_end_date ? format(formData.contract_end_date, 'yyyy-MM-dd') : null,
+      contract_end_date: formData.contract_end_date
+        ? applyTime(formData.contract_end_date, formData.contract_end_time).toISOString()
+        : null,
       user_id: null,
       joined_date: format(new Date(), 'yyyy-MM-dd'),
       avatar_url: null,
@@ -180,7 +203,9 @@ export const StaffManagement = () => {
         department: formData.department,
         status: formData.status,
         employment_type: formData.employment_type,
-        contract_end_date: formData.contract_end_date ? format(formData.contract_end_date, 'yyyy-MM-dd') : null,
+        contract_end_date: formData.contract_end_date
+          ? applyTime(formData.contract_end_date, formData.contract_end_time).toISOString()
+          : null,
       }
     });
 
@@ -207,6 +232,10 @@ export const StaffManagement = () => {
 
   const openEditDialog = (member: any) => {
     setEditingStaff(member.id);
+    const parsedContract = member.contract_end_date ? parseISO(member.contract_end_date) : null;
+    const contractTime = parsedContract
+      ? `${String(parsedContract.getHours()).padStart(2, "0")}:${String(parsedContract.getMinutes()).padStart(2, "0")}`
+      : "17:00";
     setFormData({
       name: member.name,
       email: member.email || "",
@@ -214,7 +243,8 @@ export const StaffManagement = () => {
       department: member.department,
       status: member.status,
       employment_type: member.employment_type || 'permanent',
-      contract_end_date: member.contract_end_date ? parseISO(member.contract_end_date) : null,
+      contract_end_date: parsedContract,
+      contract_end_time: contractTime,
     });
   };
 
@@ -525,12 +555,31 @@ export const StaffManagement = () => {
                 <Calendar
                   mode="single"
                   selected={formData.contract_end_date || undefined}
-                  onSelect={(date) => handleInputChange("contract_end_date", date)}
+                  onSelect={(date) =>
+                    handleInputChange("contract_end_date", date ? applyTime(date, formData.contract_end_time) : null)
+                  }
                   disabled={(date) => date < new Date()}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {formData.contract_end_date && (
+              <div className="mt-2">
+                <Label className="text-xs">Contract End Time</Label>
+                <input
+                  type="time"
+                  className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={formData.contract_end_time}
+                  onChange={(e) => {
+                    handleInputChange("contract_end_time", e.target.value);
+                    handleInputChange(
+                      "contract_end_date",
+                      applyTime(formData.contract_end_date as Date, e.target.value)
+                    );
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -744,7 +793,7 @@ export const StaffManagement = () => {
                       >
                         <Clock className="mr-2 h-4 w-4" />
                         {roleAssignment.valid_until 
-                          ? format(roleAssignment.valid_until, "PPP") 
+                          ? format(roleAssignment.valid_until, "PPP p") 
                           : "Permanent access"}
                       </Button>
                     </PopoverTrigger>
@@ -752,12 +801,34 @@ export const StaffManagement = () => {
                       <Calendar
                         mode="single"
                         selected={roleAssignment.valid_until || undefined}
-                        onSelect={(date) => setRoleAssignment(prev => ({ ...prev, valid_until: date || null }))}
+                        onSelect={(date) =>
+                          setRoleAssignment((prev) => ({
+                            ...prev,
+                            valid_until: date ? applyTime(date, validUntilTime) : null,
+                          }))
+                        }
                         disabled={(date) => date < new Date()}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
+                  {roleAssignment.valid_until && (
+                    <div className="mt-2">
+                      <Label className="text-xs">Access Time</Label>
+                      <input
+                        type="time"
+                        className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        value={validUntilTime}
+                        onChange={(e) => {
+                          setValidUntilTime(e.target.value);
+                          setRoleAssignment((prev) => ({
+                            ...prev,
+                            valid_until: prev.valid_until ? applyTime(prev.valid_until, e.target.value) : null,
+                          }));
+                        }}
+                      />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Leave empty for permanent access, or set a date for temporary access
                   </p>

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export interface InventoryItem {
   id: string;
   name: string;
-  brand: string;
+  brand: string | null;
   category: string;
   sku: string | null;
   current_stock: number;
@@ -24,6 +24,18 @@ export interface InventoryItem {
   updated_at: string;
 }
 
+export interface InventoryLot {
+  id: string;
+  inventory_item_id: string;
+  brand: string;
+  batch_code: string | null;
+  expiry_date: string | null;
+  quantity: number;
+  unit_cost: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StockAlert {
   id: string;
   itemId: string;
@@ -38,6 +50,7 @@ export interface StockAlert {
 export interface InventoryTransaction {
   id: string;
   inventory_item_id: string;
+  inventory_lot_id: string | null;
   item_name: string;
   brand: string;
   transaction_type: string;
@@ -46,6 +59,9 @@ export interface InventoryTransaction {
   unit: string;
   unit_cost: number;
   total_value: number;
+  batch_code: string | null;
+  expiry_date: string | null;
+  transaction_date: string;
   reference: string | null;
   notes: string | null;
   created_at: string;
@@ -77,6 +93,21 @@ export const useInventoryTransactions = () => {
 
       if (error) throw error;
       return data as InventoryTransaction[];
+    },
+  });
+};
+
+export const useInventoryLots = () => {
+  return useQuery({
+    queryKey: ["inventory_lots"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_lots")
+        .select("*")
+        .order("expiry_date", { ascending: true, nullsFirst: false });
+
+      if (error) throw error;
+      return data as InventoryLot[];
     },
   });
 };
@@ -149,6 +180,53 @@ export const useCreateInventoryItem = () => {
     },
     onError: (error) => {
       toast.error("Failed to add inventory item: " + error.message);
+    },
+  });
+};
+
+export const useCreateInventoryLot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (lot: Omit<InventoryLot, "id" | "created_at" | "updated_at">) => {
+      const { data, error } = await supabase
+        .from("inventory_lots")
+        .insert(lot)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_lots"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to add inventory lot: " + error.message);
+    },
+  });
+};
+
+export const useUpdateInventoryLot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<InventoryLot> }) => {
+      const { data, error } = await supabase
+        .from("inventory_lots")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_lots"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update inventory lot: " + error.message);
     },
   });
 };

@@ -158,7 +158,7 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="idNumber">ID/Passport Number</Label>
+            <Label htmlFor="idNumber">ID/Passport Number *</Label>
             <div className="relative">
               <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -169,6 +169,16 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
                 onChange={(e) => updateFormData({ idNumber: e.target.value })}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="idPhoto">ID Photo (optional)</Label>
+            <Input
+              id="idPhoto"
+              type="file"
+              accept="image/*"
+              onChange={(e) => updateFormData({ idPhotoFile: e.target.files?.[0] || null })}
+            />
           </div>
 
           <div className="space-y-2">
@@ -185,6 +195,26 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
                 {nationalities.map((nat) => (
                   <SelectItem key={nat} value={nat}>{nat}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Reservation Source</Label>
+            <Select
+              value={formData.bookingSource}
+              onValueChange={(value) => updateFormData({ bookingSource: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Walk-in">Walk-in</SelectItem>
+                <SelectItem value="Phone">Phone Call</SelectItem>
+                <SelectItem value="Email">Email</SelectItem>
+                <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                <SelectItem value="Referral">Referral</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>

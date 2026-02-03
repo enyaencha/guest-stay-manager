@@ -1,21 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=Crimson+Pro:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
-
-@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
-
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
-
-@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap");
-
 @layer base {
   :root {
     /* Luxury Gold & Ivory + Emerald Palette */
@@ -53,18 +40,18 @@
     --radius: 0.625rem;
 
     /* Luxury status colors */
-    --status-available: 158 55% 38%;
-    --status-available-bg: 158 55% 95%;
-    --status-occupied: 42 75% 45%;
-    --status-occupied-bg: 42 75% 95%;
-    --status-cleaning: 35 85% 55%;
-    --status-cleaning-bg: 35 85% 95%;
-    --status-maintenance: 0 72% 51%;
-    --status-maintenance-bg: 0 72% 95%;
-    --status-checkout: 280 50% 55%;
-    --status-checkout-bg: 280 50% 95%;
-    --status-reserved: 199 80% 48%;
-    --status-reserved-bg: 199 80% 95%;
+    --status-available: 152 60% 32%;
+    --status-available-bg: 152 70% 90%;
+    --status-occupied: 38 90% 45%;
+    --status-occupied-bg: 38 95% 90%;
+    --status-cleaning: 24 95% 50%;
+    --status-cleaning-bg: 24 95% 90%;
+    --status-maintenance: 0 78% 50%;
+    --status-maintenance-bg: 0 85% 90%;
+    --status-checkout: 270 70% 50%;
+    --status-checkout-bg: 270 75% 90%;
+    --status-reserved: 205 85% 45%;
+    --status-reserved-bg: 205 90% 90%;
 
     /* Luxury Sidebar - Deep Emerald */
     --sidebar-background: 158 45% 12%;

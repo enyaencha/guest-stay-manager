@@ -16,6 +16,92 @@ interface RoomTypeSettingsProps {
   onUpdate: (roomTypes: RoomTypeConfig[]) => void;
 }
 
+interface RoomTypeFormProps {
+  formData: Partial<RoomTypeConfig>;
+  newAmenity: string;
+  onFormChange: (field: keyof RoomTypeConfig, value: string | number | string[]) => void;
+  onNewAmenityChange: (value: string) => void;
+  onAddAmenity: () => void;
+  onRemoveAmenity: (amenity: string) => void;
+  isEdit?: boolean;
+}
+
+const RoomTypeForm = ({
+  formData,
+  newAmenity,
+  onFormChange,
+  onNewAmenityChange,
+  onAddAmenity,
+  onRemoveAmenity,
+  isEdit = false,
+}: RoomTypeFormProps) => (
+  <div className="grid gap-4 py-4">
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor={`${isEdit ? 'edit' : 'add'}-name`}>Room Type Name</Label>
+        <Input
+          id={`${isEdit ? 'edit' : 'add'}-name`}
+          value={formData.name ?? ""}
+          onChange={(e) => onFormChange("name", e.target.value)}
+          placeholder="e.g., Deluxe Suite"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${isEdit ? 'edit' : 'add'}-price`}>Base Price (KSH)</Label>
+        <Input
+          id={`${isEdit ? 'edit' : 'add'}-price`}
+          type="number"
+          value={formData.basePrice ?? 0}
+          onChange={(e) => onFormChange("basePrice", Number(e.target.value))}
+        />
+      </div>
+    </div>
+    <div className="space-y-2">
+      <Label htmlFor={`${isEdit ? 'edit' : 'add'}-occupancy`}>Max Occupancy</Label>
+      <Input
+        id={`${isEdit ? 'edit' : 'add'}-occupancy`}
+        type="number"
+        min={1}
+        max={10}
+        value={formData.maxOccupancy ?? 1}
+        onChange={(e) => onFormChange("maxOccupancy", Number(e.target.value))}
+      />
+    </div>
+    <div className="space-y-2">
+      <Label htmlFor={`${isEdit ? 'edit' : 'add'}-description`}>Description</Label>
+      <Textarea
+        id={`${isEdit ? 'edit' : 'add'}-description`}
+        value={formData.description ?? ""}
+        onChange={(e) => onFormChange("description", e.target.value)}
+        rows={2}
+      />
+    </div>
+    <div className="space-y-2">
+      <Label>Amenities</Label>
+      <div className="flex gap-2">
+        <Input
+          value={newAmenity}
+          onChange={(e) => onNewAmenityChange(e.target.value)}
+          placeholder="Add amenity"
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAddAmenity())}
+        />
+        <Button type="button" variant="outline" onClick={onAddAmenity}>Add</Button>
+      </div>
+      <div className="flex flex-wrap gap-2 mt-2">
+        {formData.amenities?.map((amenity) => (
+          <Badge key={amenity} variant="secondary" className="flex items-center gap-1">
+            {amenity}
+            <X
+              className="h-3 w-3 cursor-pointer"
+              onClick={() => onRemoveAmenity(amenity)}
+            />
+          </Badge>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 export const RoomTypeSettings = ({ roomTypes, onUpdate }: RoomTypeSettingsProps) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<RoomTypeConfig | null>(null);
@@ -90,74 +176,6 @@ export const RoomTypeSettings = ({ roomTypes, onUpdate }: RoomTypeSettingsProps)
     setFormData(type);
   };
 
-  const RoomTypeForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor={`${isEdit ? 'edit' : 'add'}-name`}>Room Type Name</Label>
-          <Input
-            id={`${isEdit ? 'edit' : 'add'}-name`}
-            value={formData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder="e.g., Deluxe Suite"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${isEdit ? 'edit' : 'add'}-price`}>Base Price (KSH)</Label>
-          <Input
-            id={`${isEdit ? 'edit' : 'add'}-price`}
-            type="number"
-            value={formData.basePrice}
-            onChange={(e) => handleInputChange("basePrice", Number(e.target.value))}
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${isEdit ? 'edit' : 'add'}-occupancy`}>Max Occupancy</Label>
-        <Input
-          id={`${isEdit ? 'edit' : 'add'}-occupancy`}
-          type="number"
-          min={1}
-          max={10}
-          value={formData.maxOccupancy}
-          onChange={(e) => handleInputChange("maxOccupancy", Number(e.target.value))}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${isEdit ? 'edit' : 'add'}-description`}>Description</Label>
-        <Textarea
-          id={`${isEdit ? 'edit' : 'add'}-description`}
-          value={formData.description}
-          onChange={(e) => handleInputChange("description", e.target.value)}
-          rows={2}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Amenities</Label>
-        <div className="flex gap-2">
-          <Input
-            value={newAmenity}
-            onChange={(e) => setNewAmenity(e.target.value)}
-            placeholder="Add amenity"
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAmenity())}
-          />
-          <Button type="button" variant="outline" onClick={handleAddAmenity}>Add</Button>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {formData.amenities?.map((amenity) => (
-            <Badge key={amenity} variant="secondary" className="flex items-center gap-1">
-              {amenity}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => handleRemoveAmenity(amenity)}
-              />
-            </Badge>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <Card>
       <CardHeader>
@@ -181,7 +199,14 @@ export const RoomTypeSettings = ({ roomTypes, onUpdate }: RoomTypeSettingsProps)
                 <DialogTitle>Add New Room Type</DialogTitle>
                 <DialogDescription>Configure a new room type with pricing and amenities</DialogDescription>
               </DialogHeader>
-              <RoomTypeForm />
+              <RoomTypeForm
+                formData={formData}
+                newAmenity={newAmenity}
+                onFormChange={handleInputChange}
+                onNewAmenityChange={setNewAmenity}
+                onAddAmenity={handleAddAmenity}
+                onRemoveAmenity={handleRemoveAmenity}
+              />
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleAdd}>Add Room Type</Button>
@@ -233,7 +258,15 @@ export const RoomTypeSettings = ({ roomTypes, onUpdate }: RoomTypeSettingsProps)
                         <DialogTitle>Edit Room Type</DialogTitle>
                         <DialogDescription>Update room type configuration</DialogDescription>
                       </DialogHeader>
-                      <RoomTypeForm isEdit />
+                      <RoomTypeForm
+                        isEdit
+                        formData={formData}
+                        newAmenity={newAmenity}
+                        onFormChange={handleInputChange}
+                        onNewAmenityChange={setNewAmenity}
+                        onAddAmenity={handleAddAmenity}
+                        onRemoveAmenity={handleRemoveAmenity}
+                      />
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingType(null)}>Cancel</Button>
                         <Button onClick={handleEdit}>Save Changes</Button>

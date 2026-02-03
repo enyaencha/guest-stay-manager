@@ -72,6 +72,7 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
   };
 
   useEffect(() => {
+    if (!preferences.applySettings) return;
     if (!preferences.autoBackup) return;
     const today = new Date().toISOString().slice(0, 10);
     const last = localStorage.getItem("lastBackupAt");
@@ -88,7 +89,7 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
       }
     }, 60 * 60 * 1000);
     return () => clearInterval(timer);
-  }, [preferences.autoBackup]);
+  }, [preferences.autoBackup, preferences.applySettings]);
 
   return (
     <Card>
@@ -104,6 +105,18 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
       <CardContent>
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center justify-between rounded-lg border p-4 md:col-span-2">
+              <div className="space-y-1">
+                <Label className="text-base">Enable System Preferences</Label>
+                <p className="text-sm text-muted-foreground">
+                  When disabled, the app uses built-in defaults.
+                </p>
+              </div>
+              <Switch
+                checked={preferences.applySettings ?? true}
+                onCheckedChange={(checked) => handleChange("applySettings", checked)}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="language">Language</Label>
               <Select value={preferences.language} onValueChange={(value) => handleChange("language", value)}>
@@ -153,7 +166,7 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
                     Export all database tables as a JSON file download.
                   </p>
                 </div>
-                <Button onClick={runBackup} disabled={isBackingUp}>
+                <Button onClick={runBackup} disabled={isBackingUp || !preferences.applySettings}>
                   <Download className="h-4 w-4 mr-2" />
                   {isBackingUp ? "Exporting..." : "Export Backup"}
                 </Button>
@@ -193,7 +206,7 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
             </div>
           </div>
 
-          {preferences.maintenanceMode && (
+          {preferences.applySettings && preferences.maintenanceMode && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Maintenance Mode Active</AlertTitle>

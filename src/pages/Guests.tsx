@@ -128,6 +128,8 @@ const Guests = () => {
     name: g.name,
     email: g.email || '',
     phone: g.phone,
+    idNumber: g.id_number || null,
+    idPhotoUrl: g.id_photo_url || null,
     bookingId: g.booking?.id,
     roomNumber: g.booking?.room_number || '',
     roomType: (g.booking?.room_type || 'single') as Guest['roomType'],
@@ -148,8 +150,11 @@ const Guests = () => {
         id: t.id,
         date: t.created_at,
         total: t.total,
+        subtotal: t.subtotal,
+        tax: t.tax,
         paymentMethod: t.payment_method,
         status: t.status,
+        items: Array.isArray(t.items) ? (t.items as { name: string; quantity: number; price: number; lot_label?: string | null; lot_expiry?: string | null }[]) : [],
         itemsSummary: Array.isArray(t.items)
           ? (t.items as { name: string; quantity: number; price: number }[])
               .map((item) => `${item.quantity}x ${item.name}`)
@@ -204,7 +209,7 @@ const Guests = () => {
     if (guest?.booking) {
       await updateBooking.mutateAsync({
         id: guest.booking.id,
-        updates: { status: 'checked-in' }
+        updates: { status: 'checked-in', check_in: new Date().toISOString() }
       });
       toast.success("Guest checked in successfully");
     }
@@ -215,7 +220,7 @@ const Guests = () => {
     if (guest?.booking) {
       await updateBooking.mutateAsync({
         id: guest.booking.id,
-        updates: { status: 'checked-out' }
+        updates: { status: 'checked-out', check_out: new Date().toISOString() }
       });
       toast.success("Guest checked out successfully");
     }

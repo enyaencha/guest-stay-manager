@@ -12,10 +12,14 @@ export interface POSItem {
   available: boolean;
   image?: string;
   stockQuantity?: number; // Link to inventory
+  inventoryItemId?: string | null;
 }
 
 export interface CartItem extends POSItem {
   quantity: number;
+  inventoryLotId?: string | null;
+  lotLabel?: string;
+  lotExpiry?: string | null;
 }
 
 export interface Transaction {

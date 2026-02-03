@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateHousekeepingTask, useHousekeepingStaff } from "@/hooks/useHousekeeping";
-import { useInventoryItems } from "@/hooks/useInventory";
+import { useInventoryItems, useInventoryLots } from "@/hooks/useInventory";
 import { useRooms } from "@/hooks/useRooms";
 import { Json } from "@/integrations/supabase/types";
 
@@ -45,6 +45,7 @@ export function AddHousekeepingTaskModal({
   const { data: rooms = [] } = useRooms();
   const { data: staff = [] } = useHousekeepingStaff();
   const { data: inventoryItems = [] } = useInventoryItems();
+  const { data: inventoryLots = [] } = useInventoryLots();
   const createTask = useCreateHousekeepingTask();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,10 +61,11 @@ export function AddHousekeepingTaskModal({
 
   const [formData, setFormData] = useState(() => getInitialForm(initialRoomId));
   const [plannedAmenities, setPlannedAmenities] = useState<
-    { id: string; name: string; brand?: string; unit: string; quantity: number }[]
+    { id: string; name: string; brand?: string; lotId?: string; expiryDate?: string | null; unit: string; quantity: number }[]
   >([]);
   const [inventorySearch, setInventorySearch] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
+  const [selectedLotId, setSelectedLotId] = useState("auto");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
 
   const selectedRoom = useMemo(
@@ -80,6 +82,7 @@ export function AddHousekeepingTaskModal({
     setPlannedAmenities([]);
     setInventorySearch("");
     setSelectedItemId("");
+    setSelectedLotId("auto");
     setSelectedQuantity(1);
   };
 
@@ -138,10 +141,18 @@ export function AddHousekeepingTaskModal({
     () => inventoryItems.find((item) => item.id === selectedItemId),
     [inventoryItems, selectedItemId]
   );
+  const selectedLots = useMemo(
+    () => inventoryLots.filter((lot) => lot.inventory_item_id === selectedItemId),
+    [inventoryLots, selectedItemId]
+  );
 
   const handleAddAmenity = () => {
     if (!selectedInventoryItem) return;
     const quantity = Math.max(selectedQuantity, 1);
+    const selectedLot =
+      selectedLotId !== "auto"
+        ? selectedLots.find((lot) => lot.id === selectedLotId)
+        : null;
     setPlannedAmenities((prev) => {
       const existing = prev.find((amenity) => amenity.id === selectedInventoryItem.id);
       if (existing) {
@@ -156,13 +167,16 @@ export function AddHousekeepingTaskModal({
         {
           id: selectedInventoryItem.id,
           name: selectedInventoryItem.name,
-          brand: selectedInventoryItem.brand,
+          brand: selectedLot?.brand,
+          lotId: selectedLot?.id,
+          expiryDate: selectedLot?.expiry_date || null,
           unit: selectedInventoryItem.unit,
           quantity,
         },
       ];
     });
     setSelectedItemId("");
+    setSelectedLotId("auto");
     setSelectedQuantity(1);
   };
 
@@ -272,7 +286,7 @@ export function AddHousekeepingTaskModal({
           </div>
 
           <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_110px] gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_100px_110px] gap-3">
               <Select value={selectedItemId} onValueChange={setSelectedItemId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select item" />
@@ -280,7 +294,21 @@ export function AddHousekeepingTaskModal({
                 <SelectContent>
                   {filteredInventory.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.name}{item.brand ? ` · ${item.brand}` : ""} · {item.unit}
+                      {item.name} · {item.unit}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedLotId} onValueChange={setSelectedLotId} disabled={!selectedItemId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Auto (earliest expiry)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto (earliest expiry)</SelectItem>
+                  {selectedLots.map((lot) => (
+                    <SelectItem key={lot.id} value={lot.id}>
+                      {lot.brand}
+                      {lot.batch_code ? ` · ${lot.batch_code}` : ""} · {lot.expiry_date || "No expiry"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -306,7 +334,9 @@ export function AddHousekeepingTaskModal({
                   >
                     <div className="flex-1">
                       <p className="text-sm font-medium">
-                        {amenity.name}{amenity.brand ? ` · ${amenity.brand}` : ""}
+                        {amenity.name}
+                        {amenity.brand ? ` · ${amenity.brand}` : ""}
+                        {amenity.expiryDate ? ` · exp ${amenity.expiryDate}` : ""}
                       </p>
                       <p className="text-xs text-muted-foreground">{amenity.unit}</p>
                     </div>
