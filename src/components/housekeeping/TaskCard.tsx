@@ -43,19 +43,27 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
   const actualAdded = task.actualAdded ?? [];
   const requiresAdded = plannedAmenities.length > 0;
   const hasAllAdded = !requiresAdded || plannedAmenities.every((amenity) => {
-    const added = actualAdded.find((item) => item.name === amenity.name);
+    const added = actualAdded.find((item) =>
+      (item.itemId && amenity.itemId && item.itemId === amenity.itemId) || item.name === amenity.name
+    );
     return added && added.quantity > 0;
   });
 
-  const handleAmenityChange = (name: string, value: string) => {
+  const handleAmenityChange = (name: string, itemId: string | undefined, value: string) => {
     const parsedValue = Number(value);
     const quantity = Number.isFinite(parsedValue) ? Math.max(parsedValue, 0) : 0;
     const nextAmenities = plannedAmenities.map((amenity) => {
-      const existing = actualAdded.find((item) => item.name === amenity.name);
+      const existing = actualAdded.find((item) =>
+        (item.itemId && amenity.itemId && item.itemId === amenity.itemId) || item.name === amenity.name
+      );
       return {
+        itemId: amenity.itemId,
         name: amenity.name,
+        brand: amenity.brand,
         unit: amenity.unit,
-        quantity: amenity.name === name ? quantity : (existing?.quantity ?? 0),
+        quantity: (amenity.itemId && amenity.itemId === itemId) || amenity.name === name
+          ? quantity
+          : (existing?.quantity ?? 0),
       };
     });
     onAmenitiesUpdate?.(task.id, nextAmenities);
@@ -116,7 +124,7 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
               <ul className="mt-1 space-y-1 text-muted-foreground">
                 {plannedAmenities.map((amenity) => (
                   <li key={amenity.name} className="flex items-center justify-between">
-                    <span>{amenity.name}</span>
+                    <span>{amenity.name}{amenity.brand ? ` · ${amenity.brand}` : ""}</span>
                     <span className="font-medium text-foreground">
                       {amenity.quantity} {amenity.unit}
                     </span>
@@ -155,7 +163,7 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
                         min={0}
                         className="h-8 w-20 text-xs"
                         value={added?.quantity ?? ''}
-                        onChange={(event) => handleAmenityChange(amenity.name, event.target.value)}
+                        onChange={(event) => handleAmenityChange(amenity.name, amenity.itemId, event.target.value)}
                         placeholder="0"
                       />
                       <span className="text-[11px] text-muted-foreground">{amenity.unit}</span>
@@ -179,8 +187,8 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
               </p>
               <ul className="mt-1 space-y-1 text-muted-foreground">
                 {actualAdded.map((amenity) => (
-                  <li key={amenity.name} className="flex items-center justify-between">
-                    <span>{amenity.name}</span>
+                  <li key={`${amenity.itemId || amenity.name}`} className="flex items-center justify-between">
+                    <span>{amenity.name}{amenity.brand ? ` · ${amenity.brand}` : ""}</span>
                     <span className="font-medium text-foreground">
                       {amenity.quantity} {amenity.unit}
                     </span>

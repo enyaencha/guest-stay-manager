@@ -134,6 +134,7 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
     vacant: { label: 'Vacant', class: 'status-available' },
     occupied: { label: 'Occupied', class: 'status-occupied' },
     checkout: { label: 'Checkout', class: 'status-checkout' },
+    reserved: { label: 'Reserved', class: 'status-reserved' },
   };
 
   const cleaningConfig = {

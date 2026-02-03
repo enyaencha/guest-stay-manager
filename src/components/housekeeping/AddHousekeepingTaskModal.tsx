@@ -60,7 +60,7 @@ export function AddHousekeepingTaskModal({
 
   const [formData, setFormData] = useState(() => getInitialForm(initialRoomId));
   const [plannedAmenities, setPlannedAmenities] = useState<
-    { id: string; name: string; unit: string; quantity: number }[]
+    { id: string; name: string; brand?: string; unit: string; quantity: number }[]
   >([]);
   const [inventorySearch, setInventorySearch] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
@@ -156,6 +156,7 @@ export function AddHousekeepingTaskModal({
         {
           id: selectedInventoryItem.id,
           name: selectedInventoryItem.name,
+          brand: selectedInventoryItem.brand,
           unit: selectedInventoryItem.unit,
           quantity,
         },
@@ -279,7 +280,7 @@ export function AddHousekeepingTaskModal({
                 <SelectContent>
                   {filteredInventory.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.name} · {item.unit}
+                      {item.name}{item.brand ? ` · ${item.brand}` : ""} · {item.unit}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -304,7 +305,9 @@ export function AddHousekeepingTaskModal({
                     className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md bg-background p-2"
                   >
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{amenity.name}</p>
+                      <p className="text-sm font-medium">
+                        {amenity.name}{amenity.brand ? ` · ${amenity.brand}` : ""}
+                      </p>
                       <p className="text-xs text-muted-foreground">{amenity.unit}</p>
                     </div>
                     <Input

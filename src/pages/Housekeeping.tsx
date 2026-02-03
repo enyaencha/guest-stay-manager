@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHousekeepingTasks, useHousekeepingStaff, useUpdateHousekeepingTask, HousekeepingTask as DBTask } from "@/hooks/useHousekeeping";
 import { useUpdateRoom } from "@/hooks/useRooms";
+import { useInventoryItems, useUpdateInventoryItem, useCreateInventoryTransaction } from "@/hooks/useInventory";
 import { HousekeepingTask, HousekeepingStaff } from "@/types/housekeeping";
 import { 
   ClipboardList, 
@@ -51,8 +52,11 @@ const mapToLegacyStaff = (staff: any): HousekeepingStaff => ({
 const Housekeeping = () => {
   const { data: dbTasks, isLoading: tasksLoading } = useHousekeepingTasks();
   const { data: dbStaff, isLoading: staffLoading } = useHousekeepingStaff();
+  const { data: inventoryItems = [] } = useInventoryItems();
   const updateTask = useUpdateHousekeepingTask();
   const updateRoom = useUpdateRoom();
+  const updateInventory = useUpdateInventoryItem();
+  const createInventoryTx = useCreateInventoryTransaction();
   
   const [filter, setFilter] = useState("all");
   const [addTaskOpen, setAddTaskOpen] = useState(false);
@@ -105,6 +109,39 @@ const Housekeeping = () => {
         updates: {
           cleaning_status: cleaningStatus,
         },
+      });
+    }
+
+    if (newStatus === "completed" && task?.actualAdded && task.actualAdded.length > 0) {
+      task.actualAdded.forEach((amenity) => {
+        const inventoryItem = amenity.itemId
+          ? inventoryItems.find((item) => item.id === amenity.itemId)
+          : inventoryItems.find((item) => item.name === amenity.name && (!amenity.brand || item.brand === amenity.brand));
+        if (!inventoryItem) return;
+        const quantity = Number(amenity.quantity || 0);
+        if (quantity <= 0) return;
+
+        updateInventory.mutate({
+          id: inventoryItem.id,
+          updates: {
+            current_stock: Math.max(0, inventoryItem.current_stock - quantity),
+            stock_out: (inventoryItem.stock_out || 0) + quantity,
+          },
+        });
+
+        createInventoryTx.mutate({
+          inventory_item_id: inventoryItem.id,
+          item_name: inventoryItem.name,
+          brand: inventoryItem.brand,
+          transaction_type: "room-use",
+          direction: "out",
+          quantity,
+          unit: inventoryItem.unit,
+          unit_cost: inventoryItem.unit_cost,
+          total_value: inventoryItem.unit_cost * quantity,
+          reference: task.roomNumber || null,
+          notes: "Housekeeping usage",
+        });
       });
     }
   };

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 export interface InventoryItem {
   id: string;
   name: string;
+  brand: string;
   category: string;
   sku: string | null;
   current_stock: number;
@@ -34,6 +35,22 @@ export interface StockAlert {
   createdAt: string;
 }
 
+export interface InventoryTransaction {
+  id: string;
+  inventory_item_id: string;
+  item_name: string;
+  brand: string;
+  transaction_type: string;
+  direction: string;
+  quantity: number;
+  unit: string;
+  unit_cost: number;
+  total_value: number;
+  reference: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export const useInventoryItems = () => {
   return useQuery({
     queryKey: ["inventory_items"],
@@ -45,6 +62,21 @@ export const useInventoryItems = () => {
 
       if (error) throw error;
       return data as InventoryItem[];
+    },
+  });
+};
+
+export const useInventoryTransactions = () => {
+  return useQuery({
+    queryKey: ["inventory_transactions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_transactions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as InventoryTransaction[];
     },
   });
 };
@@ -93,6 +125,53 @@ export const useUpdateInventoryItem = () => {
     },
     onError: (error) => {
       toast.error("Failed to update inventory: " + error.message);
+    },
+  });
+};
+
+export const useCreateInventoryItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (item: Omit<InventoryItem, "id" | "created_at" | "updated_at">) => {
+      const { data, error } = await supabase
+        .from("inventory_items")
+        .insert(item)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+      toast.success("Inventory item added");
+    },
+    onError: (error) => {
+      toast.error("Failed to add inventory item: " + error.message);
+    },
+  });
+};
+
+export const useCreateInventoryTransaction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (transaction: Omit<InventoryTransaction, "id" | "created_at">) => {
+      const { data, error } = await supabase
+        .from("inventory_transactions")
+        .insert(transaction)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_transactions"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to record inventory transaction: " + error.message);
     },
   });
 };

@@ -42,6 +42,32 @@ const roomTypeImages: Record<string, string> = {
 };
 
 export function RoomCard({ room, onClick }: RoomCardProps) {
+  const statusStyles: Record<string, string> = {
+    vacant: "border-status-available/70 bg-status-available-bg/70 text-foreground",
+    occupied: "border-status-occupied/70 bg-[hsl(var(--status-occupied-bg))]/70 text-foreground",
+    checkout: "border-status-checkout/70 bg-[hsl(var(--status-checkout-bg))]/70 text-foreground",
+    reserved: "border-status-reserved/80 bg-[hsl(var(--status-reserved-bg))]/80 text-foreground ring-1 ring-status-reserved/30",
+  };
+
+  const stripStyles: Record<string, string> = {
+    vacant: "bg-status-available",
+    occupied: "bg-status-occupied",
+    checkout: "bg-status-checkout",
+    reserved: "bg-status-reserved",
+  };
+
+  const priorityBorder = room.maintenanceStatus !== "none"
+    ? "border-status-maintenance/80 ring-1 ring-status-maintenance/30 bg-status-maintenance/15 text-foreground"
+    : room.cleaningStatus !== "clean"
+      ? "border-status-cleaning/80 ring-1 ring-status-cleaning/30 bg-status-cleaning/15 text-foreground"
+      : statusStyles[room.occupancyStatus];
+
+  const stripClass = room.maintenanceStatus !== "none"
+    ? "bg-status-maintenance"
+    : room.cleaningStatus !== "clean"
+      ? "bg-status-cleaning"
+      : stripStyles[room.occupancyStatus];
+
   const getOccupancyStatus = () => {
     switch (room.occupancyStatus) {
       case 'occupied':
@@ -84,25 +110,15 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
 
   const displayedAmenities = room.amenities.slice(0, 4);
 
-  const roomImage = roomTypeImages[room.type] || roomTypeImages.single;
-
   return (
     <div 
       onClick={onClick}
       className={cn(
-        "group relative bg-card rounded-xl border p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer animate-fade-in",
-        maintenance && "border-status-maintenance/30",
-        cleaning && !maintenance && "border-status-cleaning/30"
+        "group relative rounded-xl border p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer animate-fade-in",
+        priorityBorder
       )}
     >
-      <div
-        className="absolute inset-0 rounded-xl opacity-15 group-hover:opacity-30 transition-opacity duration-300"
-        style={{
-          backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.2), rgba(0,0,0,0.3)), url('${roomImage}')`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+      <div className={cn("absolute left-0 top-0 h-1.5 w-full rounded-t-xl", stripClass)} />
       <div className="relative z-10">
       {/* Room Header */}
       <div className="flex items-start justify-between mb-3">
@@ -126,22 +142,14 @@ export function RoomCard({ room, onClick }: RoomCardProps) {
       {/* Guest Info (if occupied or reserved) */}
       {(room.occupancyStatus === 'occupied' || room.occupancyStatus === 'reserved') && room.currentGuest && (
         <div className={cn(
-          "relative overflow-hidden flex items-center gap-2 mb-3 p-2 rounded-lg",
+          "flex items-center gap-2 mb-3 p-2 rounded-lg",
           room.occupancyStatus === 'reserved' ? "bg-[hsl(var(--status-reserved-bg))]" : "bg-muted/50"
         )}>
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.35), rgba(0,0,0,0.15)), url('${roomImage}')`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          />
           <Users className={cn(
-            "h-4 w-4 relative z-10",
+            "h-4 w-4",
             room.occupancyStatus === 'reserved' ? "text-[hsl(var(--status-reserved))]" : "text-muted-foreground"
           )} />
-          <div className="flex-1 min-w-0 relative z-10">
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">{room.currentGuest}</p>
             {room.checkOutDate && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">

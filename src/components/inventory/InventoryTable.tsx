@@ -49,6 +49,7 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead>Item</TableHead>
+            <TableHead>Brand</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Stock Level</TableHead>
@@ -70,6 +71,9 @@ export function InventoryTable({ items, onAdjustStock }: InventoryTableProps) {
                     <p className="font-medium text-sm">{item.name}</p>
                     <p className="text-xs text-muted-foreground">{item.supplier}</p>
                   </div>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {item.brand}
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className="text-xs">

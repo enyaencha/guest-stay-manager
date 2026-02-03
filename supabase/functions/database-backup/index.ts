@@ -76,14 +76,28 @@ Deno.serve(async (req) => {
 
     console.log(`Backup requested by user: ${user.id}`);
 
-    // Check if user has admin role
-    const { data: hasAdmin } = await supabase.rpc("has_role", {
-      _user_id: user.id,
-      _role_name: "Administrator",
-    });
+    const adminRoleNames = ["administrator", "Administrator", "admin", "Admin"];
+    let hasAdminRole = false;
+    for (const roleName of adminRoleNames) {
+      const { data } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role_name: roleName,
+      });
+      if (data) {
+        hasAdminRole = true;
+        break;
+      }
+    }
 
-    if (!hasAdmin) {
-      console.error("User does not have Administrator role");
+    const { data: permissions } = await supabase.rpc("get_user_permissions", {
+      _user_id: user.id,
+    });
+    const hasManagePermissions = Array.isArray(permissions)
+      ? permissions.includes("settings.manage") || permissions.includes("staff.manage")
+      : false;
+
+    if (!hasAdminRole && !hasManagePermissions) {
+      console.error("User does not have admin role or manage permissions");
       return new Response(
         JSON.stringify({ error: "Only administrators can perform backups" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

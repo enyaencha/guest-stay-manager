@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
+import { InventoryTransactionsTable } from "@/components/inventory/InventoryTransactionsTable";
+import { AddInventoryItemModal } from "@/components/inventory/AddInventoryItemModal";
 import { StockAlertCard } from "@/components/inventory/StockAlertCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useInventoryItems, useUpdateInventoryItem, getStockAlerts, getStockLevel, InventoryItem as DBItem } from "@/hooks/useInventory";
+import { useInventoryItems, useUpdateInventoryItem, useCreateInventoryTransaction, useInventoryTransactions, getStockAlerts, getStockLevel, InventoryItem as DBItem } from "@/hooks/useInventory";
 import { InventoryItem } from "@/types/inventory";
 import { 
   Package, 
@@ -22,6 +24,7 @@ import {
 const mapToLegacyItem = (item: DBItem): InventoryItem => ({
   id: item.id,
   name: item.name,
+  brand: item.brand,
   category: item.category as InventoryItem['category'],
   sku: item.sku || '',
   currentStock: item.current_stock,
@@ -39,10 +42,13 @@ const mapToLegacyItem = (item: DBItem): InventoryItem => ({
 
 const Inventory = () => {
   const { data: dbItems, isLoading } = useInventoryItems();
+  const { data: inventoryTransactions = [] } = useInventoryTransactions();
   const updateItem = useUpdateInventoryItem();
+  const createInventoryTx = useCreateInventoryTransaction();
   
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
 
   const items = useMemo(() => {
     if (!dbItems) return [];
@@ -76,6 +82,7 @@ const Inventory = () => {
       const lowerSearch = search.toLowerCase();
       result = result.filter(i => 
         i.name.toLowerCase().includes(lowerSearch) ||
+        i.brand.toLowerCase().includes(lowerSearch) ||
         i.sku.toLowerCase().includes(lowerSearch) ||
         i.supplier?.toLowerCase().includes(lowerSearch)
       );
@@ -98,6 +105,20 @@ const Inventory = () => {
         current_stock: Math.max(0, item.current_stock + adjustment),
         last_restocked: adjustment > 0 ? new Date().toISOString().split('T')[0] : item.last_restocked,
       },
+    });
+
+    createInventoryTx.mutate({
+      inventory_item_id: item.id,
+      item_name: item.name,
+      brand: item.brand,
+      transaction_type: adjustment >= 0 ? "purchase" : "adjustment",
+      direction: adjustment >= 0 ? "in" : "out",
+      quantity: Math.abs(adjustment),
+      unit: item.unit,
+      unit_cost: item.unit_cost,
+      total_value: item.unit_cost * Math.abs(adjustment),
+      reference: null,
+      notes: "Manual adjustment",
     });
   };
 
@@ -122,7 +143,7 @@ const Inventory = () => {
               Track stock levels and manage supplies
             </p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
             Add Item
           </Button>
@@ -200,6 +221,14 @@ const Inventory = () => {
                 No items found
               </div>
             )}
+
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="font-semibold">Inventory Transactions</h2>
+                <span className="text-xs text-muted-foreground">Latest updates</span>
+              </div>
+              <InventoryTransactionsTable transactions={inventoryTransactions.slice(0, 50)} />
+            </div>
           </div>
 
           {/* Alerts Sidebar */}
@@ -222,6 +251,8 @@ const Inventory = () => {
           </div>
         </div>
       </div>
+
+      <AddInventoryItemModal open={addOpen} onOpenChange={setAddOpen} />
     </MainLayout>
   );
 };

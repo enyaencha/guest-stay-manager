@@ -4,6 +4,7 @@ export type StockLevel = 'out-of-stock' | 'low' | 'adequate' | 'full';
 export interface InventoryItem {
   id: string;
   name: string;
+  brand: string;
   category: SupplyCategory;
   sku: string;
   currentStock: number;
@@ -36,6 +37,7 @@ export interface StockMovement {
   id: string;
   itemId: string;
   itemName: string;
+  brand: string;
   type: 'purchase' | 'sale' | 'room-use' | 'adjustment';
   quantity: number;
   unitCost: number;

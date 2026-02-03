@@ -12,12 +12,16 @@ export interface HousekeepingTask {
   assignedTo?: string;
   notes?: string;
   amenities?: Array<{
+    itemId?: string;
     name: string;
+    brand?: string;
     quantity: number;
     unit: string;
   }>;
   actualAdded?: Array<{
+    itemId?: string;
     name: string;
+    brand?: string;
     quantity: number;
     unit: string;
   }>;

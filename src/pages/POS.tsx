@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePOSItems, usePOSTransactions, useCreatePOSTransaction, POSItem, CartItem } from "@/hooks/usePOS";
 import { useBookings, useGuests } from "@/hooks/useGuests";
+import { useInventoryItems, useUpdateInventoryItem, useCreateInventoryTransaction } from "@/hooks/useInventory";
 import { PaymentMethod } from "@/types/pos";
 import { 
   ShoppingCart, 
@@ -29,6 +30,9 @@ const POS = () => {
   const { data: transactions = [], isLoading: transactionsLoading } = usePOSTransactions();
   const { data: bookings = [] } = useBookings();
   const { data: guests = [] } = useGuests();
+  const { data: inventoryItems = [] } = useInventoryItems();
+  const updateInventory = useUpdateInventoryItem();
+  const createInventoryTx = useCreateInventoryTransaction();
   const createTransaction = useCreatePOSTransaction();
 
   const todayRevenue = transactions
@@ -104,6 +108,32 @@ const POS = () => {
         notes: null,
       });
       setCart([]);
+      cart.forEach((item) => {
+        if (!item.inventory_item_id) return;
+        const inventoryItem = inventoryItems.find((inv) => inv.id === item.inventory_item_id);
+        if (!inventoryItem) return;
+        const quantity = item.quantity;
+        updateInventory.mutate({
+          id: inventoryItem.id,
+          updates: {
+            current_stock: Math.max(0, inventoryItem.current_stock - quantity),
+            stock_out: (inventoryItem.stock_out || 0) + quantity,
+          },
+        });
+        createInventoryTx.mutate({
+          inventory_item_id: inventoryItem.id,
+          item_name: inventoryItem.name,
+          brand: inventoryItem.brand,
+          transaction_type: "sale",
+          direction: "out",
+          quantity,
+          unit: inventoryItem.unit,
+          unit_cost: inventoryItem.unit_cost,
+          total_value: inventoryItem.unit_cost * quantity,
+          reference: selection.roomNumber || null,
+          notes: "POS sale",
+        });
+      });
       toast.success(
         status === "pending"
           ? `Transaction saved as pending. Total: ${formatKsh(total)}`
