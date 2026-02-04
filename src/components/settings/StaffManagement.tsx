@@ -94,7 +94,7 @@ export const StaffManagement = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email");
+        .select("user_id, full_name");
       if (error) throw error;
       return (data || []) as { user_id: string; full_name?: string | null; email?: string | null }[];
     },
@@ -897,6 +897,7 @@ interface StaffTableProps {
   onToggleStatus: (id: string, status: string) => void;
   onAssignRole: (member: any) => void;
   onLinkToCurrentUser?: (member: any) => void;
+  openLinkDialog?: (member: any) => void;
 }
 
 const StaffTable = ({ 
@@ -908,7 +909,8 @@ const StaffTable = ({
   onEdit, 
   onToggleStatus,
   onAssignRole,
-  onLinkToCurrentUser
+  onLinkToCurrentUser,
+  openLinkDialog
 }: StaffTableProps) => {
   if (staff.length === 0) {
     return (

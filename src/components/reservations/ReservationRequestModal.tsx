@@ -107,7 +107,7 @@ export function ReservationRequestModal({
         })),
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("reservation_requests")
         .insert(payload)
         .select()
@@ -115,7 +115,7 @@ export function ReservationRequestModal({
 
       if (error) throw error;
 
-      await supabase.from("booking_notifications").insert({
+      await (supabase as any).from("booking_notifications").insert({
         reservation_request_id: data.id,
         type: "new_reservation",
         title: "New Reservation Request",

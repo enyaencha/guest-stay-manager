@@ -100,7 +100,7 @@ export const BookingRequestModal = ({
         : null;
 
       // Create reservation request (not a booking)
-      const { data: booking, error: bookingError } = await supabase
+      const { data: booking, error: bookingError } = await (supabase as any)
         .from("reservation_requests")
         .insert({
           guest_name: formData.name,
@@ -126,7 +126,7 @@ export const BookingRequestModal = ({
       if (bookingError) throw bookingError;
 
       // Create notification for new reservation
-      await supabase.from("booking_notifications").insert({
+      await (supabase as any).from("booking_notifications").insert({
         reservation_request_id: booking.id,
         type: "new_reservation",
         title: "New Reservation Request",

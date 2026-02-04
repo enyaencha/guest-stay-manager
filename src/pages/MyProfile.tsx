@@ -113,13 +113,13 @@ const MyProfile = () => {
     queryKey: ["staff_timesheets", staffRecord?.id],
     enabled: !!staffRecord?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff_timesheets" as any)
+      const { data, error } = await (supabase as any)
+        .from("staff_timesheets")
         .select("*")
         .eq("staff_id", staffRecord?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as { id: string; work_date: string; start_time: string; end_time: string; total_hours: number; status: string; notes: string | null }[];
     },
   });
 
@@ -127,13 +127,13 @@ const MyProfile = () => {
     queryKey: ["staff_leave_requests", staffRecord?.id],
     enabled: !!staffRecord?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff_leave_requests" as any)
+      const { data, error } = await (supabase as any)
+        .from("staff_leave_requests")
         .select("*")
         .eq("staff_id", staffRecord?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as { id: string; start_date: string; end_date: string; reason: string | null; status: string }[];
     },
   });
 

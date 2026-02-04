@@ -400,7 +400,7 @@ const GuestProfile = () => {
                   {guestUploads.length === 0 && (
                     <p className="text-sm text-muted-foreground">No documents uploaded.</p>
                   )}
-                  {guestUploads.map((upload) => (
+                  {guestUploads.map((upload: any) => (
                     <div key={upload.id} className="rounded-lg border p-3 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{upload.file_name}</span>
@@ -448,7 +448,7 @@ const GuestProfile = () => {
                       <span>Created {formatDateTime(guest.created_at)}</span>
                     </div>
                   </div>
-                  {guest.id_photo_url && (
+                  {(guest as any).id_photo_url && (
                     <div className="rounded-lg border p-3">
                       <div className="flex items-center gap-2 text-sm font-medium mb-2">
                         <Camera className="h-4 w-4" />
@@ -456,12 +456,12 @@ const GuestProfile = () => {
                       </div>
                       <div className="flex items-center gap-4">
                         <img
-                          src={guest.id_photo_url}
+                          src={(guest as any).id_photo_url}
                           alt={`ID for ${guest.name}`}
                           className="h-24 w-36 rounded-md border object-cover"
                         />
                         <a
-                          href={guest.id_photo_url}
+                          href={(guest as any).id_photo_url}
                           target="_blank"
                           rel="noreferrer"
                           className="text-sm text-primary"

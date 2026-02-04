@@ -85,6 +85,9 @@ export function AddInventoryItemModal({ open, onOpenChange }: AddInventoryItemMo
           unit: item.unit,
           unit_cost: item.unit_cost,
           total_value: item.unit_cost * form.currentStock,
+          batch_code: form.lotBatch?.trim() || null,
+          expiry_date: form.lotExpiry || null,
+          transaction_date: new Date().toISOString().split("T")[0],
           reference: null,
           notes: "Opening stock",
         });
