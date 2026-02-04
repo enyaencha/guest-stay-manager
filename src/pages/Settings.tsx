@@ -1,7 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropertySettingsForm } from "@/components/settings/PropertySettingsForm";
-import { StaffManagement } from "@/components/settings/StaffManagement";
+import { StaffAdminContent } from "@/components/staff/StaffAdminContent";
 import { RoomTypeSettings } from "@/components/settings/RoomTypeSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { SystemPreferencesSettings } from "@/components/settings/SystemPreferencesSettings";
@@ -242,7 +242,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="staff">
-            <StaffManagement />
+            <StaffAdminContent />
           </TabsContent>
 
           <TabsContent value="rooms">

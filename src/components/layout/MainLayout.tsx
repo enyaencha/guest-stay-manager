@@ -92,6 +92,10 @@ export function MainLayout({ children }: MainLayoutProps) {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/my-profile")}>
+                      My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate("/settings")}>
                       Settings
                     </DropdownMenuItem>

@@ -22,7 +22,7 @@ import {
   UserRole
 } from "@/hooks/useStaff";
 import { useLogAudit } from "@/hooks/useAuditLog";
-import { Users, Plus, Edit, Search, UserCheck, Shield, CalendarIcon, Clock, UserX, UserPlus, Link2 } from "lucide-react";
+import { Users, Plus, Edit, Search, UserCheck, Shield, CalendarIcon, Clock, UserX, Link2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, isBefore, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -30,8 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BulkStaffImport } from "./BulkStaffImport";
 import { AuditLogViewer } from "./AuditLogViewer";
 import { useAuth } from "@/contexts/AuthContext";
-
-const DEFAULT_PASSWORD = "HAVEN2026";
+import { useQuery } from "@tanstack/react-query";
 
 interface StaffFormData {
   name: string;
@@ -62,7 +61,9 @@ export const StaffManagement = () => {
   const updateUserRole = useUpdateUserRole();
   const logAudit = useLogAudit();
 
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [selectedStaffForLink, setSelectedStaffForLink] = useState<{ id: string; name: string } | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -87,6 +88,17 @@ export const StaffManagement = () => {
     valid_until: null,
   });
   const [validUntilTime, setValidUntilTime] = useState("23:59");
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email");
+      if (error) throw error;
+      return (data || []) as { user_id: string; full_name?: string | null; email?: string | null }[];
+    },
+  });
 
   const applyTime = (date: Date, time: string) => {
     const [hours, minutes] = time.split(":").map((val) => Number(val));
@@ -122,6 +134,9 @@ export const StaffManagement = () => {
     (member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
     member.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const linkedUserIds = new Set(staff.map((member) => member.user_id).filter(Boolean));
+  const availableUsers = profiles.filter((profile) => !linkedUserIds.has(profile.user_id));
 
   const departments = ["Management", "Operations", "Reception", "Housekeeping", "Maintenance", "F&B", "Security", "Finance"];
 
@@ -270,58 +285,40 @@ export const StaffManagement = () => {
     });
   };
 
-  const handleCreateUserForStaff = async (member: any) => {
-    if (!member.email) {
-      toast.error("Staff member needs an email address to create a user account");
+  const openLinkDialog = (member: any) => {
+    setSelectedStaffForLink({ id: member.id, name: member.name });
+    setSelectedUserId("");
+    setIsLinkDialogOpen(true);
+  };
+
+  const handleLinkExistingUser = async () => {
+    if (!selectedStaffForLink || !selectedUserId) {
+      toast.error("Select a user to link.");
       return;
     }
 
-    setIsCreatingUser(true);
     try {
-      // Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: member.email,
-        password: DEFAULT_PASSWORD,
-        options: {
-          data: { full_name: member.name },
+      await supabase
+        .from("staff")
+        .update({ user_id: selectedUserId })
+        .eq("id", selectedStaffForLink.id);
+
+      await logAudit.mutateAsync({
+        action: "user_linked",
+        entityType: "staff",
+        entityId: selectedStaffForLink.id,
+        newValues: { user_id: selectedUserId },
+        metadata: {
+          staff_name: selectedStaffForLink.name,
         },
       });
 
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Link user to staff
-        await supabase
-          .from("staff")
-          .update({ user_id: authData.user.id })
-          .eq("id", member.id);
-
-        // Set password reset required
-        await supabase
-          .from("profiles")
-          .update({ password_reset_required: true })
-          .eq("user_id", authData.user.id);
-
-        // Log audit
-        await logAudit.mutateAsync({
-          action: "user_linked",
-          entityType: "staff",
-          entityId: member.id,
-          newValues: { user_id: authData.user.id },
-          metadata: {
-            staff_name: member.name,
-            email: member.email,
-          },
-        });
-
-        toast.success(`User account created for ${member.name}. Default password: ${DEFAULT_PASSWORD}`);
-        refetchStaff();
-      }
+      toast.success("User linked to staff.");
+      setIsLinkDialogOpen(false);
+      refetchStaff();
     } catch (error: any) {
-      console.error("Error creating user:", error);
-      toast.error(error.message || "Failed to create user account");
-    } finally {
-      setIsCreatingUser(false);
+      console.error("Error linking user:", error);
+      toast.error(error.message || "Failed to link user.");
     }
   };
 
@@ -678,9 +675,7 @@ export const StaffManagement = () => {
               onEdit={openEditDialog}
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
-              onCreateUser={handleCreateUserForStaff}
               onLinkToCurrentUser={handleLinkToCurrentUser}
-              isCreatingUser={isCreatingUser}
             />
           </TabsContent>
 
@@ -694,9 +689,7 @@ export const StaffManagement = () => {
               onEdit={openEditDialog}
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
-              onCreateUser={handleCreateUserForStaff}
               onLinkToCurrentUser={handleLinkToCurrentUser}
-              isCreatingUser={isCreatingUser}
             />
           </TabsContent>
 
@@ -710,9 +703,7 @@ export const StaffManagement = () => {
               onEdit={openEditDialog}
               onToggleStatus={handleToggleStatus}
               onAssignRole={openRoleDialog}
-              onCreateUser={handleCreateUserForStaff}
               onLinkToCurrentUser={handleLinkToCurrentUser}
-              isCreatingUser={isCreatingUser}
             />
           </TabsContent>
         </Tabs>
@@ -730,6 +721,45 @@ export const StaffManagement = () => {
               <Button onClick={handleEditStaff} disabled={updateStaff.isPending}>
                 {updateStaff.isPending ? "Saving..." : "Save Changes"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Link Existing User Dialog */}
+        <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Link Existing User</DialogTitle>
+              <DialogDescription>
+                Select a system user account to link with {selectedStaffForLink?.name || "this staff member"}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>System User</Label>
+                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select user account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUsers.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No available users
+                      </SelectItem>
+                    ) : (
+                      availableUsers.map((profile) => (
+                        <SelectItem key={profile.user_id} value={profile.user_id}>
+                          {profile.full_name || profile.email || profile.user_id}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleLinkExistingUser}>Link User</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -866,9 +896,7 @@ interface StaffTableProps {
   onEdit: (member: any) => void;
   onToggleStatus: (id: string, status: string) => void;
   onAssignRole: (member: any) => void;
-  onCreateUser?: (member: any) => void;
   onLinkToCurrentUser?: (member: any) => void;
-  isCreatingUser?: boolean;
 }
 
 const StaffTable = ({ 
@@ -880,9 +908,7 @@ const StaffTable = ({
   onEdit, 
   onToggleStatus,
   onAssignRole,
-  onCreateUser,
-  onLinkToCurrentUser,
-  isCreatingUser 
+  onLinkToCurrentUser
 }: StaffTableProps) => {
   if (staff.length === 0) {
     return (
@@ -977,15 +1003,14 @@ const StaffTable = ({
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    {onCreateUser && !member.user_id && (
+                    {!member.user_id && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onCreateUser(member)}
-                        disabled={isCreatingUser}
-                        title="Create user with default password"
+                        onClick={() => openLinkDialog(member)}
+                        title="Link existing user"
                       >
-                        <UserPlus className="h-4 w-4" />
+                        <Link2 className="h-4 w-4" />
                       </Button>
                     )}
                     {onLinkToCurrentUser && !member.user_id && (
@@ -995,7 +1020,7 @@ const StaffTable = ({
                         onClick={() => onLinkToCurrentUser(member)}
                         title="Link this staff member to my account"
                       >
-                        <Link2 className="h-4 w-4" />
+                        <UserCircle className="h-4 w-4" />
                       </Button>
                     )}
                     <Button 

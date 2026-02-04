@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Landing from "./pages/Landing";
@@ -22,6 +22,7 @@ import Finance from "./pages/Finance";
 import Settings from "./pages/Settings";
 import Refunds from "./pages/Refunds";
 import Reviews from "./pages/Reviews";
+import MyProfile from "./pages/MyProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -100,6 +101,7 @@ const App = () => (
                 <Settings />
               </ProtectedRoute>
             } />
+            <Route path="/staff" element={<Navigate to="/settings" replace />} />
             <Route path="/refunds" element={
               <ProtectedRoute requiredPermission="refunds.view">
                 <Refunds />
@@ -108,6 +110,11 @@ const App = () => (
             <Route path="/reviews" element={
               <ProtectedRoute>
                 <Reviews />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-profile" element={
+              <ProtectedRoute>
+                <MyProfile />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
