@@ -93,8 +93,8 @@ export const StaffManagement = () => {
     queryKey: ["profiles"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name");
+        .from("profiles" as any)
+        .select("user_id, full_name, email");
       if (error) throw error;
       return (data || []) as { user_id: string; full_name?: string | null; email?: string | null }[];
     },

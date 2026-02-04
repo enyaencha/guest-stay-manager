@@ -57,6 +57,12 @@ export const StaffAdminContent = () => {
   const [newUserPassword, setNewUserPassword] = useState("HAVEN2026");
   const [newUserRole, setNewUserRole] = useState<string>("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingUserName, setEditingUserName] = useState("");
+  const [editingUserEmail, setEditingUserEmail] = useState("");
+  const [editingUserRoleId, setEditingUserRoleId] = useState("");
+  const [editingUserStaffId, setEditingUserStaffId] = useState("");
   const queryClient = useQueryClient();
   const { data: staff = [] } = useStaff();
   const { data: roles = [] } = useRoles();
@@ -66,8 +72,8 @@ export const StaffAdminContent = () => {
     queryKey: ["profiles"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name");
+        .from("profiles" as any)
+        .select("user_id, full_name, email");
       if (error) throw error;
       return (data || []) as { user_id: string; full_name?: string | null; email?: string | null }[];
     },
@@ -108,6 +114,8 @@ export const StaffAdminContent = () => {
   };
 
   const getStaffForUser = (userId: string) => staff.find((member) => member.user_id === userId);
+  const availableStaffForLink = (currentStaffId?: string) =>
+    staff.filter((member) => !member.user_id || member.id === currentStaffId);
 
   const updateLeaveStatus = async (id: string, status: LeaveRequest["status"]) => {
     const { error } = await supabase
@@ -132,6 +140,10 @@ export const StaffAdminContent = () => {
   const handleCreateUser = async () => {
     if (!newUserName.trim() || !newUserEmail.trim()) {
       toast.error("Name and email are required.");
+      return;
+    }
+    if (!newUserRole) {
+      toast.error("Select a role for this user.");
       return;
     }
     setIsCreatingUser(true);
@@ -162,6 +174,45 @@ export const StaffAdminContent = () => {
       toast.error(error.message || "Failed to create user.");
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const openEditUser = (profile: { user_id: string; full_name?: string | null; email?: string | null }) => {
+    const staffMatch = getStaffForUser(profile.user_id);
+    const activeRole = userRoles.find((ur) => ur.user_id === profile.user_id && ur.is_active);
+    setEditingUserId(profile.user_id);
+    setEditingUserName(profile.full_name || staffMatch?.name || "");
+    setEditingUserEmail(profile.email || staffMatch?.email || "");
+    setEditingUserRoleId(activeRole?.role_id || "none");
+    setEditingUserStaffId(staffMatch?.id || "unlinked");
+    setIsEditUserOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUserId) return;
+    try {
+      const normalizedRoleId = editingUserRoleId === "none" ? null : editingUserRoleId || null;
+      const normalizedStaffId = editingUserStaffId === "unlinked" ? null : editingUserStaffId || null;
+
+      const { data, error } = await supabase.functions.invoke("update-user", {
+        body: {
+          user_id: editingUserId,
+          full_name: editingUserName || null,
+          email: editingUserEmail || null,
+          role_id: normalizedRoleId,
+          staff_id: normalizedStaffId,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      queryClient.invalidateQueries({ queryKey: ["user_roles"] });
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      toast.success("User updated.");
+      setIsEditUserOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update user.");
     }
   };
 
@@ -246,7 +297,7 @@ export const StaffAdminContent = () => {
                         <Input value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Assign Role (optional)</Label>
+                        <Label>Assign Role</Label>
                         <Select value={newUserRole} onValueChange={setNewUserRole}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select role" />
@@ -282,6 +333,7 @@ export const StaffAdminContent = () => {
                         <TableHead>Department</TableHead>
                         <TableHead>Roles</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -316,6 +368,11 @@ export const StaffAdminContent = () => {
                                 {staffMatch?.status || "unlinked"}
                               </Badge>
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" onClick={() => openEditUser(member)}>
+                                Edit
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -325,6 +382,58 @@ export const StaffAdminContent = () => {
               )}
             </CardContent>
           </Card>
+          <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Edit User</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input value={editingUserName} onChange={(e) => setEditingUserName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" value={editingUserEmail} onChange={(e) => setEditingUserEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select value={editingUserRoleId} onValueChange={setEditingUserRoleId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No role</SelectItem>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Link Staff</Label>
+                  <Select value={editingUserStaffId} onValueChange={setEditingUserStaffId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unlinked">Unlinked</SelectItem>
+                      {availableStaffForLink(editingUserStaffId === "unlinked" ? undefined : editingUserStaffId).map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name} ({member.department})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button onClick={handleUpdateUser}>Save Changes</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="approvals" className="space-y-6">

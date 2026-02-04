@@ -72,70 +72,66 @@ Deno.serve(async (req) => {
       : false;
 
     if (!hasAdminRole && !hasManagePermissions) {
-      return new Response(JSON.stringify({ error: "Only administrators can create users" }), {
+      return new Response(JSON.stringify({ error: "Only administrators can update users" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const payload = await req.json();
-    const name = String(payload?.name || "").trim();
-    const email = String(payload?.email || "").trim();
-    const password = String(payload?.password || "").trim();
+    const userId = String(payload?.user_id || "").trim();
+    const fullName = payload?.full_name ? String(payload.full_name).trim() : null;
+    const email = payload?.email ? String(payload.email).trim() : null;
     const roleId = payload?.role_id ? String(payload.role_id) : null;
+    const staffId = payload?.staff_id ? String(payload.staff_id) : null;
 
-    if (!name || !email || !password) {
-      return new Response(JSON.stringify({ error: "Name, email, and password are required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!roleId) {
-      return new Response(JSON.stringify({ error: "Role is required for new users" }), {
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "user_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+    // Update auth user metadata/email if provided
+    if (email || fullName) {
+      await adminClient.auth.admin.updateUserById(userId, {
+        ...(email ? { email } : {}),
+        ...(fullName ? { user_metadata: { full_name: fullName } } : {}),
+      });
+    }
+
+    // Update profile record
+    await adminClient.from("profiles").upsert({
+      user_id: userId,
+      full_name: fullName,
       email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: name },
     });
 
-    if (createError || !createData?.user) {
-      return new Response(JSON.stringify({ error: createError?.message || "Failed to create user" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const newUserId = createData.user.id;
-
-    await adminClient
-      .from("profiles")
-      .upsert({
-        user_id: newUserId,
-        full_name: name,
-        email,
-        password_reset_required: true,
-      });
-
+    // Role handling (single active role)
+    await adminClient.from("user_roles").update({ is_active: false }).eq("user_id", userId);
     if (roleId) {
-      await adminClient.from("user_roles").insert({
-        user_id: newUserId,
-        role_id: roleId,
-        is_active: true,
-      });
+      await adminClient
+        .from("user_roles")
+        .upsert(
+          { user_id: userId, role_id: roleId, is_active: true },
+          { onConflict: "user_id,role_id" }
+        );
     }
 
-    return new Response(JSON.stringify({ user_id: newUserId, email, name }), {
+    // Staff linkage
+    if (staffId) {
+      await adminClient.from("staff").update({ user_id: null }).eq("user_id", userId);
+      await adminClient.from("staff").update({ user_id: userId }).eq("id", staffId);
+    } else {
+      await adminClient.from("staff").update({ user_id: null }).eq("user_id", userId);
+    }
+
+    return new Response(JSON.stringify({ user_id: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create user" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update user" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
