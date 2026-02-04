@@ -53,14 +53,14 @@ const Reservations = () => {
     setLoading(true);
     try {
       // Fetch reservation requests
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("reservation_requests")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const transformedData: ReservationRequest[] = (data || []).map(b => ({
+      const transformedData: ReservationRequest[] = (data || []).map((b: any) => ({
         id: b.id,
         guest_name: b.guest_name || 'Unknown',
         guest_phone: b.guest_phone || '',

@@ -258,6 +258,9 @@ const POS = () => {
           unit: inventoryItem.unit,
           unit_cost: inventoryItem.unit_cost,
           total_value: inventoryItem.unit_cost * quantity,
+          batch_code: lot.batch_code || null,
+          expiry_date: lot.expiry_date || null,
+          transaction_date: new Date().toISOString().split("T")[0],
           reference: selection.roomNumber || null,
           notes: "POS sale",
         });

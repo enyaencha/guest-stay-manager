@@ -67,7 +67,7 @@ export const StaffAdminContent = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email");
+        .select("user_id, full_name");
       if (error) throw error;
       return (data || []) as { user_id: string; full_name?: string | null; email?: string | null }[];
     },
@@ -76,8 +76,8 @@ export const StaffAdminContent = () => {
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ["staff_leave_requests"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff_leave_requests" as any)
+      const { data, error } = await (supabase as any)
+        .from("staff_leave_requests")
         .select("*, staff:staff_id (name, department, email, phone)")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -88,8 +88,8 @@ export const StaffAdminContent = () => {
   const { data: timesheets = [] } = useQuery({
     queryKey: ["staff_timesheets"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff_timesheets" as any)
+      const { data, error } = await (supabase as any)
+        .from("staff_timesheets")
         .select("*, staff:staff_id (name, department, email, phone)")
         .order("created_at", { ascending: false });
       if (error) throw error;

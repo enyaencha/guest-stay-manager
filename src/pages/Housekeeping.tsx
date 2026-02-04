@@ -160,6 +160,9 @@ const Housekeeping = () => {
             unit: inventoryItem.unit,
             unit_cost: lot.unit_cost,
             total_value: lot.unit_cost * consumeQty,
+            batch_code: lot.batch_code || null,
+            expiry_date: lot.expiry_date || null,
+            transaction_date: new Date().toISOString().split("T")[0],
             reference: task.roomNumber || null,
             notes: "Housekeeping usage",
           });

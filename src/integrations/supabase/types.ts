@@ -55,29 +55,32 @@ export type Database = {
       }
       booking_notifications: {
         Row: {
-          booking_id: string
+          booking_id: string | null
           created_at: string
           id: string
           is_read: boolean | null
           message: string
+          reservation_request_id: string | null
           title: string
           type: string
         }
         Insert: {
-          booking_id: string
+          booking_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean | null
           message: string
+          reservation_request_id?: string | null
           title: string
           type: string
         }
         Update: {
-          booking_id?: string
+          booking_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean | null
           message?: string
+          reservation_request_id?: string | null
           title?: string
           type?: string
         }
@@ -87,6 +90,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_notifications_reservation_request_id_fkey"
+            columns: ["reservation_request_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -331,12 +341,48 @@ export type Database = {
           },
         ]
       }
+      guest_uploads: {
+        Row: {
+          file_name: string
+          file_type: string | null
+          file_url: string
+          guest_id: string
+          id: string
+          uploaded_at: string
+        }
+        Insert: {
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          guest_id: string
+          id?: string
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          guest_id?: string
+          id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_uploads_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guests: {
         Row: {
           created_at: string
           email: string | null
           id: string
           id_number: string | null
+          id_photo_url: string | null
           name: string
           phone: string
           updated_at: string
@@ -346,6 +392,7 @@ export type Database = {
           email?: string | null
           id?: string
           id_number?: string | null
+          id_photo_url?: string | null
           name: string
           phone: string
           updated_at?: string
@@ -355,6 +402,7 @@ export type Database = {
           email?: string | null
           id?: string
           id_number?: string | null
+          id_photo_url?: string | null
           name?: string
           phone?: string
           updated_at?: string
@@ -549,48 +597,104 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_lots: {
+        Row: {
+          batch_code: string | null
+          brand: string
+          created_at: string
+          expiry_date: string | null
+          id: string
+          inventory_item_id: string
+          quantity: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          batch_code?: string | null
+          brand: string
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          inventory_item_id: string
+          quantity?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          batch_code?: string | null
+          brand?: string
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          inventory_item_id?: string
+          quantity?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_lots_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_transactions: {
         Row: {
+          batch_code: string | null
           brand: string
           created_at: string
           direction: string
+          expiry_date: string | null
           id: string
           inventory_item_id: string
+          inventory_lot_id: string | null
           item_name: string
           notes: string | null
           quantity: number
           reference: string | null
           total_value: number
+          transaction_date: string | null
           transaction_type: string
           unit: string
           unit_cost: number
         }
         Insert: {
+          batch_code?: string | null
           brand: string
           created_at?: string
           direction: string
+          expiry_date?: string | null
           id?: string
           inventory_item_id: string
+          inventory_lot_id?: string | null
           item_name: string
           notes?: string | null
           quantity?: number
           reference?: string | null
           total_value?: number
+          transaction_date?: string | null
           transaction_type: string
           unit: string
           unit_cost?: number
         }
         Update: {
+          batch_code?: string | null
           brand?: string
           created_at?: string
           direction?: string
+          expiry_date?: string | null
           id?: string
           inventory_item_id?: string
+          inventory_lot_id?: string | null
           item_name?: string
           notes?: string | null
           quantity?: number
           reference?: string | null
           total_value?: number
+          transaction_date?: string | null
           transaction_type?: string
           unit?: string
           unit_cost?: number
@@ -601,6 +705,13 @@ export type Database = {
             columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_inventory_lot_id_fkey"
+            columns: ["inventory_lot_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_lots"
             referencedColumns: ["id"]
           },
         ]
@@ -902,6 +1013,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          email: string | null
           full_name: string | null
           id: string
           password_reset_required: boolean | null
@@ -911,6 +1023,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
           password_reset_required?: boolean | null
@@ -920,6 +1033,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
           password_reset_required?: boolean | null
@@ -931,6 +1045,7 @@ export type Database = {
       property_settings: {
         Row: {
           address: string | null
+          apply_settings: boolean
           check_in_time: string | null
           check_out_time: string | null
           city: string | null
@@ -948,6 +1063,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          apply_settings?: boolean
           check_in_time?: string | null
           check_out_time?: string | null
           city?: string | null
@@ -965,6 +1081,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          apply_settings?: boolean
           check_in_time?: string | null
           check_out_time?: string | null
           city?: string | null
@@ -1063,6 +1180,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reservation_requests: {
+        Row: {
+          created_at: string
+          guest_email: string | null
+          guest_name: string
+          guest_phone: string
+          id: string
+          request_items: Json
+          source: string | null
+          special_requests: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          guest_email?: string | null
+          guest_name: string
+          guest_phone: string
+          id?: string
+          request_items?: Json
+          source?: string | null
+          special_requests?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          guest_email?: string | null
+          guest_name?: string
+          guest_phone?: string
+          id?: string
+          request_items?: Json
+          source?: string | null
+          special_requests?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       reviews: {
         Row: {
@@ -1430,6 +1586,47 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_leave_requests: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          reason: string | null
+          staff_id: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          reason?: string | null
+          staff_id: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          reason?: string | null
+          staff_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_leave_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_secrets: {
         Row: {
           created_at: string | null
@@ -1457,8 +1654,56 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_timesheets: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          notes: string | null
+          staff_id: string
+          start_time: string
+          status: string
+          total_hours: number
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          notes?: string | null
+          staff_id: string
+          start_time: string
+          status?: string
+          total_hours?: number
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          notes?: string | null
+          staff_id?: string
+          start_time?: string
+          status?: string
+          total_hours?: number
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_timesheets_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_preferences: {
         Row: {
+          apply_settings: boolean
           auto_backup: boolean | null
           created_at: string
           date_format: string | null
@@ -1469,6 +1714,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          apply_settings?: boolean
           auto_backup?: boolean | null
           created_at?: string
           date_format?: string | null
@@ -1479,6 +1725,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          apply_settings?: boolean
           auto_backup?: boolean | null
           created_at?: string
           date_format?: string | null

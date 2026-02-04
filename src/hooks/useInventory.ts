@@ -101,7 +101,7 @@ export const useInventoryLots = () => {
   return useQuery({
     queryKey: ["inventory_lots"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("inventory_lots")
         .select("*")
         .order("expiry_date", { ascending: true, nullsFirst: false });
@@ -189,7 +189,7 @@ export const useCreateInventoryLot = () => {
 
   return useMutation({
     mutationFn: async (lot: Omit<InventoryLot, "id" | "created_at" | "updated_at">) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("inventory_lots")
         .insert(lot)
         .select()
@@ -212,7 +212,7 @@ export const useUpdateInventoryLot = () => {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<InventoryLot> }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("inventory_lots")
         .update(updates)
         .eq("id", id)
