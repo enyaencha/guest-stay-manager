@@ -1,5 +1,7 @@
 -- Update lookup_bookings_by_phone to return timestamped check-in/out
 
+DROP FUNCTION IF EXISTS public.lookup_bookings_by_phone(text);
+
 CREATE OR REPLACE FUNCTION public.lookup_bookings_by_phone(
   phone_input text
 )

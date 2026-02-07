@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SystemPreferences } from "@/types/settings";
-import { Settings2, AlertTriangle, DatabaseBackup, Download } from "lucide-react";
+import { Settings2, AlertTriangle, DatabaseBackup, Download, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ interface SystemPreferencesSettingsProps {
 
 export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPreferencesSettingsProps) => {
   const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(
     localStorage.getItem("lastBackupAt")
   );
@@ -68,6 +70,40 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
       toast.error(error.message || "Backup failed");
     } finally {
       setIsBackingUp(false);
+    }
+  };
+
+  const runRestore = async () => {
+    if (!restoreFile) {
+      toast.error("Select a backup JSON file first.");
+      return;
+    }
+
+    setIsRestoring(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("You must be logged in to restore a backup");
+      }
+
+      const payload = JSON.parse(await restoreFile.text());
+      const { data, error } = await supabase.functions.invoke("database-restore", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: payload,
+      });
+
+      if (error) throw new Error(error.message || "Restore failed");
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      toast.success("Backup restored successfully");
+      setRestoreFile(null);
+    } catch (error: any) {
+      console.error("Restore error:", error);
+      toast.error(error.message || "Restore failed");
+    } finally {
+      setIsRestoring(false);
     }
   };
 
@@ -167,8 +203,17 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
                   </p>
                 </div>
                 <Button onClick={runBackup} disabled={isBackingUp || !preferences.applySettings}>
-                  <Download className="h-4 w-4 mr-2" />
-                  {isBackingUp ? "Exporting..." : "Export Backup"}
+                  {isBackingUp ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Backup
+                    </>
+                  )}
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground">
@@ -179,6 +224,40 @@ export const SystemPreferencesSettings = ({ preferences, onUpdate }: SystemPrefe
                   Backup failed: {backupError}
                 </div>
               )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Restore Backup</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a backup JSON file to restore all tables.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={runRestore}
+                  disabled={isRestoring || !restoreFile || !preferences.applySettings}
+                >
+                  {isRestoring ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Restoring...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Restore Backup
+                    </>
+                  )}
+                </Button>
+              </div>
+              <input
+                type="file"
+                accept="application/json"
+                onChange={(event) => setRestoreFile(event.target.files?.[0] ?? null)}
+                className="text-sm"
+              />
             </div>
 
             <div className="flex items-center justify-between">
