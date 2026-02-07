@@ -1950,6 +1950,13 @@ export type Database = {
         | "refunds.approve"
         | "staff.view"
         | "staff.manage"
+        | "housekeeping.create"
+        | "maintenance.create"
+        | "inventory.create"
+        | "bookings.create"
+        | "pos.create"
+        | "refunds.create"
+        | "finance.create"
       app_role:
         | "administrator"
         | "manager"
@@ -2110,6 +2117,13 @@ export const Constants = {
         "refunds.approve",
         "staff.view",
         "staff.manage",
+        "housekeeping.create",
+        "maintenance.create",
+        "inventory.create",
+        "bookings.create",
+        "pos.create",
+        "refunds.create",
+        "finance.create",
       ],
       app_role: [
         "administrator",

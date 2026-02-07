@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import { InventoryTransactionsTable } from "@/components/inventory/InventoryTransactionsTable";
 import { AddInventoryItemModal } from "@/components/inventory/AddInventoryItemModal";
@@ -44,6 +45,7 @@ const mapToLegacyItem = (item: DBItem): InventoryItem => ({
 });
 
 const Inventory = () => {
+  const { hasPermission } = useAuth();
   const { data: dbItems, isLoading } = useInventoryItems();
   const { data: inventoryLots = [] } = useInventoryLots();
   const { data: inventoryTransactions = [] } = useInventoryTransactions();
@@ -51,6 +53,9 @@ const Inventory = () => {
   const createLot = useCreateInventoryLot();
   const updateLot = useUpdateInventoryLot();
   const createInventoryTx = useCreateInventoryTransaction();
+  
+  const canCreate = hasPermission("inventory.create");
+  const canManage = hasPermission("inventory.manage");
   
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -205,27 +210,33 @@ const Inventory = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
-              <ArrowUpRight className="h-4 w-4" />
-              Import CSV
-            </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                setAdjustItemId(null);
-                setAdjustType("purchase");
-                setAdjustDirection("in");
-                setAdjustOpen(true);
-              }}
-            >
-              <PackageCheck className="h-4 w-4" />
-              New Stock Entry
-            </Button>
-            <Button className="gap-2" onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Add Item
-            </Button>
+            {canManage && (
+              <Button variant="outline" className="gap-2">
+                <ArrowUpRight className="h-4 w-4" />
+                Import CSV
+              </Button>
+            )}
+            {(canCreate || canManage) && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  setAdjustItemId(null);
+                  setAdjustType("purchase");
+                  setAdjustDirection("in");
+                  setAdjustOpen(true);
+                }}
+              >
+                <PackageCheck className="h-4 w-4" />
+                New Stock Entry
+              </Button>
+            )}
+            {canCreate && (
+              <Button className="gap-2" onClick={() => setAddOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Add Item
+              </Button>
+            )}
           </div>
         </div>
 

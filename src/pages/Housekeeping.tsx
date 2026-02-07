@@ -9,6 +9,7 @@ import { useHousekeepingTasks, useHousekeepingStaff, useUpdateHousekeepingTask, 
 import { useUpdateRoom } from "@/hooks/useRooms";
 import { useInventoryItems, useInventoryLots, useUpdateInventoryItem, useUpdateInventoryLot, useCreateInventoryTransaction } from "@/hooks/useInventory";
 import { HousekeepingTask, HousekeepingStaff } from "@/types/housekeeping";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   ClipboardList, 
   Plus, 
@@ -50,6 +51,7 @@ const mapToLegacyStaff = (staff: any): HousekeepingStaff => ({
 });
 
 const Housekeeping = () => {
+  const { hasPermission } = useAuth();
   const { data: dbTasks, isLoading: tasksLoading } = useHousekeepingTasks();
   const { data: dbStaff, isLoading: staffLoading } = useHousekeepingStaff();
   const { data: inventoryItems = [] } = useInventoryItems();
@@ -59,6 +61,9 @@ const Housekeeping = () => {
   const updateInventory = useUpdateInventoryItem();
   const updateLot = useUpdateInventoryLot();
   const createInventoryTx = useCreateInventoryTransaction();
+  
+  const canCreate = hasPermission("housekeeping.create");
+  const canManage = hasPermission("housekeeping.manage");
   
   const [filter, setFilter] = useState("all");
   const [addTaskOpen, setAddTaskOpen] = useState(false);
@@ -221,10 +226,12 @@ const Housekeeping = () => {
               Manage cleaning tasks and coordinate staff
             </p>
           </div>
-          <Button className="gap-2" onClick={() => setAddTaskOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New Task
-          </Button>
+          {canCreate && (
+            <Button className="gap-2" onClick={() => setAddTaskOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Task
+            </Button>
+          )}
         </div>
 
         {/* Stats */}

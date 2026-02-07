@@ -1,46 +1,17 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useRoles } from "@/hooks/useStaff";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Edit, Plus, Save } from "lucide-react";
-
-const ALL_PERMISSIONS = [
-  { key: "rooms.view", label: "View Rooms", group: "Rooms" },
-  { key: "rooms.manage", label: "Manage Rooms", group: "Rooms" },
-  { key: "guests.view", label: "View Guests", group: "Guests" },
-  { key: "guests.manage", label: "Manage Guests", group: "Guests" },
-  { key: "bookings.view", label: "View Bookings", group: "Bookings" },
-  { key: "bookings.manage", label: "Manage Bookings", group: "Bookings" },
-  { key: "housekeeping.view", label: "View Housekeeping", group: "Housekeeping" },
-  { key: "housekeeping.manage", label: "Manage Housekeeping", group: "Housekeeping" },
-  { key: "maintenance.view", label: "View Maintenance", group: "Maintenance" },
-  { key: "maintenance.manage", label: "Manage Maintenance", group: "Maintenance" },
-  { key: "inventory.view", label: "View Inventory", group: "Inventory" },
-  { key: "inventory.manage", label: "Manage Inventory", group: "Inventory" },
-  { key: "pos.view", label: "View POS", group: "Point of Sale" },
-  { key: "pos.manage", label: "Manage POS", group: "Point of Sale" },
-  { key: "finance.view", label: "View Finance", group: "Finance" },
-  { key: "finance.manage", label: "Manage Finance", group: "Finance" },
-  { key: "reports.view", label: "View Reports", group: "Reports" },
-  { key: "reports.export", label: "Export Reports", group: "Reports" },
-  { key: "settings.view", label: "View Settings", group: "Settings" },
-  { key: "settings.manage", label: "Manage Settings", group: "Settings" },
-  { key: "refunds.view", label: "View Refunds", group: "Refunds" },
-  { key: "refunds.approve", label: "Approve Refunds", group: "Refunds" },
-  { key: "staff.view", label: "View Staff", group: "Staff" },
-  { key: "staff.manage", label: "Manage Staff", group: "Staff" },
-];
-
-const PERMISSION_GROUPS = [...new Set(ALL_PERMISSIONS.map((p) => p.group))];
+import { Shield, Edit, Plus, Save, Info } from "lucide-react";
+import { ALL_PERMISSIONS, PERMISSION_GROUPS } from "@/lib/permissions";
+import { PermissionGroupCard } from "./PermissionGroupCard";
 
 interface EditingRole {
   id: string;
@@ -87,7 +58,7 @@ export const RolePermissionsEditor = () => {
     );
   };
 
-  const toggleGroupAll = (group: string, perms: string[], currentPerms: string[], setter: (perms: string[]) => void) => {
+  const toggleGroupAll = (group: string, currentPerms: string[], setter: (perms: string[]) => void) => {
     const groupPerms = ALL_PERMISSIONS.filter((p) => p.group === group).map((p) => p.key);
     const allEnabled = groupPerms.every((p) => currentPerms.includes(p));
     if (allEnabled) {
@@ -155,7 +126,7 @@ export const RolePermissionsEditor = () => {
         <div>
           <h3 className="text-lg font-semibold">Roles & Permissions</h3>
           <p className="text-sm text-muted-foreground">
-            Configure what each role can access and manage.
+            Control exactly what each role can see, create, and manage.
           </p>
         </div>
         <Button size="sm" onClick={() => setIsCreateOpen(true)}>
@@ -164,47 +135,65 @@ export const RolePermissionsEditor = () => {
         </Button>
       </div>
 
+      {/* Hint */}
+      <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-dashed">
+        <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+        <p className="text-xs text-muted-foreground">
+          <strong>View</strong> = see the page · <strong>Create</strong> = add new items (tasks, issues, sales) · <strong>Manage</strong> = edit, delete, and reassign. 
+          Remove a permission to hide the action from that role's users.
+        </p>
+      </div>
+
       <div className="grid gap-3">
-        {roles.map((role) => (
-          <Card key={role.id} className="hover:shadow-sm transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{role.name}</span>
-                      {role.is_system_role && (
-                        <Badge variant="secondary" className="text-[10px]">System</Badge>
-                      )}
+        {roles.map((role) => {
+          const permCount = (role.permissions || []).length;
+          const totalPerms = ALL_PERMISSIONS.length;
+          return (
+            <Card key={role.id} className="hover:shadow-sm transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{role.name}</span>
+                        {role.is_system_role && (
+                          <Badge variant="secondary" className="text-[10px]">System</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{role.description || "No description"}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{role.description || "No description"}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="text-xs">
+                      {permCount}/{totalPerms} permissions
+                    </Badge>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(role)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-xs">
-                    {(role.permissions || []).length} permissions
-                  </Badge>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(role)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                {/* Grouped summary */}
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {PERMISSION_GROUPS.map((group) => {
+                    const groupPerms = ALL_PERMISSIONS.filter((p) => p.group === group);
+                    const active = groupPerms.filter((p) => (role.permissions || []).includes(p.key));
+                    if (active.length === 0) return null;
+                    return (
+                      <Badge 
+                        key={group} 
+                        variant={active.length === groupPerms.length ? "default" : "outline"} 
+                        className="text-[10px] font-normal"
+                      >
+                        {group} ({active.length}/{groupPerms.length})
+                      </Badge>
+                    );
+                  })}
                 </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {(role.permissions || []).slice(0, 8).map((perm: string) => (
-                  <Badge key={perm} variant="outline" className="text-[10px] font-normal">
-                    {perm}
-                  </Badge>
-                ))}
-                {(role.permissions || []).length > 8 && (
-                  <Badge variant="outline" className="text-[10px]">
-                    +{(role.permissions || []).length - 8} more
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Edit Role Dialog */}
@@ -236,35 +225,19 @@ export const RolePermissionsEditor = () => {
                 <Label className="text-base font-semibold">Permissions</Label>
                 {PERMISSION_GROUPS.map((group) => {
                   const groupPerms = ALL_PERMISSIONS.filter((p) => p.group === group);
-                  const allEnabled = groupPerms.every((p) => editingRole.permissions.includes(p.key));
                   return (
-                    <div key={group} className="rounded-lg border p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{group}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">All</span>
-                          <Switch
-                            checked={allEnabled}
-                            onCheckedChange={() =>
-                              toggleGroupAll(group, [], editingRole.permissions, (perms) =>
-                                setEditingRole({ ...editingRole, permissions: perms })
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {groupPerms.map((perm) => (
-                          <div key={perm.key} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-muted/30">
-                            <Label className="text-xs font-normal cursor-pointer">{perm.label}</Label>
-                            <Switch
-                              checked={editingRole.permissions.includes(perm.key)}
-                              onCheckedChange={() => togglePermission(perm.key)}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <PermissionGroupCard
+                      key={group}
+                      group={group}
+                      permissions={groupPerms}
+                      activePermissions={editingRole.permissions}
+                      onToggle={togglePermission}
+                      onToggleAll={() =>
+                        toggleGroupAll(group, editingRole.permissions, (perms) =>
+                          setEditingRole({ ...editingRole, permissions: perms })
+                        )
+                      }
+                    />
                   );
                 })}
               </div>
@@ -302,33 +275,15 @@ export const RolePermissionsEditor = () => {
               <Label className="text-base font-semibold">Permissions</Label>
               {PERMISSION_GROUPS.map((group) => {
                 const groupPerms = ALL_PERMISSIONS.filter((p) => p.group === group);
-                const allEnabled = groupPerms.every((p) => newRolePerms.includes(p.key));
                 return (
-                  <div key={group} className="rounded-lg border p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{group}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">All</span>
-                        <Switch
-                          checked={allEnabled}
-                          onCheckedChange={() =>
-                            toggleGroupAll(group, [], newRolePerms, setNewRolePerms)
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {groupPerms.map((perm) => (
-                        <div key={perm.key} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-muted/30">
-                          <Label className="text-xs font-normal cursor-pointer">{perm.label}</Label>
-                          <Switch
-                            checked={newRolePerms.includes(perm.key)}
-                            onCheckedChange={() => toggleNewPerm(perm.key)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <PermissionGroupCard
+                    key={group}
+                    group={group}
+                    permissions={groupPerms}
+                    activePermissions={newRolePerms}
+                    onToggle={toggleNewPerm}
+                    onToggleAll={() => toggleGroupAll(group, newRolePerms, setNewRolePerms)}
+                  />
                 );
               })}
             </div>

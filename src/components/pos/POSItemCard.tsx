@@ -7,7 +7,7 @@ import { formatKsh } from "@/lib/formatters";
 
 interface POSItemCardProps {
   item: POSItem;
-  onAddToCart: (item: POSItem) => void;
+  onAddToCart?: (item: POSItem) => void;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -37,14 +37,16 @@ export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
           <span className="text-lg font-bold text-primary">
             {item.price === 0 ? "Free" : formatKsh(item.price)}
           </span>
-          <Button 
-            size="sm" 
-            disabled={!item.is_available}
-            onClick={() => onAddToCart(item)}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add
-          </Button>
+          {onAddToCart && (
+            <Button 
+              size="sm" 
+              disabled={!item.is_available}
+              onClick={() => onAddToCart(item)}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

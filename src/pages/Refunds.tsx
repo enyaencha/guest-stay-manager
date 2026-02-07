@@ -5,6 +5,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatKsh } from "@/lib/formatters";
 import { 
   ReceiptText, 
@@ -16,6 +17,8 @@ import {
 import type { RefundRequest, RefundStatus, UtilizedItem, RoomAssessment, OverallCondition, MissingItem } from "@/types/assessment";
 
 const Refunds = () => {
+  const { hasPermission } = useAuth();
+  const canApprove = hasPermission("refunds.approve");
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -209,6 +212,7 @@ const Refunds = () => {
                 key={refund.id}
                 refund={refund}
                 onStatusChange={handleStatusChange}
+                readOnly={!canApprove}
               />
             ))}
           </div>
