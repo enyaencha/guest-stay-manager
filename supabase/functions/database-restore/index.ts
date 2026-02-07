@@ -139,7 +139,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      db: { schema: "public" },
+    });
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const token = authHeader.replace("Bearer ", "");
