@@ -71,11 +71,11 @@ export const StaffAdminContent = () => {
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles" as any)
+      const { data, error } = await (supabase as any)
+        .from("profiles")
         .select("user_id, full_name, email");
       if (error) throw error;
-      return (data || []) as { user_id: string; full_name?: string | null; email?: string | null }[];
+      return (data || []) as unknown as { user_id: string; full_name?: string | null; email?: string | null }[];
     },
   });
 
