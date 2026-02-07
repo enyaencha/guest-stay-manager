@@ -38,7 +38,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      db: { schema: "public" },
+    });
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const token = authHeader.replace("Bearer ", "");
@@ -94,42 +97,132 @@ Deno.serve(async (req) => {
 
     // Update auth user metadata/email if provided
     if (email || fullName) {
-      await adminClient.auth.admin.updateUserById(userId, {
+      const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(userId, {
         ...(email ? { email } : {}),
         ...(fullName ? { user_metadata: { full_name: fullName } } : {}),
       });
+      if (authUpdateError) {
+        console.error("Auth update error:", authUpdateError.message);
+      }
     }
 
-    // Update profile record
-    await adminClient.from("profiles").upsert({
-      user_id: userId,
-      full_name: fullName,
-      email,
-    });
+    // Update profile record - only update fields that are provided
+    const profileUpdates: Record<string, unknown> = {};
+    if (fullName !== null) profileUpdates.full_name = fullName;
+    if (email !== null) profileUpdates.email = email;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      // First check if profile exists
+      const { data: existingProfile } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existingProfile) {
+        // Update existing profile
+        const { error: profileError } = await adminClient
+          .from("profiles")
+          .update(profileUpdates)
+          .eq("user_id", userId);
+        if (profileError) {
+          console.error("Profile update error:", profileError.message);
+        }
+      } else {
+        // Insert new profile
+        const { error: profileError } = await adminClient
+          .from("profiles")
+          .insert({ user_id: userId, ...profileUpdates });
+        if (profileError) {
+          console.error("Profile insert error:", profileError.message);
+        }
+      }
+    }
 
     // Role handling (single active role)
-    await adminClient.from("user_roles").update({ is_active: false }).eq("user_id", userId);
+    // First deactivate all existing roles for this user
+    const { error: deactivateError } = await adminClient
+      .from("user_roles")
+      .update({ is_active: false })
+      .eq("user_id", userId);
+    
+    if (deactivateError) {
+      console.error("Role deactivation error:", deactivateError.message);
+    }
+
     if (roleId) {
-      await adminClient
+      // Check if a user_role row already exists for this user+role combo
+      const { data: existingUserRole } = await adminClient
         .from("user_roles")
-        .upsert(
-          { user_id: userId, role_id: roleId, is_active: true },
-          { onConflict: "user_id,role_id" }
-        );
+        .select("id")
+        .eq("user_id", userId)
+        .eq("role_id", roleId)
+        .maybeSingle();
+
+      if (existingUserRole) {
+        // Re-activate the existing row
+        const { error: roleUpdateError } = await adminClient
+          .from("user_roles")
+          .update({ is_active: true, updated_at: new Date().toISOString() })
+          .eq("id", existingUserRole.id);
+        if (roleUpdateError) {
+          return new Response(
+            JSON.stringify({ error: `Failed to update role: ${roleUpdateError.message}` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        // Insert a new user_role row
+        const { error: roleInsertError } = await adminClient
+          .from("user_roles")
+          .insert({
+            user_id: userId,
+            role_id: roleId,
+            is_active: true,
+            valid_from: new Date().toISOString(),
+          });
+        if (roleInsertError) {
+          return new Response(
+            JSON.stringify({ error: `Failed to assign role: ${roleInsertError.message}` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     }
 
     // Staff linkage
     if (staffId) {
-      await adminClient.from("staff").update({ user_id: null }).eq("user_id", userId);
-      await adminClient.from("staff").update({ user_id: userId }).eq("id", staffId);
+      // Unlink this user from any other staff
+      const { error: unlinkError } = await adminClient
+        .from("staff")
+        .update({ user_id: null })
+        .eq("user_id", userId);
+      if (unlinkError) {
+        console.error("Staff unlink error:", unlinkError.message);
+      }
+      // Link user to specified staff
+      const { error: linkError } = await adminClient
+        .from("staff")
+        .update({ user_id: userId })
+        .eq("id", staffId);
+      if (linkError) {
+        console.error("Staff link error:", linkError.message);
+      }
     } else {
-      await adminClient.from("staff").update({ user_id: null }).eq("user_id", userId);
+      const { error: unlinkError } = await adminClient
+        .from("staff")
+        .update({ user_id: null })
+        .eq("user_id", userId);
+      if (unlinkError) {
+        console.error("Staff unlink error:", unlinkError.message);
+      }
     }
 
-    return new Response(JSON.stringify({ user_id: userId }), {
+    return new Response(JSON.stringify({ user_id: userId, success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("Update user error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update user" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
