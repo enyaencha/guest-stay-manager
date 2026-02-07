@@ -6,6 +6,7 @@ import { CategoryBreakdownCard } from "@/components/finance/CategoryBreakdownCar
 import { TransactionHistoryTable } from "@/components/finance/TransactionHistoryTable";
 import { POSSalesTable } from "@/components/finance/POSSalesTable";
 import { RoomAmenityCostsTable } from "@/components/finance/RoomAmenityCostsTable";
+import { SalaryManagement } from "@/components/finance/SalaryManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -310,6 +311,12 @@ export default function Finance() {
                 >
                   Room Costs
                 </TabsTrigger>
+                <TabsTrigger
+                  value="salaries"
+                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Salaries
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
@@ -418,6 +425,10 @@ export default function Finance() {
                   </div>
                 </div>
                 <RoomAmenityCostsTable costs={roomCostsData} />
+              </TabsContent>
+
+              <TabsContent value="salaries" className="space-y-6">
+                <SalaryManagement />
               </TabsContent>
             </Tabs>
           </>

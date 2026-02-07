@@ -1540,46 +1540,67 @@ export type Database = {
       }
       staff: {
         Row: {
+          address: string | null
+          agreed_hours: number | null
+          annual_leave_days: number | null
           avatar_url: string | null
           contract_end_date: string | null
           created_at: string
           department: string
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           employment_type: string
           id: string
           joined_date: string
           name: string
+          notes: string | null
           phone: string | null
+          salary: number | null
           status: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          address?: string | null
+          agreed_hours?: number | null
+          annual_leave_days?: number | null
           avatar_url?: string | null
           contract_end_date?: string | null
           created_at?: string
           department: string
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           employment_type?: string
           id?: string
           joined_date?: string
           name: string
+          notes?: string | null
           phone?: string | null
+          salary?: number | null
           status?: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          address?: string | null
+          agreed_hours?: number | null
+          annual_leave_days?: number | null
           avatar_url?: string | null
           contract_end_date?: string | null
           created_at?: string
           department?: string
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           employment_type?: string
           id?: string
           joined_date?: string
           name?: string
+          notes?: string | null
           phone?: string | null
+          salary?: number | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -1591,6 +1612,7 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
+          leave_type: string | null
           reason: string | null
           staff_id: string
           start_date: string
@@ -1601,6 +1623,7 @@ export type Database = {
           created_at?: string
           end_date: string
           id?: string
+          leave_type?: string | null
           reason?: string | null
           staff_id: string
           start_date: string
@@ -1611,6 +1634,7 @@ export type Database = {
           created_at?: string
           end_date?: string
           id?: string
+          leave_type?: string | null
           reason?: string | null
           staff_id?: string
           start_date?: string
@@ -1620,6 +1644,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "staff_leave_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_salaries: {
+        Row: {
+          base_salary: number
+          bonuses: number
+          created_at: string
+          deductions: number
+          id: string
+          month: string
+          net_salary: number
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+          payment_status: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_salary?: number
+          bonuses?: number
+          created_at?: string
+          deductions?: number
+          id?: string
+          month: string
+          net_salary?: number
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_salary?: number
+          bonuses?: number
+          created_at?: string
+          deductions?: number
+          id?: string
+          month?: string
+          net_salary?: number
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_salaries_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
@@ -1656,6 +1736,8 @@ export type Database = {
       }
       staff_timesheets: {
         Row: {
+          activity_types: string[] | null
+          break_minutes: number | null
           created_at: string
           end_time: string
           id: string
@@ -1668,6 +1750,8 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          activity_types?: string[] | null
+          break_minutes?: number | null
           created_at?: string
           end_time: string
           id?: string
@@ -1680,6 +1764,8 @@ export type Database = {
           work_date: string
         }
         Update: {
+          activity_types?: string[] | null
+          break_minutes?: number | null
           created_at?: string
           end_time?: string
           id?: string
