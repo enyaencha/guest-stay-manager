@@ -12,8 +12,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StaffManagement } from "@/components/settings/StaffManagement";
+import { RolePermissionsEditor } from "@/components/staff/RolePermissionsEditor";
 import { useStaff, useRoles, useUserRoles } from "@/hooks/useStaff";
-import { Users, Shield, ClipboardCheck, Check, X, UserPlus } from "lucide-react";
+import { Users, Shield, ClipboardCheck, Check, X, UserPlus, Settings2 } from "lucide-react";
 
 interface LeaveRequest {
   id: string;
@@ -246,7 +247,7 @@ export const StaffAdminContent = () => {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 h-auto">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
           <TabsTrigger value="employees" className="flex items-center gap-2 py-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Employees</span>
@@ -254,6 +255,10 @@ export const StaffAdminContent = () => {
           <TabsTrigger value="system-users" className="flex items-center gap-2 py-2">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">System Users</span>
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2 py-2">
+            <Settings2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Roles & Permissions</span>
           </TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-2 py-2">
             <ClipboardCheck className="h-4 w-4" />
@@ -434,6 +439,9 @@ export const StaffAdminContent = () => {
               </div>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+        <TabsContent value="roles" className="space-y-4">
+          <RolePermissionsEditor />
         </TabsContent>
 
         <TabsContent value="approvals" className="space-y-6">

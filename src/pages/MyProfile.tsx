@@ -31,6 +31,8 @@ const MyProfile = () => {
   const [timesheetDate, setTimesheetDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [breakMinutes, setBreakMinutes] = useState("0");
+  const [activityTypes, setActivityTypes] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [submittingTimesheet, setSubmittingTimesheet] = useState(false);
@@ -46,15 +48,14 @@ const MyProfile = () => {
     }
     setSubmittingLeave(true);
     try {
-      const reason = leaveReason?.trim();
-      const formattedReason = reason ? `[${leaveType}] ${reason}` : `[${leaveType}]`;
       const { error } = await supabase
         .from("staff_leave_requests" as any)
         .insert({
           staff_id: staffRecord.id,
           start_date: leaveStart,
           end_date: leaveEnd,
-          reason: formattedReason || null,
+          leave_type: leaveType,
+          reason: leaveReason?.trim() || null,
           status: "pending",
         });
       if (error) throw error;
@@ -83,7 +84,8 @@ const MyProfile = () => {
     try {
       const start = new Date(`${timesheetDate}T${startTime}`);
       const end = new Date(`${timesheetDate}T${endTime}`);
-      const hours = Math.max(0, (end.getTime() - start.getTime()) / 36e5);
+      const breakMins = parseInt(breakMinutes) || 0;
+      const hours = Math.max(0, (end.getTime() - start.getTime()) / 36e5 - breakMins / 60);
 
       const { error } = await supabase
         .from("staff_timesheets" as any)
@@ -92,7 +94,9 @@ const MyProfile = () => {
           work_date: timesheetDate,
           start_time: startTime,
           end_time: endTime,
-          total_hours: hours,
+          break_minutes: breakMins,
+          activity_types: activityTypes,
+          total_hours: Math.round(hours * 100) / 100,
           notes: notes || null,
           status: "submitted",
         });
@@ -101,6 +105,8 @@ const MyProfile = () => {
       setTimesheetDate("");
       setStartTime("");
       setEndTime("");
+      setBreakMinutes("0");
+      setActivityTypes([]);
       setNotes("");
     } catch (error: any) {
       toast.error(error.message || "Failed to submit timesheet");
@@ -172,17 +178,40 @@ const MyProfile = () => {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Date</Label>
+                      <Label>Date *</Label>
                       <Input type="date" value={timesheetDate} onChange={(e) => setTimesheetDate(e.target.value)} />
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Start Time</Label>
+                        <Label>Start Time *</Label>
                         <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label>End Time</Label>
+                        <Label>End Time *</Label>
                         <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Break Duration (minutes)</Label>
+                      <Input type="number" value={breakMinutes} onChange={(e) => setBreakMinutes(e.target.value)} placeholder="30" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Activity Types</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Front Desk", "Housekeeping", "Maintenance", "Kitchen", "Service", "Admin", "Training", "Other"].map((act) => (
+                          <label key={act} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={activityTypes.includes(act)}
+                              onChange={(e) => {
+                                if (e.target.checked) setActivityTypes([...activityTypes, act]);
+                                else setActivityTypes(activityTypes.filter((a) => a !== act));
+                              }}
+                              className="rounded border-input"
+                            />
+                            {act}
+                          </label>
+                        ))}
                       </div>
                     </div>
                     <div className="space-y-2">

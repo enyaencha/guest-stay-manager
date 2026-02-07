@@ -41,6 +41,13 @@ interface StaffFormData {
   employment_type: 'permanent' | 'temporary';
   contract_end_date: Date | null;
   contract_end_time: string;
+  salary: string;
+  agreed_hours: string;
+  annual_leave_days: string;
+  address: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  notes: string;
 }
 
 interface RoleAssignmentData {
@@ -80,6 +87,13 @@ export const StaffManagement = () => {
     employment_type: "permanent",
     contract_end_date: null,
     contract_end_time: "17:00",
+    salary: "0",
+    agreed_hours: "40",
+    annual_leave_days: "21",
+    address: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    notes: "",
   });
 
   const [roleAssignment, setRoleAssignment] = useState<RoleAssignmentData>({
@@ -154,6 +168,13 @@ export const StaffManagement = () => {
       employment_type: "permanent",
       contract_end_date: null,
       contract_end_time: "17:00",
+      salary: "0",
+      agreed_hours: "40",
+      annual_leave_days: "21",
+      address: "",
+      emergency_contact_name: "",
+      emergency_contact_phone: "",
+      notes: "",
     });
     setEditingStaff(null);
   };
@@ -177,7 +198,14 @@ export const StaffManagement = () => {
       user_id: null,
       joined_date: format(new Date(), 'yyyy-MM-dd'),
       avatar_url: null,
-    });
+      salary: parseFloat(formData.salary) || 0,
+      agreed_hours: parseFloat(formData.agreed_hours) || 40,
+      annual_leave_days: parseInt(formData.annual_leave_days) || 21,
+      address: formData.address || null,
+      emergency_contact_name: formData.emergency_contact_name || null,
+      emergency_contact_phone: formData.emergency_contact_phone || null,
+      notes: formData.notes || null,
+    } as any);
 
     // Log audit
     await logAudit.mutateAsync({
@@ -221,7 +249,14 @@ export const StaffManagement = () => {
         contract_end_date: formData.contract_end_date
           ? applyTime(formData.contract_end_date, formData.contract_end_time).toISOString()
           : null,
-      }
+        salary: parseFloat(formData.salary) || 0,
+        agreed_hours: parseFloat(formData.agreed_hours) || 40,
+        annual_leave_days: parseInt(formData.annual_leave_days) || 21,
+        address: formData.address || null,
+        emergency_contact_name: formData.emergency_contact_name || null,
+        emergency_contact_phone: formData.emergency_contact_phone || null,
+        notes: formData.notes || null,
+      } as any
     });
 
     // Log audit
@@ -260,6 +295,13 @@ export const StaffManagement = () => {
       employment_type: member.employment_type || 'permanent',
       contract_end_date: parsedContract,
       contract_end_time: contractTime,
+      salary: String(member.salary || 0),
+      agreed_hours: String(member.agreed_hours || 40),
+      annual_leave_days: String(member.annual_leave_days || 21),
+      address: member.address || "",
+      emergency_contact_name: member.emergency_contact_name || "",
+      emergency_contact_phone: member.emergency_contact_phone || "",
+      notes: member.notes || "",
     });
   };
 
@@ -579,6 +621,78 @@ export const StaffManagement = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Salary & Hours */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Salary (Monthly)</Label>
+          <Input
+            type="number"
+            value={formData.salary}
+            onChange={(e) => handleInputChange("salary", e.target.value)}
+            placeholder="e.g. 25000"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Agreed Weekly Hours</Label>
+          <Input
+            type="number"
+            value={formData.agreed_hours}
+            onChange={(e) => handleInputChange("agreed_hours", e.target.value)}
+            placeholder="40"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Annual Leave Days</Label>
+        <Input
+          type="number"
+          value={formData.annual_leave_days}
+          onChange={(e) => handleInputChange("annual_leave_days", e.target.value)}
+          placeholder="21"
+        />
+      </div>
+
+      {/* Address */}
+      <div className="space-y-2">
+        <Label>Address</Label>
+        <Input
+          value={formData.address}
+          onChange={(e) => handleInputChange("address", e.target.value)}
+          placeholder="Home address"
+        />
+      </div>
+
+      {/* Emergency Contact */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Emergency Contact Name</Label>
+          <Input
+            value={formData.emergency_contact_name}
+            onChange={(e) => handleInputChange("emergency_contact_name", e.target.value)}
+            placeholder="Contact name"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Emergency Contact Phone</Label>
+          <Input
+            value={formData.emergency_contact_phone}
+            onChange={(e) => handleInputChange("emergency_contact_phone", e.target.value)}
+            placeholder="+254..."
+          />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-2">
+        <Label>Notes</Label>
+        <Input
+          value={formData.notes}
+          onChange={(e) => handleInputChange("notes", e.target.value)}
+          placeholder="Additional notes"
+        />
       </div>
 
       {isEdit && (
