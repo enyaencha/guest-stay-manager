@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { POSItemCard } from "@/components/pos/POSItemCard";
 import { CartPanel } from "@/components/pos/CartPanel";
@@ -22,6 +23,8 @@ import { toast } from "sonner";
 import { formatKsh } from "@/lib/formatters";
 
 const POS = () => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission("pos.create");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -403,7 +406,7 @@ const POS = () => {
                       <POSItemCard 
                         key={item.id} 
                         item={item}
-                        onAddToCart={addToCart}
+                        onAddToCart={canCreate ? addToCart : undefined}
                       />
                     ))}
                   </div>

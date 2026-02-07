@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useMaintenanceIssues, useMaintenanceStaff, useUpdateMaintenanceIssue, MaintenanceIssue as DBIssue, MaintenanceStaff as DBStaff } from "@/hooks/useMaintenance";
 import { useUpdateRoom } from "@/hooks/useRooms";
+import { useAuth } from "@/contexts/AuthContext";
 import { MaintenanceIssue } from "@/types/maintenance";
 import { 
   Wrench, 
@@ -37,10 +38,14 @@ const mapToLegacyIssue = (issue: DBIssue): MaintenanceIssue => ({
 });
 
 const Maintenance = () => {
+  const { hasPermission } = useAuth();
   const { data: dbIssues, isLoading: issuesLoading } = useMaintenanceIssues();
   const { data: dbStaff, isLoading: staffLoading } = useMaintenanceStaff();
   const updateIssue = useUpdateMaintenanceIssue();
   const updateRoom = useUpdateRoom();
+  
+  const canCreate = hasPermission("maintenance.create");
+  const canManage = hasPermission("maintenance.manage");
   
   const [filter, setFilter] = useState("all");
   const [reportOpen, setReportOpen] = useState(false);
@@ -128,10 +133,12 @@ const Maintenance = () => {
               Track issues and manage repairs
             </p>
           </div>
-          <Button className="gap-2" onClick={() => setReportOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Report Issue
-          </Button>
+          {canCreate && (
+            <Button className="gap-2" onClick={() => setReportOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Report Issue
+            </Button>
+          )}
         </div>
 
         {/* Stats */}

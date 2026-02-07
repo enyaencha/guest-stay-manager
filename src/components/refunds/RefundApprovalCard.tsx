@@ -21,6 +21,7 @@ import type { RefundRequest, RefundStatus, UtilizedItem } from "@/types/assessme
 interface RefundApprovalCardProps {
   refund: RefundRequest;
   onStatusChange: (id: string, status: RefundStatus) => void;
+  readOnly?: boolean;
 }
 
 const statusConfig: Record<RefundStatus, { label: string; className: string }> = {
@@ -30,7 +31,7 @@ const statusConfig: Record<RefundStatus, { label: string; className: string }> =
   processed: { label: "Processed", className: "bg-blue-100 text-blue-800" },
 };
 
-export function RefundApprovalCard({ refund, onStatusChange }: RefundApprovalCardProps) {
+export function RefundApprovalCard({ refund, onStatusChange, readOnly = false }: RefundApprovalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -237,7 +238,7 @@ export function RefundApprovalCard({ refund, onStatusChange }: RefundApprovalCar
         )}
 
         {/* Action Buttons */}
-        {refund.status === "pending" && !showRejectInput && (
+        {refund.status === "pending" && !showRejectInput && !readOnly && (
           <div className="flex gap-2">
             <Button 
               className="flex-1"
