@@ -37,6 +37,32 @@ const severityColors = {
   low: "bg-blue-500",
 };
 
+const normalizeTrendPart = (value: unknown) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value);
+};
+
+const formatTrendLabel = (trend: InsightsResult["trends"][number]) => {
+  if (typeof trend === "string") {
+    return trend;
+  }
+
+  const metric = normalizeTrendPart(trend.metric);
+  const value = normalizeTrendPart(trend.trend);
+  const combined = [metric, value].filter(Boolean).join(": ");
+
+  if (combined) {
+    return combined;
+  }
+
+  return normalizeTrendPart(trend.description) || "Trend";
+};
+
 export const AIInsightsPanel = ({
   isLoading,
   insights,
@@ -90,7 +116,7 @@ export const AIInsightsPanel = ({
                   {insights.trends.map((trend, idx) => (
                     <Badge key={idx} variant="secondary">
                       <TrendingUp className="h-3 w-3 mr-1" />
-                      {trend}
+                      {formatTrendLabel(trend)}
                     </Badge>
                   ))}
                 </div>

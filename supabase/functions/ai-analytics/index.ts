@@ -5,6 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const normalizeTrendPart = (value: unknown) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value);
+};
+
+const formatTrendLabel = (trend: unknown) => {
+  if (typeof trend === "string") {
+    return trend;
+  }
+
+  if (trend && typeof trend === "object") {
+    const trendObject = trend as Record<string, unknown>;
+    const metric = normalizeTrendPart(trendObject.metric);
+    const value = normalizeTrendPart(trendObject.trend);
+    const combined = [metric, value].filter(Boolean).join(": ");
+
+    if (combined) {
+      return combined;
+    }
+
+    const description = normalizeTrendPart(trendObject.description);
+    return description || "Trend";
+  }
+
+  return normalizeTrendPart(trend) || "Trend";
+};
+
 interface AnalyticsRequest {
   type: 'forecast' | 'insights' | 'recommendations' | 'anomaly';
   data: {
@@ -119,6 +151,23 @@ serve(async (req) => {
       parsedContent = JSON.parse(jsonStr);
     } catch {
       parsedContent = { raw: content };
+    }
+
+    if (parsedContent && typeof parsedContent === "object" && Array.isArray(parsedContent.trends)) {
+      const rawTrends = parsedContent.trends as unknown[];
+      const nonStringTrends = rawTrends.filter((trend) => typeof trend !== "string");
+
+      if (nonStringTrends.length > 0) {
+        console.warn("AI analytics returned non-string trends, normalizing.", {
+          count: nonStringTrends.length,
+          sample: nonStringTrends.slice(0, 1),
+        });
+      }
+
+      parsedContent = {
+        ...parsedContent,
+        trends: rawTrends.map(formatTrendLabel),
+      };
     }
 
     console.log(`${type} analytics completed successfully`);

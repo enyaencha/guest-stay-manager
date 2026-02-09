@@ -10,6 +10,7 @@ interface StatCardProps {
   trend?: {
     value: number;
     isPositive: boolean;
+    label?: string;
   };
   variant?: 'default' | 'accent' | 'success' | 'warning';
   iconClassName?: string;
@@ -57,7 +58,7 @@ export function StatCard({
               "text-xs font-medium",
               trend.isPositive ? "text-status-available" : "text-destructive"
             )}>
-              {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% vs last week
+              {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label ?? "vs last week"}
             </p>
           )}
         </div>

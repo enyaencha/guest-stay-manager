@@ -8,6 +8,8 @@ import { AIInsightsPanel } from "@/components/reports/AIInsightsPanel";
 import { ExportReportsPanel } from "@/components/reports/ExportReportsPanel";
 import { ForecastChart } from "@/components/reports/ForecastChart";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select,
@@ -18,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useFinanceTransactions } from "@/hooks/useFinance";
 import { usePOSTransactions } from "@/hooks/usePOS";
-import { useRooms, useRoomStats, useRoomTypes } from "@/hooks/useRooms";
+import { useRooms, useRoomTypes } from "@/hooks/useRooms";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useAIAnalytics } from "@/hooks/useAIAnalytics";
 import { useBookings } from "@/hooks/useGuests";
@@ -40,15 +42,50 @@ import {
   eachDayOfInterval,
   differenceInCalendarDays,
   differenceInMinutes,
+  endOfDay,
   format,
   isSameDay,
   isWithinInterval,
   parseISO,
+  startOfDay,
   subDays,
 } from "date-fns";
 
+type DateRange = {
+  start: Date;
+  end: Date;
+  dayStart: Date;
+  dayEnd: Date;
+  dayListEnd: Date;
+};
+
+const buildRange = (start: Date, end: Date): DateRange => {
+  let rangeStart = start;
+  let rangeEnd = end;
+
+  if (rangeStart > rangeEnd) {
+    [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+  }
+
+  return {
+    start: rangeStart,
+    end: rangeEnd,
+    dayStart: startOfDay(rangeStart),
+    dayEnd: endOfDay(rangeEnd),
+    dayListEnd: startOfDay(rangeEnd),
+  };
+};
+
+const formatDateTimeLocal = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm");
+
 const Reports = () => {
   const [dateRange, setDateRange] = useState("7d");
+  const [customStart, setCustomStart] = useState(() =>
+    formatDateTimeLocal(subDays(new Date(), 6))
+  );
+  const [customEnd, setCustomEnd] = useState(() =>
+    formatDateTimeLocal(new Date())
+  );
   
   const { data: financeTransactions = [], isLoading: financeLoading } = useFinanceTransactions();
   const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
@@ -58,7 +95,6 @@ const Reports = () => {
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: housekeepingTasks = [], isLoading: housekeepingLoading } = useHousekeepingTasks();
   const { data: maintenanceIssues = [], isLoading: maintenanceLoading } = useMaintenanceIssues();
-  const stats = useRoomStats();
   
   const { isLoading: aiLoading, forecast, insights, recommendations, anomalies, analyzeData } = useAIAnalytics();
 
@@ -72,35 +108,203 @@ const Reports = () => {
     housekeepingLoading ||
     maintenanceLoading;
 
-  // Calculate stats from real data
-  const totalRevenue = financeTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  const posRevenue = posTransactions
-    .filter(t => t.status === 'completed')
-    .reduce((sum, t) => sum + t.total, 0);
-
-  const rangeDays = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : dateRange === "90d" ? 90 : 365;
-  const rangeEnd = new Date();
-  const rangeStart = subDays(rangeEnd, rangeDays - 1);
-  const rangeDaysList = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
-  const periodLabel =
+  const isCustomRange = dateRange === "custom";
+  const rangeDays =
     dateRange === "7d"
-      ? "Last 7 Days"
+      ? 7
       : dateRange === "30d"
-        ? "Last 30 Days"
+        ? 30
         : dateRange === "90d"
-          ? "Last 90 Days"
-          : "Last 12 Months";
+          ? 90
+          : dateRange === "custom"
+            ? 7
+            : 365;
+
+  const now = new Date();
+  const parsedCustomStart = customStart ? parseISO(customStart) : null;
+  const parsedCustomEnd = customEnd ? parseISO(customEnd) : null;
+
+  let rawRangeStart = subDays(now, rangeDays - 1);
+  let rawRangeEnd = now;
+
+  if (isCustomRange) {
+    if (parsedCustomStart && parsedCustomEnd) {
+      rawRangeStart = parsedCustomStart;
+      rawRangeEnd = parsedCustomEnd;
+    } else if (parsedCustomStart) {
+      rawRangeStart = parsedCustomStart;
+      rawRangeEnd = now;
+    } else if (parsedCustomEnd) {
+      rawRangeStart = subDays(parsedCustomEnd, rangeDays - 1);
+      rawRangeEnd = parsedCustomEnd;
+    }
+  }
+
+  const currentRange = buildRange(rawRangeStart, rawRangeEnd);
+  const rangeDurationMs = currentRange.end.getTime() - currentRange.start.getTime();
+  const previousRange = buildRange(
+    new Date(currentRange.start.getTime() - rangeDurationMs - 1),
+    new Date(currentRange.start.getTime() - 1)
+  );
+
+  const periodLabel =
+    isCustomRange
+      ? `${format(currentRange.start, "MMM d, yyyy HH:mm")} - ${format(currentRange.end, "MMM d, yyyy HH:mm")}`
+      : dateRange === "7d"
+        ? "Last 7 Days"
+        : dateRange === "30d"
+          ? "Last 30 Days"
+          : dateRange === "90d"
+            ? "Last 90 Days"
+            : "Last 12 Months";
+
+  const isTimestampInRange = (value: string | null | undefined, range: DateRange) => {
+    if (!value) return false;
+    const date = parseISO(value);
+    return isWithinInterval(date, { start: range.start, end: range.end });
+  };
+
+  const isDateInRange = (value: string | null | undefined, range: DateRange) => {
+    if (!value) return false;
+    const date = parseISO(value);
+    return isWithinInterval(date, { start: range.dayStart, end: range.dayEnd });
+  };
+
+  const isBookingOverlappingRange = (checkIn: string, checkOut: string, range: DateRange) => {
+    const checkInDate = parseISO(checkIn);
+    const checkOutDate = parseISO(checkOut);
+    return checkInDate <= range.dayEnd && checkOutDate >= range.dayStart;
+  };
+
+  const getAverage = (values: number[]) =>
+    values.length > 0 ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
+
+  const getRevenueTotals = (range: DateRange) => {
+    const financeInRange = financeTransactions.filter((t) => isDateInRange(t.date, range));
+    const posInRange = posTransactions.filter(
+      (t) => t.status === "completed" && isTimestampInRange(t.created_at, range)
+    );
+
+    const roomRevenue = financeInRange
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + t.amount, 0);
+    const posRevenue = posInRange.reduce((sum, t) => sum + t.total, 0);
+
+    return {
+      financeInRange,
+      posInRange,
+      roomRevenue,
+      posRevenue,
+      totalRevenue: roomRevenue + posRevenue,
+    };
+  };
+
+  const getDepartmentStats = (range: DateRange) => {
+    const bookingsInRange = bookings.filter((booking) =>
+      isTimestampInRange(booking.created_at, range)
+    );
+    const housekeepingInRange = housekeepingTasks.filter((task) =>
+      isTimestampInRange(task.created_at, range)
+    );
+    const maintenanceInRange = maintenanceIssues.filter((issue) =>
+      isTimestampInRange(issue.reported_at, range)
+    );
+
+    const housekeepingCompleted = housekeepingInRange.filter((task) => task.status === "completed").length;
+    const maintenanceCompleted = maintenanceInRange.filter((issue) =>
+      ["resolved", "closed"].includes(issue.status)
+    ).length;
+    const frontDeskCompleted = bookingsInRange.filter((booking) => booking.status !== "cancelled").length;
+
+    const housekeepingEfficiency = housekeepingInRange.length
+      ? Math.round((housekeepingCompleted / housekeepingInRange.length) * 100)
+      : 0;
+    const maintenanceEfficiency = maintenanceInRange.length
+      ? Math.round((maintenanceCompleted / maintenanceInRange.length) * 100)
+      : 0;
+    const frontDeskEfficiency = bookingsInRange.length
+      ? Math.round((frontDeskCompleted / bookingsInRange.length) * 100)
+      : 0;
+
+    return [
+      {
+        department: "Front Desk",
+        tasksCompleted: frontDeskCompleted,
+        efficiency: frontDeskEfficiency,
+        avgResponseTime: 0,
+        satisfaction: frontDeskEfficiency,
+      },
+      {
+        department: "Housekeeping",
+        tasksCompleted: housekeepingCompleted,
+        efficiency: housekeepingEfficiency,
+        avgResponseTime:
+          housekeepingInRange.length > 0
+            ? Math.round(
+                housekeepingInRange.reduce((sum, task) => sum + (task.estimated_minutes || 0), 0) /
+                  housekeepingInRange.length
+              )
+            : 0,
+        satisfaction: housekeepingEfficiency,
+      },
+      {
+        department: "Maintenance",
+        tasksCompleted: maintenanceCompleted,
+        efficiency: maintenanceEfficiency,
+        avgResponseTime: maintenanceInRange.length > 0
+          ? Math.round(
+              maintenanceInRange.reduce((sum, issue) => {
+                if (!issue.resolved_at) return sum;
+                return sum + Math.max(0, differenceInMinutes(parseISO(issue.resolved_at), parseISO(issue.reported_at)));
+              }, 0) / Math.max(1, maintenanceInRange.filter((issue) => issue.resolved_at).length)
+            )
+          : 0,
+        satisfaction: maintenanceEfficiency,
+      },
+    ];
+  };
+
+  const buildOccupancyData = (range: DateRange, bookingsForRange: typeof bookings) => {
+    const dayList = eachDayOfInterval({ start: range.dayStart, end: range.dayListEnd });
+
+    return dayList.map((date) => {
+      const occupiedRooms = new Set(
+        bookingsForRange
+          .filter((booking) => {
+            if (booking.status === "cancelled") return false;
+            const checkIn = parseISO(booking.check_in);
+            const checkOut = parseISO(booking.check_out);
+            return isWithinInterval(date, { start: checkIn, end: checkOut });
+          })
+          .map((booking) => booking.room_number)
+      );
+
+      const occupiedCount = occupiedRooms.size;
+      const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
+
+      return {
+        date: format(date, "yyyy-MM-dd"),
+        occupancy,
+        rooms: occupiedCount,
+      };
+    });
+  };
+
+  const currentRevenueTotals = getRevenueTotals(currentRange);
+  const previousRevenueTotals = getRevenueTotals(previousRange);
+
+  const rangeDaysList = eachDayOfInterval({
+    start: currentRange.dayStart,
+    end: currentRange.dayListEnd,
+  });
 
   const revenueData = rangeDaysList.map((date) => {
-    const roomRevenue = financeTransactions
+    const roomRevenue = currentRevenueTotals.financeInRange
       .filter((t) => t.type === "income" && isSameDay(parseISO(t.date), date))
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const posRevenueForDay = posTransactions
-      .filter((t) => t.status === "completed" && isSameDay(parseISO(t.created_at), date))
+    const posRevenueForDay = currentRevenueTotals.posInRange
+      .filter((t) => isSameDay(parseISO(t.created_at), date))
       .reduce((sum, t) => sum + t.total, 0);
 
     return {
@@ -111,103 +315,72 @@ const Reports = () => {
     };
   });
 
-  const occupancyData = rangeDaysList.map((date) => {
-    const occupiedRooms = new Set(
-      bookings
-        .filter((booking) => {
-          if (booking.status === "cancelled") return false;
-          const checkIn = parseISO(booking.check_in);
-          const checkOut = parseISO(booking.check_out);
-          return isWithinInterval(date, { start: checkIn, end: checkOut });
-        })
-        .map((booking) => booking.room_number)
-    );
+  const bookingsInRange = bookings.filter((booking) =>
+    isBookingOverlappingRange(booking.check_in, booking.check_out, currentRange)
+  );
+  const previousBookingsInRange = bookings.filter((booking) =>
+    isBookingOverlappingRange(booking.check_in, booking.check_out, previousRange)
+  );
 
-    const occupiedCount = occupiedRooms.size;
-    const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
+  const occupancyData = buildOccupancyData(currentRange, bookingsInRange);
+  const avgOccupancy = getAverage(occupancyData.map((item) => item.occupancy));
+  const previousAvgOccupancy = getAverage(
+    buildOccupancyData(previousRange, previousBookingsInRange).map((item) => item.occupancy)
+  );
 
-    return {
-      date: format(date, "yyyy-MM-dd"),
-      occupancy,
-      rooms: occupiedCount,
-    };
-  });
+  const departmentStats = getDepartmentStats(currentRange);
+  const previousDepartmentStats = getDepartmentStats(previousRange);
 
-  const housekeepingCompleted = housekeepingTasks.filter((task) => task.status === "completed").length;
-  const maintenanceCompleted = maintenanceIssues.filter((issue) => ["resolved", "closed"].includes(issue.status)).length;
-  const frontDeskCompleted = bookings.filter((booking) => booking.status !== "cancelled").length;
+  const avgSatisfaction = getAverage(
+    departmentStats.map((dept) => (dept.satisfaction ? dept.satisfaction : 0))
+  );
+  const previousAvgSatisfaction = getAverage(
+    previousDepartmentStats.map((dept) => (dept.satisfaction ? dept.satisfaction : 0))
+  );
 
-  const housekeepingEfficiency = housekeepingTasks.length
-    ? Math.round((housekeepingCompleted / housekeepingTasks.length) * 100)
-    : 0;
-  const maintenanceEfficiency = maintenanceIssues.length
-    ? Math.round((maintenanceCompleted / maintenanceIssues.length) * 100)
-    : 0;
-  const frontDeskEfficiency = bookings.length ? Math.round((frontDeskCompleted / bookings.length) * 100) : 0;
+  const totalTasks = departmentStats.reduce((sum, dept) => sum + dept.tasksCompleted, 0);
+  const previousTotalTasks = previousDepartmentStats.reduce((sum, dept) => sum + dept.tasksCompleted, 0);
 
-  const departmentStats = [
-    {
-      department: "Front Desk",
-      tasksCompleted: frontDeskCompleted,
-      efficiency: frontDeskEfficiency,
-      avgResponseTime: 0,
-      satisfaction: frontDeskEfficiency,
-    },
-    {
-      department: "Housekeeping",
-      tasksCompleted: housekeepingCompleted,
-      efficiency: housekeepingEfficiency,
-      avgResponseTime:
-        housekeepingTasks.length > 0
-          ? Math.round(
-              housekeepingTasks.reduce((sum, task) => sum + (task.estimated_minutes || 0), 0) /
-                housekeepingTasks.length
-            )
-          : 0,
-      satisfaction: housekeepingEfficiency,
-    },
-    {
-      department: "Maintenance",
-      tasksCompleted: maintenanceCompleted,
-      efficiency: maintenanceEfficiency,
-      avgResponseTime: maintenanceIssues.length > 0
-        ? Math.round(
-            maintenanceIssues.reduce((sum, issue) => {
-              if (!issue.resolved_at) return sum;
-              return sum + Math.max(0, differenceInMinutes(parseISO(issue.resolved_at), parseISO(issue.reported_at)));
-            }, 0) / Math.max(1, maintenanceIssues.filter((issue) => issue.resolved_at).length)
-          )
-        : 0,
-      satisfaction: maintenanceEfficiency,
-    },
-  ];
-
-  const avgSatisfaction =
-    departmentStats.length > 0
-      ? Math.round(
-          departmentStats.reduce((sum, dept) => sum + (dept.satisfaction || 0), 0) / departmentStats.length
-        )
-      : 0;
-
-  // Report stats from live data
   const reportStats = {
-    totalRevenue: totalRevenue + posRevenue,
-    avgOccupancy: stats?.occupancyRate || 0,
-    totalTasks: housekeepingTasks.length + maintenanceIssues.length + bookings.length,
+    totalRevenue: currentRevenueTotals.totalRevenue,
+    avgOccupancy,
+    totalTasks,
     avgSatisfaction,
   };
 
-  // Top selling items from POS data
-  const topItems = posTransactions
-    .filter(t => t.status === 'completed')
-    .flatMap(t => Array.isArray(t.items) ? (t.items as { name: string; quantity: number; price: number }[]) : [])
+  const buildTrend = (current: number, previous: number) => {
+    if (previous === 0) {
+      return {
+        value: current === 0 ? 0 : 100,
+        isPositive: current >= previous,
+        label: "vs previous period",
+      };
+    }
+
+    const change = ((current - previous) / previous) * 100;
+    return {
+      value: Math.round(change),
+      isPositive: change >= 0,
+      label: "vs previous period",
+    };
+  };
+
+  const revenueTrend = buildTrend(reportStats.totalRevenue, previousRevenueTotals.totalRevenue);
+  const occupancyTrend = buildTrend(reportStats.avgOccupancy, previousAvgOccupancy);
+  const tasksTrend = buildTrend(reportStats.totalTasks, previousTotalTasks);
+  const satisfactionTrend = buildTrend(reportStats.avgSatisfaction, previousAvgSatisfaction);
+
+  const topItems = currentRevenueTotals.posInRange
+    .flatMap((t) =>
+      Array.isArray(t.items) ? (t.items as { name: string; quantity: number; price: number }[]) : []
+    )
     .reduce((acc, item) => {
-      const existing = acc.find(i => i.name === item.name);
+      const existing = acc.find((i) => i.name === item.name);
       if (existing) {
         existing.quantity += item.quantity;
         existing.revenue += item.price * item.quantity;
       } else {
-        acc.push({ name: item.name, category: 'POS', quantity: item.quantity, revenue: item.price * item.quantity });
+        acc.push({ name: item.name, category: "POS", quantity: item.quantity, revenue: item.price * item.quantity });
       }
       return acc;
     }, [] as { name: string; category: string; quantity: number; revenue: number }[])
@@ -217,13 +390,13 @@ const Reports = () => {
   const roomBreakdown = roomTypes.length
     ? roomTypes.map((roomType) => {
         const roomsForType = rooms.filter((room) => room.room_type_id === roomType.id).length;
-        const nights = bookings
+        const nights = bookingsInRange
           .filter((booking) => booking.room_type?.toLowerCase() === roomType.name.toLowerCase())
           .reduce((sum, booking) => {
             const checkIn = parseISO(booking.check_in);
             const checkOut = parseISO(booking.check_out);
-            const start = checkIn > rangeStart ? checkIn : rangeStart;
-            const end = checkOut < rangeEnd ? checkOut : rangeEnd;
+            const start = checkIn > currentRange.start ? checkIn : currentRange.start;
+            const end = checkOut < currentRange.end ? checkOut : currentRange.end;
             return sum + Math.max(0, differenceInCalendarDays(end, start));
           }, 0);
 
@@ -236,7 +409,7 @@ const Reports = () => {
         };
       })
     : Array.from(
-        bookings.reduce((acc, booking) => {
+        bookingsInRange.reduce((acc, booking) => {
           const type = booking.room_type || "Unknown";
           if (!acc.has(type)) {
             acc.set(type, {
@@ -251,8 +424,8 @@ const Reports = () => {
           const entry = acc.get(type)!;
           const checkIn = parseISO(booking.check_in);
           const checkOut = parseISO(booking.check_out);
-          const start = checkIn > rangeStart ? checkIn : rangeStart;
-          const end = checkOut < rangeEnd ? checkOut : rangeEnd;
+          const start = checkIn > currentRange.start ? checkIn : currentRange.start;
+          const end = checkOut < currentRange.end ? checkOut : currentRange.end;
           entry.nights += Math.max(0, differenceInCalendarDays(end, start));
           return acc;
         }, new Map())
@@ -272,7 +445,7 @@ const Reports = () => {
         purchasesIn: i.purchases_in || 0,
         stockOut: i.stock_out || 0,
       })),
-      expenseData: financeTransactions
+      expenseData: currentRevenueTotals.financeInRange
         .filter(t => t.type === 'expense')
         .map(t => ({ category: t.category, amount: t.amount, isEtims: true })),
     });
@@ -306,7 +479,7 @@ const Reports = () => {
               AI-powered insights and comprehensive reporting
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full sm:w-auto flex-col items-start gap-2">
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-[180px]">
                 <Calendar className="h-4 w-4 mr-2" />
@@ -317,8 +490,31 @@ const Reports = () => {
                 <SelectItem value="30d">Last 30 Days</SelectItem>
                 <SelectItem value="90d">Last 90 Days</SelectItem>
                 <SelectItem value="1y">Last Year</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
+            {dateRange === "custom" && (
+              <div className="grid w-full gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="report-start">Start date &amp; time</Label>
+                  <Input
+                    id="report-start"
+                    type="datetime-local"
+                    value={customStart}
+                    onChange={(event) => setCustomStart(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="report-end">End date &amp; time</Label>
+                  <Input
+                    id="report-end"
+                    type="datetime-local"
+                    value={customEnd}
+                    onChange={(event) => setCustomEnd(event.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -334,28 +530,28 @@ const Reports = () => {
                 title="Total Revenue"
                 value={formatKsh(reportStats.totalRevenue)}
                 icon={DollarSign}
-                trend={{ value: 12.5, isPositive: true }}
+                trend={revenueTrend}
                 description="vs. previous period"
               />
               <StatCard
                 title="Avg. Occupancy"
                 value={`${reportStats.avgOccupancy}%`}
                 icon={BedDouble}
-                trend={{ value: 5, isPositive: true }}
+                trend={occupancyTrend}
                 description="Room utilization"
               />
               <StatCard
                 title="Tasks Completed"
                 value={reportStats.totalTasks}
                 icon={CheckCircle}
-                trend={{ value: 8, isPositive: true }}
+                trend={tasksTrend}
                 description="All departments"
               />
               <StatCard
                 title="Satisfaction"
                 value={`${reportStats.avgSatisfaction}%`}
                 icon={Star}
-                trend={{ value: 2, isPositive: true }}
+                trend={satisfactionTrend}
                 description="Guest rating"
               />
             </div>
@@ -388,14 +584,43 @@ const Reports = () => {
               <TabsContent value="ai-insights" className="space-y-6">
                 <div className="flex gap-3 mb-4">
                   <Button onClick={handleGenerateInsights} disabled={aiLoading}>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate AI Insights
+                    {aiLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate AI Insights
+                      </>
+                    )}
                   </Button>
                   <Button variant="outline" onClick={handleGenerateForecast} disabled={aiLoading}>
-                    <Brain className="h-4 w-4 mr-2" />
-                    Generate Forecast
+                    {aiLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="h-4 w-4 mr-2" />
+                        Generate Forecast
+                      </>
+                    )}
                   </Button>
                 </div>
+
+                {aiLoading && (
+                  <div
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI analysis in progress. This can take a few seconds.
+                  </div>
+                )}
                 
                 <ForecastChart 
                   forecast={forecast}
@@ -418,8 +643,8 @@ const Reports = () => {
                   revenueData={revenueData}
                   occupancyData={occupancyData}
                   inventoryItems={inventoryItems}
-                  expenseTransactions={financeTransactions}
-                  posTransactions={posTransactions}
+                  expenseTransactions={currentRevenueTotals.financeInRange}
+                  posTransactions={currentRevenueTotals.posInRange}
                   topItems={topItems}
                   departmentStats={departmentStats}
                   roomBreakdown={roomBreakdown}

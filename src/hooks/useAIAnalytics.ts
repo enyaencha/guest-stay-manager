@@ -12,7 +12,7 @@ export interface ForecastResult {
 export interface InsightsResult {
   insights: { title: string; description: string; impact: string }[];
   metrics: Record<string, number>;
-  trends: string[];
+  trends: Array<string | { metric?: string; trend?: string; description?: string }>;
   summary: string;
 }
 
