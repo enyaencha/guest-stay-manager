@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { FinanceOverviewChart } from "@/components/finance/FinanceOverviewChart";
@@ -9,7 +9,6 @@ import { RoomAmenityCostsTable } from "@/components/finance/RoomAmenityCostsTabl
 import { SalaryManagement } from "@/components/finance/SalaryManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -33,6 +32,7 @@ import { formatKsh } from "@/lib/formatters";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useInventoryItems } from "@/hooks/useInventory";
+import { format, parseISO } from "date-fns";
 
 export default function Finance() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -41,7 +41,6 @@ export default function Finance() {
   const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
   const { data: inventoryItems = [], isLoading: inventoryLoading } = useInventoryItems();
   
-  // Fetch housekeeping tasks to derive actual amenity usage
   const { data: housekeepingTasks = [], isLoading: housekeepingLoading } = useQuery({
     queryKey: ["housekeeping_tasks_costs"],
     queryFn: async () => {
@@ -64,6 +63,7 @@ export default function Finance() {
   const totalPOSSales = posTransactions
     .filter(t => t.status === 'completed')
     .reduce((sum, s) => sum + s.total, 0);
+
   const inventoryLookup = new Map(
     inventoryItems.map((item) => [item.name.toLowerCase(), item])
   );
@@ -94,16 +94,43 @@ export default function Finance() {
     Array.isArray(task.actual_added) && task.actual_added.length > 0
   ).length;
 
+  // Build real monthly finance data from transactions
+  const monthlyFinance = useMemo(() => {
+    const byMonth: Record<string, { income: number; expenses: number }> = {};
+    
+    transactions.forEach(t => {
+      const month = format(parseISO(t.date), "MMM yyyy");
+      if (!byMonth[month]) byMonth[month] = { income: 0, expenses: 0 };
+      if (t.type === "income") byMonth[month].income += t.amount;
+      else byMonth[month].expenses += t.amount;
+    });
+
+    // Also include POS sales as income
+    posTransactions.filter(t => t.status === 'completed').forEach(t => {
+      const month = format(parseISO(t.created_at), "MMM yyyy");
+      if (!byMonth[month]) byMonth[month] = { income: 0, expenses: 0 };
+      byMonth[month].income += t.total;
+    });
+
+    return Object.entries(byMonth)
+      .map(([month, data]) => ({
+        month,
+        income: data.income,
+        expenses: data.expenses,
+        profit: data.income - data.expenses,
+      }))
+      .sort((a, b) => {
+        const dateA = new Date(a.month);
+        const dateB = new Date(b.month);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }, [transactions, posTransactions]);
+
   const isLoading = transactionsLoading || posLoading || inventoryLoading || housekeepingLoading;
 
-  // Convert transactions for table
   const tableTransactions = transactions.map(t => ({
-    id: t.id,
-    date: t.date,
-    type: t.type as 'income' | 'expense',
-    category: t.category,
-    description: t.description,
-    amount: t.amount,
+    id: t.id, date: t.date, type: t.type as 'income' | 'expense',
+    category: t.category, description: t.description, amount: t.amount,
     paymentStatus: t.payment_status as 'paid' | 'pending' | 'overdue',
     paymentMethod: t.payment_method || undefined,
     reference: t.reference || undefined,
@@ -111,10 +138,8 @@ export default function Finance() {
     vendor: t.vendor || undefined,
   }));
 
-  // Convert POS transactions for table
   const posSalesData = posTransactions.map(t => ({
-    id: t.id,
-    date: t.created_at,
+    id: t.id, date: t.created_at,
     roomNumber: t.room_number || 'Walk-in',
     items: Array.isArray(t.items) ? (t.items as { name: string; quantity: number; price: number }[]).map(i => i.name).join(', ') : '',
     totalAmount: t.total,
@@ -122,40 +147,21 @@ export default function Finance() {
     staffName: t.staff_name || 'Unknown',
   }));
 
-  // Mock monthly data for chart (we'd need to aggregate this from transactions)
-  const monthlyFinance = [
-    { month: 'Jan', income: summary.totalIncome, expenses: summary.totalExpenses, profit: summary.netProfit },
-  ];
-
-  const kenyaNotes = [
-    { label: "Ksh 50", image: "https://source.unsplash.com/1200x800/?kenya,banknote,50" },
-    { label: "Ksh 100", image: "https://source.unsplash.com/1200x800/?kenya,banknote,100" },
-    { label: "Ksh 200", image: "https://source.unsplash.com/1200x800/?kenya,banknote,200" },
-    { label: "Ksh 500", image: "https://source.unsplash.com/1200x800/?kenya,banknote,500" },
-    { label: "Ksh 1000", image: "https://source.unsplash.com/1200x800/?kenya,banknote,1000" },
-  ];
-
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Finance</h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Track revenue, expenses, and financial performance
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Calendar className="h-4 w-4" />
-              Jan 2026
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" className="gap-2 w-fit">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
         </div>
 
         {isLoading ? (
@@ -164,119 +170,39 @@ export default function Finance() {
           </div>
         ) : (
           <>
-            <div className="relative overflow-hidden rounded-2xl border bg-card">
-              <div
-                className="absolute inset-0 opacity-15"
-                style={{
-                  backgroundImage: "url('https://images.unsplash.com/photo-1489515217757-5fd1be406fef?w=3200&h=1800&fit=crop')",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              />
-              <div className="relative z-10 p-6">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-foreground">Kenyan Shilling Series</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Visual reference for daily withdraw handling and reconciliation.
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="border-primary/20 text-primary w-fit">
-                    New Notes
-                  </Badge>
-                </div>
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {kenyaNotes.map((note) => (
-                    <div
-                      key={note.label}
-                      className="group relative overflow-hidden rounded-xl border bg-background/80 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-                    >
-                      <div
-                        className="h-24 sm:h-28"
-                        style={{
-                          backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.15), rgba(0,0,0,0.25)), url('${note.image}')`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      />
-                      <div className="px-3 py-2">
-                        <p className="text-xs font-semibold text-foreground">{note.label}</p>
-                        <p className="text-[11px] text-muted-foreground">Series 2019</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Total Income"
-                value={formatKsh(summary.totalIncome)}
-                subtitle="This month"
-                icon={TrendingUp}
-                trend={{ value: 12, isPositive: true }}
-                iconClassName="text-status-available"
-              />
-              <StatCard
-                title="Total Expenses"
-                value={formatKsh(summary.totalExpenses)}
-                subtitle="This month"
-                icon={TrendingDown}
-                trend={{ value: 8, isPositive: false }}
-                iconClassName="text-status-maintenance"
-              />
-              <StatCard
-                title="Net Profit"
-                value={formatKsh(summary.netProfit)}
-                subtitle="This month"
-                icon={Wallet}
-                trend={{ value: 18, isPositive: true }}
-                iconClassName="text-primary"
-              />
-              <StatCard
-                title="Pending Payments"
-                value={formatKsh(summary.pendingPayments)}
-                subtitle="Awaiting settlement"
-                icon={AlertCircle}
-                iconClassName="text-status-checkout"
-              />
+              <StatCard title="Total Income" value={formatKsh(summary.totalIncome)} subtitle="All income" icon={TrendingUp} iconClassName="text-status-available" />
+              <StatCard title="Total Expenses" value={formatKsh(summary.totalExpenses)} subtitle="All expenses" icon={TrendingDown} iconClassName="text-status-maintenance" />
+              <StatCard title="Net Profit" value={formatKsh(summary.netProfit)} subtitle="Income - Expenses" icon={Wallet} iconClassName="text-primary" />
+              <StatCard title="Pending Payments" value={formatKsh(summary.pendingPayments)} subtitle="Awaiting settlement" icon={AlertCircle} iconClassName="text-status-checkout" />
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                <div className="p-2 rounded-lg bg-status-available/10">
-                  <Receipt className="h-5 w-5 text-status-available" />
-                </div>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                <div className="p-2 rounded-lg bg-status-available/10"><Receipt className="h-5 w-5 text-status-available" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">POS Sales</p>
                   <p className="font-semibold text-foreground">{formatKsh(totalPOSSales)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                <div className="p-2 rounded-lg bg-status-maintenance/10">
-                  <BedDouble className="h-5 w-5 text-status-maintenance" />
-                </div>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                <div className="p-2 rounded-lg bg-status-maintenance/10"><BedDouble className="h-5 w-5 text-status-maintenance" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Room Amenity Costs</p>
                   <p className="font-semibold text-foreground">{formatKsh(totalAmenityCosts)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <ArrowUpRight className="h-5 w-5 text-primary" />
-                </div>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                <div className="p-2 rounded-lg bg-primary/10"><ArrowUpRight className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Income Transactions</p>
                   <p className="font-semibold text-foreground">{incomeTransactions.length}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                <div className="p-2 rounded-lg bg-status-checkout/10">
-                  <ArrowDownLeft className="h-5 w-5 text-status-checkout" />
-                </div>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                <div className="p-2 rounded-lg bg-status-checkout/10"><ArrowDownLeft className="h-5 w-5 text-status-checkout" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Expense Transactions</p>
                   <p className="font-semibold text-foreground">{expenseTransactions.length}</p>
@@ -286,101 +212,49 @@ export default function Finance() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="bg-muted/50 p-1 rounded-full">
-                <TabsTrigger
-                  value="overview"
-                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="transactions"
-                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  All Transactions
-                </TabsTrigger>
-                <TabsTrigger
-                  value="pos-sales"
-                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  POS Sales
-                </TabsTrigger>
-                <TabsTrigger
-                  value="room-costs"
-                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  Room Costs
-                </TabsTrigger>
-                <TabsTrigger
-                  value="salaries"
-                  className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  Salaries
-                </TabsTrigger>
+              <TabsList className="bg-muted/50 p-1">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="transactions">All Transactions</TabsTrigger>
+                <TabsTrigger value="pos-sales">POS Sales</TabsTrigger>
+                <TabsTrigger value="room-costs">Room Costs</TabsTrigger>
+                <TabsTrigger value="salaries">Salaries</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
-                {/* Financial Chart */}
                 <FinanceOverviewChart data={monthlyFinance} />
-
-                {/* Category Breakdowns */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <CategoryBreakdownCard 
-                    title="Income by Category" 
-                    data={incomeBreakdown}
-                    colorClass="[&>div]:bg-status-available"
-                  />
-                  <CategoryBreakdownCard 
-                    title="Expenses by Category" 
-                    data={expenseBreakdown}
-                    colorClass="[&>div]:bg-status-maintenance"
-                  />
+                  <CategoryBreakdownCard title="Income by Category" data={incomeBreakdown} colorClass="[&>div]:bg-status-available" />
+                  <CategoryBreakdownCard title="Expenses by Category" data={expenseBreakdown} colorClass="[&>div]:bg-status-maintenance" />
                 </div>
-
-                {/* Recent Transactions */}
                 <TransactionHistoryTable transactions={tableTransactions.slice(0, 8)} />
               </TabsContent>
 
               <TabsContent value="transactions" className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <CategoryBreakdownCard 
-                    title="Income by Category" 
-                    data={incomeBreakdown}
-                    colorClass="[&>div]:bg-status-available"
-                  />
-                  <CategoryBreakdownCard 
-                    title="Expenses by Category" 
-                    data={expenseBreakdown}
-                    colorClass="[&>div]:bg-status-maintenance"
-                  />
+                  <CategoryBreakdownCard title="Income by Category" data={incomeBreakdown} colorClass="[&>div]:bg-status-available" />
+                  <CategoryBreakdownCard title="Expenses by Category" data={expenseBreakdown} colorClass="[&>div]:bg-status-maintenance" />
                 </div>
                 <TransactionHistoryTable transactions={tableTransactions} />
               </TabsContent>
 
               <TabsContent value="pos-sales" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                    <div className="p-2 rounded-lg bg-status-available/10">
-                      <Receipt className="h-5 w-5 text-status-available" />
-                    </div>
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                    <div className="p-2 rounded-lg bg-status-available/10"><Receipt className="h-5 w-5 text-status-available" /></div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total POS Revenue</p>
                       <p className="font-bold text-lg text-foreground">{formatKsh(totalPOSSales)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <ArrowUpRight className="h-5 w-5 text-primary" />
-                    </div>
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                    <div className="p-2 rounded-lg bg-primary/10"><ArrowUpRight className="h-5 w-5 text-primary" /></div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Transactions</p>
                       <p className="font-bold text-lg text-foreground">{posSalesData.length}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                    <div className="p-2 rounded-lg bg-status-checkout/10">
-                      <Wallet className="h-5 w-5 text-status-checkout" />
-                    </div>
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                    <div className="p-2 rounded-lg bg-status-checkout/10"><Wallet className="h-5 w-5 text-status-checkout" /></div>
                     <div>
                       <p className="text-sm text-muted-foreground">Avg. Transaction</p>
                       <p className="font-bold text-lg text-foreground">
@@ -394,28 +268,22 @@ export default function Finance() {
 
               <TabsContent value="room-costs" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                    <div className="p-2 rounded-lg bg-status-maintenance/10">
-                      <BedDouble className="h-5 w-5 text-status-maintenance" />
-                    </div>
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                    <div className="p-2 rounded-lg bg-status-maintenance/10"><BedDouble className="h-5 w-5 text-status-maintenance" /></div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Amenity Costs</p>
                       <p className="font-bold text-lg text-foreground">{formatKsh(totalAmenityCosts)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Receipt className="h-5 w-5 text-primary" />
-                    </div>
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                    <div className="p-2 rounded-lg bg-primary/10"><Receipt className="h-5 w-5 text-primary" /></div>
                     <div>
                       <p className="text-sm text-muted-foreground">Restock Events</p>
                       <p className="font-bold text-lg text-foreground">{restockEvents}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-card border">
-                    <div className="p-2 rounded-lg bg-status-checkout/10">
-                      <Wallet className="h-5 w-5 text-status-checkout" />
-                    </div>
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-card border">
+                    <div className="p-2 rounded-lg bg-status-checkout/10"><Wallet className="h-5 w-5 text-status-checkout" /></div>
                     <div>
                       <p className="text-sm text-muted-foreground">Avg. Cost per Restock</p>
                       <p className="font-bold text-lg text-foreground">

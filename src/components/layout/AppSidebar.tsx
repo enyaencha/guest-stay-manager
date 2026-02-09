@@ -102,7 +102,10 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r-0">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
+        <button 
+          onClick={() => navigate("/")} 
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
             <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
           </div>
@@ -110,7 +113,7 @@ export function AppSidebar() {
             <h1 className="font-semibold text-sidebar-foreground text-base">STROS</h1>
             <p className="text-xs text-sidebar-foreground/60">Property Manager</p>
           </div>
-        </div>
+        </button>
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-4">

@@ -32,7 +32,7 @@ export function CategoryBreakdownCard({ title, data, colorClass }: CategoryBreak
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {item.transactionCount} transaction{item.transactionCount !== 1 ? 's' : ''}
+              {(item.transactionCount ?? item.count ?? 0)} transaction{(item.transactionCount ?? item.count ?? 0) !== 1 ? 's' : ''}
             </p>
           </div>
         ))}
