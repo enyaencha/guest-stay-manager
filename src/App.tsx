@@ -25,6 +25,7 @@ import Refunds from "./pages/Refunds";
 import Reviews from "./pages/Reviews";
 import MyProfile from "./pages/MyProfile";
 import NotFound from "./pages/NotFound";
+import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/install" element={<Install />} />
             
             {/* Protected routes - require authentication */}
             <Route path="/dashboard" element={
