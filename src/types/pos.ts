@@ -16,6 +16,8 @@ export interface POSItem {
 }
 
 export interface CartItem extends POSItem {
+  lineId?: string;
+  itemId?: string;
   quantity: number;
   inventoryLotId?: string | null;
   lotLabel?: string;

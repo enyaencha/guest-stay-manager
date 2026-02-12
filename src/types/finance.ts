@@ -1,6 +1,6 @@
 export type TransactionType = 'income' | 'expense';
 export type IncomeCategory = 'room-booking' | 'pos-sale' | 'service-charge' | 'late-checkout' | 'damage-fee' | 'other-income' | string;
-export type ExpenseCategory = 'inventory-purchase' | 'room-amenities' | 'maintenance' | 'utilities' | 'staff-salary' | 'supplies' | 'marketing' | 'other-expense' | string;
+export type ExpenseCategory = 'inventory-purchase' | 'room-amenities' | 'maintenance' | 'utilities' | 'staff-salary' | 'supplies' | 'marketing' | 'refund' | 'other-expense' | string;
 export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'cancelled';
 
 export interface FinanceTransaction {

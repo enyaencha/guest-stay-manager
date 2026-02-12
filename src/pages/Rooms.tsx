@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Filter, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { addDays, format, parseISO } from "date-fns";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 
 // Map database room to legacy Room type
 const mapToLegacyRoom = (room: DBRoom): Room => ({
@@ -38,7 +39,11 @@ const Rooms = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [addRoomOpen, setAddRoomOpen] = useState(false);
   const [calendarStart, setCalendarStart] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
+  const [viewMode, setViewMode] = useTabQueryParam({
+    key: "view",
+    defaultValue: "grid",
+    allowed: ["grid", "calendar"],
+  });
 
   const guestLookup = useMemo(() => {
     return new Map(guests.map((guest) => [guest.id, guest.name]));
@@ -116,7 +121,7 @@ const Rooms = () => {
           </div>
         </div>
 
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'calendar')}>
+        <Tabs value={viewMode} onValueChange={setViewMode}>
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="grid" className="gap-2">

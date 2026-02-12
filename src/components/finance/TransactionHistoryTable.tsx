@@ -30,6 +30,7 @@ const categoryLabels: Record<string, string> = {
   'staff-salary': 'Salary',
   'supplies': 'Supplies',
   'marketing': 'Marketing',
+  'refund': 'Refund Payout',
   'other-expense': 'Other'
 };
 

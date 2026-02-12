@@ -23,6 +23,7 @@ export const NotificationSettings = ({ settings, onUpdate }: NotificationSetting
     { key: "lowStockAlerts" as const, label: "Low Stock Alerts", description: "Get notified when inventory is running low" },
     { key: "maintenanceAlerts" as const, label: "Maintenance Alerts", description: "Get notified about urgent maintenance issues" },
     { key: "bookingConfirmations" as const, label: "Booking Confirmations", description: "Send confirmation emails for new bookings" },
+    { key: "reviewRequests" as const, label: "Review Requests", description: "Send automated feedback requests after checkout" },
     { key: "paymentAlerts" as const, label: "Payment Alerts", description: "Get notified about payment activities" },
     { key: "dailyReports" as const, label: "Daily Reports", description: "Receive daily summary reports" },
     { key: "weeklyReports" as const, label: "Weekly Reports", description: "Receive weekly performance reports" }

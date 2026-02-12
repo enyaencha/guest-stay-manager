@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRoomTypes } from "@/hooks/useRooms";
 import { supabase } from "@/integrations/supabase/client";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { 
   CalendarCheck, 
   Clock, 
@@ -41,7 +42,11 @@ const Reservations = () => {
   const [reservations, setReservations] = useState<ReservationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useTabQueryParam({
+    key: "status",
+    defaultValue: "all",
+    allowed: ["all", "pending", "confirmed", "cancelled"],
+  });
   const [newReservationOpen, setNewReservationOpen] = useState(false);
   const { data: roomTypes = [] } = useRoomTypes();
 

@@ -33,6 +33,7 @@ interface AnalyticsData {
   occupancyData?: { date: string; occupancy: number; rooms: number }[];
   inventoryData?: { name: string; currentStock: number; minStock: number; purchasesIn: number; stockOut: number }[];
   expenseData?: { category: string; amount: number; isEtims: boolean }[];
+  reviewData?: { rating: number; comment: string | null; created_at: string }[];
 }
 
 export const useAIAnalytics = () => {

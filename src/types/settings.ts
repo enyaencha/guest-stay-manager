@@ -13,6 +13,9 @@ export interface PropertySettings {
   currency: string;
   timezone: string;
   logoUrl?: string;
+  taxPin?: string;
+  vatRate?: number;
+  invoiceFooter?: string;
 }
 
 export interface UserRole {
@@ -50,6 +53,7 @@ export interface NotificationSettings {
   lowStockAlerts: boolean;
   maintenanceAlerts: boolean;
   bookingConfirmations: boolean;
+  reviewRequests: boolean;
   paymentAlerts: boolean;
   dailyReports: boolean;
   weeklyReports: boolean;

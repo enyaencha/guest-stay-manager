@@ -10,6 +10,7 @@ import { useMaintenanceIssues, useMaintenanceStaff, useUpdateMaintenanceIssue, M
 import { useUpdateRoom } from "@/hooks/useRooms";
 import { useAuth } from "@/contexts/AuthContext";
 import { MaintenanceIssue } from "@/types/maintenance";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { 
   Wrench, 
   Plus, 
@@ -47,7 +48,11 @@ const Maintenance = () => {
   const canCreate = hasPermission("maintenance.create");
   const canManage = hasPermission("maintenance.manage");
   
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useTabQueryParam({
+    key: "status",
+    defaultValue: "all",
+    allowed: ["all", "open", "in-progress", "resolved"],
+  });
   const [reportOpen, setReportOpen] = useState(false);
 
   const issues = useMemo(() => {

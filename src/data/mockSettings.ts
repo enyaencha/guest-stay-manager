@@ -145,6 +145,7 @@ export const mockNotificationSettings: NotificationSettings = {
   lowStockAlerts: true,
   maintenanceAlerts: true,
   bookingConfirmations: true,
+  reviewRequests: true,
   paymentAlerts: true,
   dailyReports: false,
   weeklyReports: true

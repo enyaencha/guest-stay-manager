@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { formatKsh } from "@/lib/formatters";
 import { format, parseISO, isValid } from "date-fns";
 import { RefundRequestModal } from "@/components/refunds/RefundRequestModal";
+import { usePropertySettings } from "@/hooks/useSettings";
 import { 
   User, 
   UserCircle,
@@ -58,6 +59,7 @@ const formatDateTime = (value?: string) => {
 
 export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: GuestCardProps) => {
   const navigate = useNavigate();
+  const { data: propertySettings } = usePropertySettings();
   const [showDetails, setShowDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
@@ -94,9 +96,23 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
       ?.filter((t) => t.status === "completed")
       .reduce((sum, t) => sum + Number(t.total), 0) || 0;
   const totalDue = Number(totalAmount) + posPendingTotal + assessmentCost;
-  const paidTotal = Number(paidAmount) + posCompletedTotal;
+  const paidTotalRaw = Number(paidAmount) + posCompletedTotal;
+  const refundedAmount = guest.refundedAmount ?? 0;
+  const paidTotal = Math.max(0, paidTotalRaw - refundedAmount);
   const balanceDue = Math.max(0, totalDue - paidTotal);
   const overpayment = Math.max(0, paidTotal - totalDue);
+  const applyPropertySettings = propertySettings?.apply_settings ?? true;
+  const propertyName = applyPropertySettings ? propertySettings?.name || "Property" : "Property";
+  const propertyAddressLine = applyPropertySettings
+    ? [propertySettings?.address, propertySettings?.city, propertySettings?.country].filter(Boolean).join(", ")
+    : "";
+  const propertyContactLine = applyPropertySettings
+    ? [propertySettings?.phone, propertySettings?.email, propertySettings?.website].filter(Boolean).join(" • ")
+    : "";
+  const propertyLogoUrl = applyPropertySettings ? propertySettings?.logo_url || "" : "";
+  const taxPin = applyPropertySettings ? propertySettings?.tax_pin || "" : "";
+  const vatRate = applyPropertySettings ? propertySettings?.vat_rate ?? 0 : 0;
+  const invoiceFooter = applyPropertySettings ? propertySettings?.invoice_footer || "" : "";
   const paymentStatusCombined =
     overpayment > 0 ? "Overpaid" : paidTotal >= totalDue ? "Paid" : paidTotal > 0 ? "Partial" : "Unpaid";
   const paymentColorCombined =
@@ -110,6 +126,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
 
+    const taxLabel = vatRate > 0 ? `VAT (${vatRate}%)` : "Tax";
     const posLines = (guest.posTransactions || [])
       .flatMap((txn) => {
         const items = txn.items && txn.items.length > 0
@@ -136,7 +153,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
               `
               <tr>
                 <td>${new Date(txn.date).toLocaleString()}</td>
-                <td>Tax (10%)</td>
+                <td>${taxLabel}</td>
                 <td class="right">-</td>
                 <td class="right">-</td>
                 <td class="right">${formatKsh(txn.tax)}</td>
@@ -150,16 +167,32 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
       .join("");
 
     const title = mode === "invoice" ? "Invoice" : "Receipt";
+    const vatBase = mode === "invoice" ? totalDue : paidTotal;
+    const vatAmount = vatRate > 0 ? vatBase - vatBase / (1 + vatRate / 100) : 0;
+    const vatRow = vatRate > 0
+      ? `<tr><td>VAT (${vatRate}%) included</td><td class="right">${formatKsh(vatAmount)}</td></tr>`
+      : "";
+    const refundRow = refundedAmount > 0
+      ? `<tr><td>Refunded</td><td class="right">-${formatKsh(refundedAmount)}</td></tr>`
+      : "";
+    const netPaidRow = refundedAmount > 0
+      ? `<tr><td>Net Paid</td><td class="right">${formatKsh(paidTotal)}</td></tr>`
+      : "";
+    const footerHtml = invoiceFooter ? invoiceFooter.replace(/\n/g, "<br/>") : "";
     const summaryRows = mode === "invoice"
       ? `
         <tr><td>Room Total</td><td class="right">${formatKsh(totalAmount)}</td></tr>
         <tr><td>POS Pending</td><td class="right">${formatKsh(posPendingTotal)}</td></tr>
         <tr><td>Total Due</td><td class="right">${formatKsh(totalDue)}</td></tr>
+        ${vatRow}
       `
       : `
         <tr><td>Room Paid</td><td class="right">${formatKsh(paidAmount)}</td></tr>
         <tr><td>POS Paid</td><td class="right">${formatKsh(posCompletedTotal)}</td></tr>
-        <tr><td>Total Paid</td><td class="right">${formatKsh(paidTotal)}</td></tr>
+        <tr><td>Total Paid</td><td class="right">${formatKsh(paidTotalRaw)}</td></tr>
+        ${refundRow}
+        ${netPaidRow}
+        ${vatRow}
       `;
 
     const extraRow = overpayment > 0
@@ -174,15 +207,35 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
             body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
             h1 { margin: 0 0 4px; font-size: 20px; }
             .muted { color: #666; font-size: 12px; }
+            .header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 16px; }
+            .brand { display: flex; gap: 12px; align-items: center; }
+            .logo { height: 48px; width: auto; object-fit: contain; }
+            .brand-name { font-size: 18px; font-weight: 700; }
+            .doc-title { text-align: right; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border-bottom: 1px solid #eee; padding: 8px; font-size: 12px; vertical-align: top; }
             th { text-align: left; background: #fafafa; }
             .right { text-align: right; }
             .section { margin-top: 20px; }
+            .footer { margin-top: 24px; font-size: 12px; color: #666; }
           </style>
         </head>
         <body>
-          <h1>${title}</h1>
+          <div class="header">
+            <div class="brand">
+              ${propertyLogoUrl ? `<img src="${propertyLogoUrl}" class="logo" />` : ""}
+              <div>
+                <div class="brand-name">${propertyName}</div>
+                ${propertyAddressLine ? `<div class="muted">${propertyAddressLine}</div>` : ""}
+                ${propertyContactLine ? `<div class="muted">${propertyContactLine}</div>` : ""}
+                ${taxPin ? `<div class="muted">PIN/VAT: ${taxPin}</div>` : ""}
+              </div>
+            </div>
+            <div class="doc-title">
+              <div class="brand-name">${title}</div>
+              <div class="muted">Issued ${new Date().toLocaleString()}</div>
+            </div>
+          </div>
           <div class="muted">Guest: ${guest.name} • Room ${guest.roomNumber}</div>
           <div class="muted">Stay: ${formatDateTime(guest.checkIn)} - ${formatDateTime(guest.checkOut)}</div>
 
@@ -214,7 +267,23 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
             </table>
           </div>
 
-          <script>window.print();</script>
+          ${footerHtml ? `<div class="footer">${footerHtml}</div>` : ""}
+
+          <script>
+            (function() {
+              const triggerPrint = () => {
+                window.focus();
+                window.print();
+              };
+              const logo = document.querySelector(".logo");
+              if (logo && !logo.complete) {
+                logo.addEventListener("load", () => setTimeout(triggerPrint, 150));
+                logo.addEventListener("error", () => setTimeout(triggerPrint, 150));
+              } else {
+                setTimeout(triggerPrint, 150);
+              }
+            })();
+          </script>
         </body>
       </html>
     `);
@@ -545,9 +614,15 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
                 <span className="font-medium">{formatKsh(totalDue)}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Paid Amount (Room + POS)</span>
+                <span className="text-muted-foreground">Paid Amount (Net)</span>
                 <span className="font-medium text-status-available">{formatKsh(paidTotal)}</span>
               </div>
+              {refundedAmount > 0 && (
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Refunded to Guest</span>
+                  <span className="font-medium text-destructive">-{formatKsh(refundedAmount)}</span>
+                </div>
+              )}
               {overpayment > 0 ? (
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Overpayment</span>
