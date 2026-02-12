@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatKsh } from "@/lib/formatters";
 import { toast } from "sonner";
+import { usePropertySettings } from "@/hooks/useSettings";
 import {
   Calendar,
   ChevronLeft,
@@ -40,6 +41,7 @@ const GuestProfile = () => {
   const navigate = useNavigate();
   const { guestId } = useParams();
   const queryClient = useQueryClient();
+  const { data: propertySettings } = usePropertySettings();
 
   const { data: guest, isLoading: guestLoading } = useQuery({
     queryKey: ["guest-profile", guestId],
@@ -218,9 +220,31 @@ const GuestProfile = () => {
       0
     );
     const totalDue = (Number(booking.total_amount) || 0) + posTotal;
-    const paidAmount = Number(booking.paid_amount) || 0;
-    const balance = totalDue - paidAmount;
+    const processedRefundTotal = refunds
+      .filter((refund: any) => refund.booking_id === booking.id && refund.status === "processed")
+      .reduce((sum: number, refund: any) => sum + (Number(refund.refund_amount) || 0), 0);
+    const paidAmountRaw = Number(booking.paid_amount) || 0;
+    const netPaidAmount = Math.max(0, paidAmountRaw - processedRefundTotal);
+    const balance = totalDue - netPaidAmount;
+    const applyPropertySettings = propertySettings?.apply_settings ?? true;
+    const propertyName = applyPropertySettings ? propertySettings?.name || "Property" : "Property";
+    const propertyAddressLine = applyPropertySettings
+      ? [propertySettings?.address, propertySettings?.city, propertySettings?.country].filter(Boolean).join(", ")
+      : "";
+    const propertyContactLine = applyPropertySettings
+      ? [propertySettings?.phone, propertySettings?.email, propertySettings?.website].filter(Boolean).join(" • ")
+      : "";
+    const propertyLogoUrl = applyPropertySettings ? propertySettings?.logo_url || "" : "";
+    const taxPin = applyPropertySettings ? propertySettings?.tax_pin || "" : "";
+    const vatRate = applyPropertySettings ? propertySettings?.vat_rate ?? 0 : 0;
+    const vatBase = kind === "invoice" ? totalDue : netPaidAmount;
+    const vatAmount = vatRate > 0 ? vatBase - vatBase / (1 + vatRate / 100) : 0;
+    const footerHtml =
+      applyPropertySettings && propertySettings?.invoice_footer
+        ? propertySettings.invoice_footer.replace(/\n/g, "<br/>")
+        : "";
 
+    const taxLabel = vatRate > 0 ? `VAT (${vatRate}%)` : "Tax";
     const posLines = bookingPos
       .flatMap((txn) => {
         const items = Array.isArray(txn.items) && txn.items.length > 0
@@ -236,7 +260,7 @@ const GuestProfile = () => {
 
         const taxRow = txn.tax && Number(txn.tax) > 0
           ? [
-              `<tr><td>${formatDateTime(txn.created_at)}</td><td>Tax (10%)</td><td class="right">${formatKsh(Number(txn.tax) || 0)}</td></tr>`,
+              `<tr><td>${formatDateTime(txn.created_at)}</td><td>${taxLabel}</td><td class="right">${formatKsh(Number(txn.tax) || 0)}</td></tr>`,
             ]
           : [];
 
@@ -245,6 +269,9 @@ const GuestProfile = () => {
       .join("");
 
     const title = kind === "invoice" ? "Invoice" : "Receipt";
+    const vatRow = vatRate > 0
+      ? `<tr><td>VAT (${vatRate}%) included</td><td></td><td class="right">${formatKsh(vatAmount)}</td></tr>`
+      : "";
 
     const html = `
       <html>
@@ -254,15 +281,35 @@ const GuestProfile = () => {
             body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
             h1 { margin-bottom: 6px; }
             .muted { color: #64748b; font-size: 13px; }
+            .header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
+            .brand { display: flex; gap: 12px; align-items: center; }
+            .logo { height: 48px; width: auto; object-fit: contain; }
+            .brand-name { font-size: 18px; font-weight: 700; }
+            .doc-title { text-align: right; }
             table { width: 100%; border-collapse: collapse; margin-top: 18px; }
             th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 6px; font-size: 13px; }
             th { text-align: left; background: #f8fafc; }
             .right { text-align: right; }
             .total { font-weight: 700; }
+            .footer { margin-top: 24px; font-size: 12px; color: #64748b; }
           </style>
         </head>
         <body>
-          <h1>${title}</h1>
+          <div class="header">
+            <div class="brand">
+              ${propertyLogoUrl ? `<img src="${propertyLogoUrl}" class="logo" />` : ""}
+              <div>
+                <div class="brand-name">${propertyName}</div>
+                ${propertyAddressLine ? `<div class="muted">${propertyAddressLine}</div>` : ""}
+                ${propertyContactLine ? `<div class="muted">${propertyContactLine}</div>` : ""}
+                ${taxPin ? `<div class="muted">PIN/VAT: ${taxPin}</div>` : ""}
+              </div>
+            </div>
+            <div class="doc-title">
+              <div class="brand-name">${title}</div>
+              <div class="muted">Issued ${new Date().toLocaleString()}</div>
+            </div>
+          </div>
           <div class="muted">Guest: ${guest?.name || "Guest"} • Room ${booking.room_number || "—"}</div>
           <div class="muted">Stay: ${formatDateTime(booking.check_in)} - ${formatDateTime(booking.check_out)}</div>
           <table>
@@ -281,11 +328,22 @@ const GuestProfile = () => {
                 <td></td>
                 <td class="right">${formatKsh(totalDue)}</td>
               </tr>
+              ${vatRow}
               <tr>
                 <td>Paid</td>
                 <td></td>
-                <td class="right">${formatKsh(paidAmount)}</td>
+                <td class="right">${formatKsh(paidAmountRaw)}</td>
               </tr>
+              ${
+                processedRefundTotal > 0
+                  ? `<tr><td>Refunded</td><td></td><td class="right">-${formatKsh(processedRefundTotal)}</td></tr>`
+                  : ""
+              }
+              ${
+                processedRefundTotal > 0
+                  ? `<tr><td>Net Paid</td><td></td><td class="right">${formatKsh(netPaidAmount)}</td></tr>`
+                  : ""
+              }
               <tr>
                 <td>${balance <= 0 ? "Overpayment" : "Balance"}</td>
                 <td></td>
@@ -293,6 +351,23 @@ const GuestProfile = () => {
               </tr>
             </tbody>
           </table>
+          ${footerHtml ? `<div class="footer">${footerHtml}</div>` : ""}
+
+          <script>
+            (function() {
+              const triggerPrint = () => {
+                window.focus();
+                window.print();
+              };
+              const logo = document.querySelector(".logo");
+              if (logo && !logo.complete) {
+                logo.addEventListener("load", () => setTimeout(triggerPrint, 150));
+                logo.addEventListener("error", () => setTimeout(triggerPrint, 150));
+              } else {
+                setTimeout(triggerPrint, 150);
+              }
+            })();
+          </script>
         </body>
       </html>
     `;
@@ -301,8 +376,6 @@ const GuestProfile = () => {
     if (!printWindow) return;
     printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
   };
 
   return (
@@ -487,6 +560,14 @@ const GuestProfile = () => {
                   )}
                   {bookings.map((booking) => (
                     <div key={booking.id} className="rounded-lg border p-4 space-y-3">
+                      {(() => {
+                        const refundTotal = refunds
+                          .filter((refund: any) => refund.booking_id === booking.id && refund.status === "processed")
+                          .reduce((sum: number, refund: any) => sum + (Number(refund.refund_amount) || 0), 0);
+                        const paidRaw = Number(booking.paid_amount) || 0;
+                        const netPaid = Math.max(0, paidRaw - refundTotal);
+                        return (
+                          <>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <div className="font-semibold">
@@ -507,12 +588,17 @@ const GuestProfile = () => {
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <FileSpreadsheet className="h-4 w-4" />
-                          <span>Paid {formatKsh(Number(booking.paid_amount) || 0)}</span>
+                          <span>Paid {formatKsh(netPaid)}</span>
                         </div>
                         <div className="text-muted-foreground">
                           Guests: {booking.guests_count || 1}
                         </div>
                       </div>
+                      {refundTotal > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Refunded {formatKsh(refundTotal)} (processed)
+                        </p>
+                      )}
                       <Separator />
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -530,6 +616,9 @@ const GuestProfile = () => {
                           Print Receipt
                         </Button>
                       </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </CardContent>

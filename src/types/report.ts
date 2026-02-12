@@ -13,6 +13,11 @@ export interface OccupancyData {
   rooms?: number;
 }
 
+export interface SatisfactionData {
+  date: string;
+  score: number;
+}
+
 export interface DepartmentStats {
   department: string;
   tasksCompleted: number;

@@ -44,6 +44,7 @@ interface AnalyticsRequest {
     occupancyData?: Array<{ date: string; occupancy: number; rooms: number }>;
     inventoryData?: Array<{ name: string; currentStock: number; minStock: number; purchasesIn: number; stockOut: number }>;
     expenseData?: Array<{ category: string; amount: number; isEtims: boolean }>;
+    reviewData?: Array<{ rating: number; comment: string | null; created_at: string }>;
   };
   period?: string;
 }
@@ -63,6 +64,7 @@ serve(async (req) => {
 
     let systemPrompt = "";
     let userPrompt = "";
+    const reviewSnippet = data.reviewData ? JSON.stringify(data.reviewData.slice(0, 50)) : "[]";
 
     switch (type) {
       case 'forecast':
@@ -77,6 +79,7 @@ serve(async (req) => {
         userPrompt = `Analyze this hotel data:
         Revenue: ${JSON.stringify(data.revenueData)}
         Occupancy: ${JSON.stringify(data.occupancyData)}
+        Guest Reviews: ${reviewSnippet}
         Provide key business insights and performance metrics.`;
         break;
         
@@ -87,6 +90,7 @@ serve(async (req) => {
         Revenue: ${JSON.stringify(data.revenueData)}
         Inventory: ${JSON.stringify(data.inventoryData)}
         Expenses: ${JSON.stringify(data.expenseData)}
+        Guest Reviews: ${reviewSnippet}
         Provide recommendations to improve hotel profitability and operations.`;
         break;
         

@@ -89,25 +89,6 @@ export function RefundApprovalCard({ refund, onStatusChange, readOnly = false }:
     }
   };
 
-  const handleMarkProcessed = async () => {
-    setIsProcessing(true);
-    try {
-      const { error } = await supabase
-        .from("refund_requests")
-        .update({ status: "processed" })
-        .eq("id", refund.id);
-
-      if (error) throw error;
-
-      toast.success("Refund marked as processed");
-      onStatusChange(refund.id, "processed");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to process refund");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
@@ -261,15 +242,10 @@ export function RefundApprovalCard({ refund, onStatusChange, readOnly = false }:
         )}
 
         {refund.status === "approved" && (
-          <Button 
-            className="w-full"
-            variant="outline"
-            onClick={handleMarkProcessed}
-            disabled={isProcessing}
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            Mark as Processed
-          </Button>
+          <div className="text-sm bg-muted/50 p-3 rounded flex items-center gap-2 text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            Awaiting finance payout. Once recorded, this refund will auto-update to processed.
+          </div>
         )}
 
         {refund.status === "rejected" && refund.rejection_reason && (

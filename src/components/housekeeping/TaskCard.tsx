@@ -46,7 +46,7 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
   const [draftNotes, setDraftNotes] = useState(task.actualAddedNotes ?? "");
   const requiresAdded = plannedAmenities.length > 0;
   const hasAllAdded = !requiresAdded || plannedAmenities.every((amenity) => {
-    const added = actualAdded.find((item) =>
+    const added = draftAdded.find((item) =>
       (item.itemId && amenity.itemId && item.itemId === amenity.itemId) || item.name === amenity.name
     );
     return added && added.quantity > 0;
@@ -163,7 +163,9 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
               </div>
               <div className="space-y-2">
                 {plannedAmenities.map((amenity) => {
-                  const added = actualAdded.find((item) => item.name === amenity.name);
+                  const added = draftAdded.find((item) =>
+                    (item.itemId && amenity.itemId && item.itemId === amenity.itemId) || item.name === amenity.name
+                  );
                   return (
                     <div key={amenity.name} className="flex items-center gap-2">
                       <div className="flex-1">
@@ -248,7 +250,13 @@ export function TaskCard({ task, onStatusChange, onAmenitiesUpdate, onActualNote
               <Button
                 size="sm"
                 className="flex-1 text-xs bg-status-available hover:bg-status-available/90"
-                onClick={() => onStatusChange?.(task.id, 'completed')}
+                onClick={() => {
+                  if (hasDraftChanges) {
+                    onAmenitiesUpdate?.(task.id, draftAdded);
+                    onActualNotesUpdate?.(task.id, draftNotes);
+                  }
+                  onStatusChange?.(task.id, 'completed');
+                }}
                 disabled={!hasAllAdded}
               >
                 <CheckCircle className="h-3 w-3 mr-1" />

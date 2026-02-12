@@ -8,6 +8,9 @@ import { formatKsh } from "@/lib/formatters";
 interface POSItemCardProps {
   item: POSItem;
   onAddToCart?: (item: POSItem) => void;
+  stockQuantity?: number | null;
+  lotCount?: number;
+  brandLabel?: string;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -20,7 +23,10 @@ const categoryLabels: Record<string, string> = {
   health: "Health",
 };
 
-export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
+export const POSItemCard = ({ item, onAddToCart, stockQuantity, lotCount, brandLabel }: POSItemCardProps) => {
+  const resolvedStock = typeof stockQuantity === "number" ? stockQuantity : item.stock_quantity;
+  const showStock = typeof resolvedStock === "number";
+
   return (
     <Card className={`hover:shadow-md transition-shadow ${!item.is_available ? "opacity-50" : ""}`}>
       <CardContent className="p-4">
@@ -28,6 +34,15 @@ export const POSItemCard = ({ item, onAddToCart }: POSItemCardProps) => {
           <div>
             <h3 className="font-medium">{item.name}</h3>
             <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+            {brandLabel && (
+              <p className="text-xs text-muted-foreground mt-1">Brands: {brandLabel}</p>
+            )}
+            {showStock && (
+              <p className={`text-xs mt-1 ${resolvedStock === 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                {resolvedStock === 0 ? "Out of stock" : `In stock: ${resolvedStock}`}
+                {lotCount && lotCount > 1 ? ` · ${lotCount} lots` : ""}
+              </p>
+            )}
           </div>
           <Badge variant="secondary" className="shrink-0 ml-2">
             {categoryLabels[item.category] || item.category}

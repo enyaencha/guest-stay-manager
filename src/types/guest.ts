@@ -41,6 +41,7 @@ export interface Guest {
   specialRequests?: string;
   totalAmount?: number;
   paidAmount?: number;
+  refundedAmount?: number;
   totalSpend?: number;
   createdAt?: string;
 }

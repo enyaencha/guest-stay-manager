@@ -20,8 +20,9 @@ import { Building2, Users, BedDouble, Bell, Settings2, Loader2, Shield } from "l
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 
 const tabItems = [
   { value: "property", label: "Property", icon: Building2, description: "Hotel info & branding" },
@@ -31,9 +32,17 @@ const tabItems = [
   { value: "system", label: "System", icon: Settings2, description: "App preferences" },
 ];
 
+const SETTINGS_TABS = ["property", "staff", "rooms", "notifications", "system"] as const;
+
 const Settings = () => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("property");
+  const [activeTab, setActiveTab] = useTabQueryParam({
+    key: "tab",
+    defaultValue: "property",
+    allowed: SETTINGS_TABS,
+  });
+  const { hasPermission } = useAuth();
+  const canManageSettings = hasPermission("settings.manage");
   
   const { data: propertySettings, isLoading: propertyLoading } = usePropertySettings();
   const { data: notificationSettings, isLoading: notificationLoading } = useNotificationSettings();
@@ -75,10 +84,16 @@ const Settings = () => {
     checkInTime: propertySettings.check_in_time || '14:00',
     checkOutTime: propertySettings.check_out_time || '11:00',
     logoUrl: propertySettings.logo_url || undefined,
+    taxPin: propertySettings.tax_pin || '',
+    vatRate: propertySettings.vat_rate ?? 0,
+    invoiceFooter: propertySettings.invoice_footer || '',
   } : {
     id: '', applySettings: true, name: '', address: '', city: '', country: '',
     phone: '', email: '', website: '', currency: 'KSH', timezone: 'Africa/Nairobi',
     checkInTime: '14:00', checkOutTime: '11:00',
+    taxPin: '',
+    vatRate: 0,
+    invoiceFooter: '',
   };
 
   const roomTypeFormData: RoomTypeConfig[] = roomTypes.map(rt => ({
@@ -91,6 +106,7 @@ const Settings = () => {
     emailNotifications: notificationSettings.email_notifications ?? true,
     smsNotifications: notificationSettings.sms_notifications ?? true,
     bookingConfirmations: notificationSettings.booking_confirmations ?? true,
+    reviewRequests: notificationSettings.review_requests ?? true,
     maintenanceAlerts: notificationSettings.maintenance_alerts ?? true,
     lowStockAlerts: notificationSettings.low_stock_alerts ?? true,
     paymentAlerts: notificationSettings.payment_alerts ?? true,
@@ -98,7 +114,7 @@ const Settings = () => {
     weeklyReports: notificationSettings.weekly_reports ?? true,
   } : {
     emailNotifications: true, smsNotifications: true, bookingConfirmations: true,
-    maintenanceAlerts: true, lowStockAlerts: true, paymentAlerts: true,
+    reviewRequests: true, maintenanceAlerts: true, lowStockAlerts: true, paymentAlerts: true,
     dailyReports: false, weeklyReports: true,
   };
 
@@ -124,6 +140,10 @@ const Settings = () => {
           country: settings.country, phone: settings.phone, email: settings.email,
           website: settings.website, currency: settings.currency, timezone: settings.timezone,
           check_in_time: settings.checkInTime, check_out_time: settings.checkOutTime,
+          logo_url: settings.logoUrl || null,
+          tax_pin: settings.taxPin || null,
+          vat_rate: settings.vatRate ?? 0,
+          invoice_footer: settings.invoiceFooter || null,
         }
       });
     }
@@ -137,6 +157,7 @@ const Settings = () => {
           email_notifications: settings.emailNotifications,
           sms_notifications: settings.smsNotifications,
           booking_confirmations: settings.bookingConfirmations,
+          review_requests: settings.reviewRequests,
           maintenance_alerts: settings.maintenanceAlerts,
           low_stock_alerts: settings.lowStockAlerts,
           payment_alerts: settings.paymentAlerts,
@@ -226,7 +247,11 @@ const Settings = () => {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
                 {activeTab === "property" && (
-                  <PropertySettingsForm settings={propertyFormData} onSave={handlePropertySave} />
+              <PropertySettingsForm
+                settings={propertyFormData}
+                onSave={handlePropertySave}
+                canEdit={canManageSettings}
+              />
                 )}
                 {activeTab === "staff" && <StaffAdminContent />}
                 {activeTab === "rooms" && (

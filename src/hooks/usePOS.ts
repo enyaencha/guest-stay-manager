@@ -36,6 +36,7 @@ export interface POSTransaction {
 }
 
 export interface CartItem extends POSItem {
+  lineId: string;
   quantity: number;
   inventory_lot_id?: string | null;
   lot_label?: string | null;

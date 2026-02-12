@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePropertySettings } from "@/hooks/useSettings";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,8 +66,18 @@ const settingsItems: NavItem[] = [
 
 export function AppSidebar() {
   const { hasPermission, signOut, user } = useAuth();
+  const { data: propertySettings } = usePropertySettings();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const applyPropertySettings = propertySettings?.apply_settings ?? true;
+  const propertyName = applyPropertySettings
+    ? propertySettings?.name || "STROS"
+    : "STROS";
+  const propertyTagline = applyPropertySettings
+    ? [propertySettings?.city, propertySettings?.country].filter(Boolean).join(", ") || "Property Manager"
+    : "Property Manager";
+  const propertyLogoUrl = applyPropertySettings ? propertySettings?.logo_url || "" : "";
 
   const showGuestProfileLink =
     location.pathname.startsWith("/guests/") && location.pathname !== "/guests";
@@ -106,12 +117,16 @@ export function AppSidebar() {
           onClick={() => navigate("/")} 
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
-            <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary overflow-hidden">
+            {propertyLogoUrl ? (
+              <img src={propertyLogoUrl} alt={`${propertyName} logo`} className="h-10 w-10 object-contain bg-white" />
+            ) : (
+              <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
+            )}
           </div>
           <div>
-            <h1 className="font-semibold text-sidebar-foreground text-base">STROS</h1>
-            <p className="text-xs text-sidebar-foreground/60">Property Manager</p>
+            <h1 className="font-semibold text-sidebar-foreground text-base">{propertyName}</h1>
+            <p className="text-xs text-sidebar-foreground/60">{propertyTagline}</p>
           </div>
         </button>
       </SidebarHeader>

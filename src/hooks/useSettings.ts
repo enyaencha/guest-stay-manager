@@ -17,6 +17,9 @@ export interface PropertySettings {
   currency: string | null;
   timezone: string | null;
   logo_url: string | null;
+  tax_pin: string | null;
+  vat_rate: number | null;
+  invoice_footer: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +29,7 @@ export interface NotificationSettings {
   user_id: string | null;
   email_notifications: boolean;
   sms_notifications: boolean;
+  review_requests: boolean;
   low_stock_alerts: boolean;
   maintenance_alerts: boolean;
   booking_confirmations: boolean;

@@ -12,6 +12,7 @@ export interface FinanceTransaction {
   payment_status: string;
   payment_method: string | null;
   reference: string | null;
+  refund_request_id: string | null;
   room_number: string | null;
   booking_id: string | null;
   vendor: string | null;

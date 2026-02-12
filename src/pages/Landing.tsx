@@ -74,6 +74,13 @@ const Landing = () => {
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const { data: propertySettings } = usePropertySettings();
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("review") === "1") {
+      setFeedbackModalOpen(true);
+    }
+  }, []);
+
   const applyPropertySettings = propertySettings?.apply_settings ?? true;
   const propertyName = applyPropertySettings
     ? propertySettings?.name || "HavenStay"

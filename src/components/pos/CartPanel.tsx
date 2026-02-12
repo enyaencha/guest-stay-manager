@@ -34,9 +34,8 @@ interface CartPanelProps {
   onClearCart: () => void;
   roomOptions: RoomOption[];
   lots: InventoryLot[];
+  taxRatePercent?: number;
 }
-
-const TAX_RATE = 0.10;
 
 export const CartPanel = ({ 
   items, 
@@ -46,16 +45,82 @@ export const CartPanel = ({
   onCheckout,
   onClearCart,
   roomOptions,
-  lots
+  lots,
+  taxRatePercent = 10
 }: CartPanelProps) => {
   const [roomNumber, setRoomNumber] = useState<string>("walk-in");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
 
+  const resolvedTaxRate = Number.isFinite(taxRatePercent) ? taxRatePercent : 10;
+  const taxRate = resolvedTaxRate / 100;
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * TAX_RATE;
+  const tax = subtotal * taxRate;
   const total = subtotal + tax;
   const selectedRoom =
     roomNumber === "walk-in" ? undefined : roomOptions.find((room) => room.roomNumber === roomNumber);
+
+  const getLotsForItem = (inventoryItemId?: string | null) => {
+    if (!inventoryItemId) return [];
+    return lots.filter((lot) => lot.inventory_item_id === inventoryItemId);
+  };
+
+  const getDefaultLotForItem = (inventoryItemId?: string | null) => {
+    if (!inventoryItemId) return null;
+    const availableLots = getLotsForItem(inventoryItemId)
+      .filter((lot) => lot.quantity > 0)
+      .sort((a, b) => {
+        if (!a.expiry_date && !b.expiry_date) return 0;
+        if (!a.expiry_date) return 1;
+        if (!b.expiry_date) return -1;
+        return a.expiry_date.localeCompare(b.expiry_date);
+      });
+    return availableLots[0] || null;
+  };
+
+  const getActiveLotForItem = (item: CartItem) => {
+    if (!item.inventoryItemId) return null;
+    if (item.inventoryLotId) {
+      return lots.find((lot) => lot.id === item.inventoryLotId) || null;
+    }
+    return getDefaultLotForItem(item.inventoryItemId);
+  };
+
+  const getAvailableForItem = (item: CartItem) => {
+    if (item.inventoryItemId) {
+      const lot = getActiveLotForItem(item);
+      return lot?.quantity ?? 0;
+    }
+    if (typeof item.stockQuantity === "number") {
+      return item.stockQuantity;
+    }
+    return null;
+  };
+
+  const getCartQtyForLot = (lotId: string, excludeLineId?: string) =>
+    items
+      .filter((line) => line.inventoryLotId === lotId && line.id !== excludeLineId)
+      .reduce((sum, line) => sum + line.quantity, 0);
+
+  const getCartQtyForItem = (itemId?: string, excludeLineId?: string) => {
+    if (!itemId) return 0;
+    return items
+      .filter((line) => line.itemId === itemId && line.id !== excludeLineId)
+      .reduce((sum, line) => sum + line.quantity, 0);
+  };
+
+  const getTotalAvailableForInventoryItem = (inventoryItemId?: string | null) => {
+    if (!inventoryItemId) return 0;
+    return lots
+      .filter((lot) => lot.inventory_item_id === inventoryItemId)
+      .reduce((sum, lot) => sum + (lot.quantity || 0), 0);
+  };
+
+  const getTotalInCartForInventoryItem = (inventoryItemId?: string | null) => {
+    if (!inventoryItemId) return 0;
+    return items
+      .filter((line) => line.inventoryItemId === inventoryItemId)
+      .reduce((sum, line) => sum + line.quantity, 0);
+  };
 
   const handleCheckout = () => {
     if (paymentMethod === "room-charge" && roomNumber === "walk-in") return;
@@ -115,6 +180,34 @@ export const CartPanel = ({
                         </Select>
                       </div>
                     )}
+                    {(() => {
+                      const available = getAvailableForItem(item);
+                      if (available === null) return null;
+                      const activeLot = getActiveLotForItem(item);
+                      const activeLotLabel = activeLot
+                        ? `${activeLot.brand}${activeLot.batch_code ? ` · ${activeLot.batch_code}` : ""}`
+                        : null;
+                      const isAuto = item.inventoryItemId && !item.inventoryLotId;
+                      const totalInLot = activeLot ? getCartQtyForLot(activeLot.id) : null;
+                      const totalForItem = item.itemId ? getCartQtyForItem(item.itemId) : item.quantity;
+                      const totalAvailable = isAuto
+                        ? getTotalAvailableForInventoryItem(item.inventoryItemId)
+                        : available;
+                      const totalInCart = isAuto
+                        ? getTotalInCartForInventoryItem(item.inventoryItemId)
+                        : activeLot
+                          ? (totalInLot || 0)
+                          : totalForItem;
+                      const remaining = Math.max(totalAvailable - totalInCart, 0);
+                      return (
+                        <p className={`text-xs mt-1 ${remaining === 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                          {item.inventoryItemId && !item.inventoryLotId && activeLotLabel
+                            ? `Auto: ${activeLotLabel} · Qty ${totalAvailable}`
+                            : `Available: ${available}`}
+                          {` · Remaining: ${remaining}`}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-1">
                     <Button 
@@ -126,14 +219,33 @@ export const CartPanel = ({
                       <Minus className="h-3 w-3" />
                     </Button>
                     <span className="w-8 text-center font-medium">{item.quantity}</span>
+                    {(() => {
+                      const available = getAvailableForItem(item);
+                      const activeLot = getActiveLotForItem(item);
+                      const isAuto = item.inventoryItemId && !item.inventoryLotId;
+                      const totalAvailable = isAuto
+                        ? getTotalAvailableForInventoryItem(item.inventoryItemId)
+                        : available;
+                      const totalInLot = activeLot ? getCartQtyForLot(activeLot.id) : null;
+                      const totalForItem = item.itemId ? getCartQtyForItem(item.itemId) : item.quantity;
+                      const totalInCart = isAuto
+                        ? getTotalInCartForInventoryItem(item.inventoryItemId)
+                        : activeLot
+                          ? (totalInLot || 0)
+                          : totalForItem;
+                      const canIncrease = totalAvailable === null || totalInCart < totalAvailable;
+                      return (
                     <Button 
                       variant="outline" 
                       size="icon" 
                       className="h-7 w-7"
+                      disabled={!canIncrease}
                       onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
+                      );
+                    })()}
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -153,7 +265,7 @@ export const CartPanel = ({
                 <span>{formatKsh(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Tax (10%)</span>
+                <span>VAT ({resolvedTaxRate}%)</span>
                 <span>{formatKsh(tax)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg">

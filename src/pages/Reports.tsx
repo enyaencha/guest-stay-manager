@@ -2,6 +2,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RevenueChart } from "@/components/reports/RevenueChart";
 import { OccupancyChart } from "@/components/reports/OccupancyChart";
+import { SatisfactionChart } from "@/components/reports/SatisfactionChart";
 import { DepartmentTable } from "@/components/reports/DepartmentTable";
 import { TopItemsTable } from "@/components/reports/TopItemsTable";
 import { AIInsightsPanel } from "@/components/reports/AIInsightsPanel";
@@ -26,6 +27,9 @@ import { useAIAnalytics } from "@/hooks/useAIAnalytics";
 import { useBookings } from "@/hooks/useGuests";
 import { useHousekeepingTasks } from "@/hooks/useHousekeeping";
 import { useMaintenanceIssues } from "@/hooks/useMaintenance";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   DollarSign, 
   BedDouble, 
@@ -59,6 +63,17 @@ type DateRange = {
   dayListEnd: Date;
 };
 
+interface ReviewRecord {
+  id: string;
+  rating: number;
+  cleanliness_rating: number | null;
+  staff_rating: number | null;
+  comfort_rating: number | null;
+  value_rating: number | null;
+  comment: string | null;
+  created_at: string;
+}
+
 const buildRange = (start: Date, end: Date): DateRange => {
   let rangeStart = start;
   let rangeEnd = end;
@@ -78,8 +93,15 @@ const buildRange = (start: Date, end: Date): DateRange => {
 
 const formatDateTimeLocal = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm");
 
+const REPORT_TABS = ["overview", "ai-insights", "export"] as const;
+
 const Reports = () => {
   const [dateRange, setDateRange] = useState("7d");
+  const [activeTab, setActiveTab] = useTabQueryParam({
+    key: "tab",
+    defaultValue: "overview",
+    allowed: REPORT_TABS,
+  });
   const [customStart, setCustomStart] = useState(() =>
     formatDateTimeLocal(subDays(new Date(), 6))
   );
@@ -95,6 +117,17 @@ const Reports = () => {
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: housekeepingTasks = [], isLoading: housekeepingLoading } = useHousekeepingTasks();
   const { data: maintenanceIssues = [], isLoading: maintenanceLoading } = useMaintenanceIssues();
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ["report_reviews"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("id, rating, cleanliness_rating, staff_rating, comfort_rating, value_rating, comment, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as ReviewRecord[];
+    },
+  });
   
   const { isLoading: aiLoading, forecast, insights, recommendations, anomalies, analyzeData } = useAIAnalytics();
 
@@ -106,19 +139,22 @@ const Reports = () => {
     inventoryLoading ||
     bookingsLoading ||
     housekeepingLoading ||
-    maintenanceLoading;
+    maintenanceLoading ||
+    reviewsLoading;
 
   const isCustomRange = dateRange === "custom";
   const rangeDays =
-    dateRange === "7d"
-      ? 7
-      : dateRange === "30d"
-        ? 30
-        : dateRange === "90d"
-          ? 90
-          : dateRange === "custom"
-            ? 7
-            : 365;
+    dateRange === "today"
+      ? 1
+      : dateRange === "7d"
+        ? 7
+        : dateRange === "30d"
+          ? 30
+          : dateRange === "90d"
+            ? 90
+            : dateRange === "custom"
+              ? 7
+              : 365;
 
   const now = new Date();
   const parsedCustomStart = customStart ? parseISO(customStart) : null;
@@ -138,6 +174,9 @@ const Reports = () => {
       rawRangeStart = subDays(parsedCustomEnd, rangeDays - 1);
       rawRangeEnd = parsedCustomEnd;
     }
+  } else {
+    rawRangeStart = startOfDay(rawRangeStart);
+    rawRangeEnd = endOfDay(rawRangeEnd);
   }
 
   const currentRange = buildRange(rawRangeStart, rawRangeEnd);
@@ -150,13 +189,15 @@ const Reports = () => {
   const periodLabel =
     isCustomRange
       ? `${format(currentRange.start, "MMM d, yyyy HH:mm")} - ${format(currentRange.end, "MMM d, yyyy HH:mm")}`
-      : dateRange === "7d"
-        ? "Last 7 Days"
-        : dateRange === "30d"
-          ? "Last 30 Days"
-          : dateRange === "90d"
-            ? "Last 90 Days"
-            : "Last 12 Months";
+      : dateRange === "today"
+        ? "Today"
+        : dateRange === "7d"
+          ? "Last 7 Days"
+          : dateRange === "30d"
+            ? "Last 30 Days"
+            : dateRange === "90d"
+              ? "Last 90 Days"
+              : "Last 12 Months";
 
   const isTimestampInRange = (value: string | null | undefined, range: DateRange) => {
     if (!value) return false;
@@ -178,6 +219,21 @@ const Reports = () => {
 
   const getAverage = (values: number[]) =>
     values.length > 0 ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
+
+  const computeReviewScore = (review: ReviewRecord) => {
+    const categoryRatings = [
+      review.cleanliness_rating,
+      review.staff_rating,
+      review.comfort_rating,
+      review.value_rating,
+    ].filter((rating): rating is number => typeof rating === "number" && rating > 0);
+
+    if (categoryRatings.length > 0) {
+      return categoryRatings.reduce((sum, rating) => sum + rating, 0) / categoryRatings.length;
+    }
+
+    return review.rating || 0;
+  };
 
   const getRevenueTotals = (range: DateRange) => {
     const financeInRange = financeTransactions.filter((t) => isDateInRange(t.date, range));
@@ -328,15 +384,63 @@ const Reports = () => {
     buildOccupancyData(previousRange, previousBookingsInRange).map((item) => item.occupancy)
   );
 
+  const reviewsInRange = reviews.filter((review) =>
+    isTimestampInRange(review.created_at, currentRange)
+  );
+  const previousReviewsInRange = reviews.filter((review) =>
+    isTimestampInRange(review.created_at, previousRange)
+  );
+
+  const satisfactionData = rangeDaysList.map((date) => {
+    const dayScores = reviewsInRange
+      .filter((review) => isSameDay(parseISO(review.created_at), date))
+      .map(computeReviewScore)
+      .filter((score) => score > 0);
+
+    const avgScore = dayScores.length
+      ? Number((dayScores.reduce((sum, score) => sum + score, 0) / dayScores.length).toFixed(1))
+      : 0;
+
+    return {
+      date: format(date, "MMM d"),
+      score: avgScore,
+    };
+  });
+
+  const reviewAnalyticsData = reviewsInRange.slice(0, 50).map((review) => ({
+    rating: Number(computeReviewScore(review).toFixed(1)),
+    comment: review.comment,
+    created_at: review.created_at,
+  }));
+
   const departmentStats = getDepartmentStats(currentRange);
   const previousDepartmentStats = getDepartmentStats(previousRange);
 
-  const avgSatisfaction = getAverage(
+  const avgDepartmentSatisfaction = getAverage(
     departmentStats.map((dept) => (dept.satisfaction ? dept.satisfaction : 0))
   );
-  const previousAvgSatisfaction = getAverage(
+  const previousAvgDepartmentSatisfaction = getAverage(
     previousDepartmentStats.map((dept) => (dept.satisfaction ? dept.satisfaction : 0))
   );
+
+  const reviewScores = reviewsInRange.map(computeReviewScore).filter((score) => score > 0);
+  const previousReviewScores = previousReviewsInRange
+    .map(computeReviewScore)
+    .filter((score) => score > 0);
+
+  const avgReviewScore = reviewScores.length
+    ? reviewScores.reduce((sum, score) => sum + score, 0) / reviewScores.length
+    : 0;
+  const previousAvgReviewScore = previousReviewScores.length
+    ? previousReviewScores.reduce((sum, score) => sum + score, 0) / previousReviewScores.length
+    : 0;
+
+  const avgSatisfaction = reviewScores.length
+    ? Math.round((avgReviewScore / 5) * 100)
+    : avgDepartmentSatisfaction;
+  const previousAvgSatisfaction = previousReviewScores.length
+    ? Math.round((previousAvgReviewScore / 5) * 100)
+    : previousAvgDepartmentSatisfaction;
 
   const totalTasks = departmentStats.reduce((sum, dept) => sum + dept.tasksCompleted, 0);
   const previousTotalTasks = previousDepartmentStats.reduce((sum, dept) => sum + dept.tasksCompleted, 0);
@@ -435,9 +539,11 @@ const Reports = () => {
     await analyzeData('insights', {
       revenueData,
       occupancyData,
+      reviewData: reviewAnalyticsData,
     });
     await analyzeData('recommendations', {
       revenueData,
+      reviewData: reviewAnalyticsData,
       inventoryData: inventoryItems.map(i => ({
         name: i.name,
         currentStock: i.current_stock,
@@ -486,6 +592,7 @@ const Reports = () => {
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="7d">Last 7 Days</SelectItem>
                 <SelectItem value="30d">Last 30 Days</SelectItem>
                 <SelectItem value="90d">Last 90 Days</SelectItem>
@@ -557,7 +664,7 @@ const Reports = () => {
             </div>
 
             {/* Tabs for different report sections */}
-            <Tabs defaultValue="overview" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="ai-insights" className="flex items-center gap-2">
@@ -569,9 +676,10 @@ const Reports = () => {
 
               <TabsContent value="overview" className="space-y-6">
                 {/* Charts Row */}
-                <div className="grid lg:grid-cols-2 gap-6">
+                <div className="grid lg:grid-cols-3 gap-6">
                   <RevenueChart data={revenueData} />
                   <OccupancyChart data={occupancyData} />
+                  <SatisfactionChart data={satisfactionData} />
                 </div>
 
                 {/* Tables Row */}

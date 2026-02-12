@@ -10,6 +10,7 @@ import { useUpdateRoom } from "@/hooks/useRooms";
 import { useInventoryItems, useInventoryLots, useUpdateInventoryItem, useUpdateInventoryLot, useCreateInventoryTransaction } from "@/hooks/useInventory";
 import { HousekeepingTask, HousekeepingStaff } from "@/types/housekeeping";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { 
   ClipboardList, 
   Plus, 
@@ -65,7 +66,11 @@ const Housekeeping = () => {
   const canCreate = hasPermission("housekeeping.create");
   const canManage = hasPermission("housekeeping.manage");
   
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useTabQueryParam({
+    key: "status",
+    defaultValue: "all",
+    allowed: ["all", "pending", "in-progress", "completed"],
+  });
   const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   const tasks = useMemo(() => {

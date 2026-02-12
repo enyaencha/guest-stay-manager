@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryItems, useInventoryLots, useUpdateInventoryItem, useCreateInventoryLot, useUpdateInventoryLot, useCreateInventoryTransaction, useInventoryTransactions, getStockAlerts, getStockLevel, InventoryItem as DBItem } from "@/hooks/useInventory";
 import { InventoryItem } from "@/types/inventory";
 import { formatKsh } from "@/lib/formatters";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { 
   Package, 
   Plus, 
@@ -54,7 +55,11 @@ const Inventory = () => {
   
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("items");
+  const [activeTab, setActiveTab] = useTabQueryParam({
+    key: "tab",
+    defaultValue: "items",
+    allowed: ["items", "transactions"],
+  });
   const [addOpen, setAddOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustItemId, setAdjustItemId] = useState<string | null>(null);

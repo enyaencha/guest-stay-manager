@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useStaff } from "@/hooks/useStaff";
 import { supabase } from "@/integrations/supabase/client";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { toast } from "sonner";
 import { Calendar, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +24,11 @@ const MyProfile = () => {
     () => staff.find((s) => s.user_id === user?.id),
     [staff, user?.id]
   );
+  const [activeTab, setActiveTab] = useTabQueryParam({
+    key: "tab",
+    defaultValue: "timesheets",
+    allowed: ["timesheets", "leave"],
+  });
 
   const [leaveType, setLeaveType] = useState("Annual Leave");
   const [leaveStart, setLeaveStart] = useState("");
@@ -153,7 +159,7 @@ const MyProfile = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="timesheets" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 md:w-auto">
             <TabsTrigger value="timesheets" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />

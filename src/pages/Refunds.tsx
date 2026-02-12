@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatKsh } from "@/lib/formatters";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { 
   ReceiptText, 
   Clock, 
@@ -22,7 +23,11 @@ const Refunds = () => {
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useTabQueryParam({
+    key: "status",
+    defaultValue: "all",
+    allowed: ["all", "pending", "approved", "processed", "rejected"],
+  });
 
   useEffect(() => {
     fetchRefunds();
@@ -191,6 +196,7 @@ const Refunds = () => {
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
               <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="processed">Processed</TabsTrigger>
               <TabsTrigger value="rejected">Rejected</TabsTrigger>
             </TabsList>
           </Tabs>

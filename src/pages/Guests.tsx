@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGuests, useBookings, useUpdateBooking } from "@/hooks/useGuests";
+import { useNotificationSettings } from "@/hooks/useSettings";
 import { usePOSTransactions, useUpdatePOSTransaction } from "@/hooks/usePOS";
+import { useTabQueryParam } from "@/hooks/useTabQueryParam";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Guest, GuestRequest } from "@/types/guest";
@@ -43,13 +45,23 @@ interface ConfirmedBooking {
 const Guests = () => {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useTabQueryParam({
+    key: "tab",
+    defaultValue: "guests",
+    allowed: ["guests", "requests"],
+  });
+  const [statusFilter, setStatusFilter] = useTabQueryParam({
+    key: "status",
+    defaultValue: "all",
+    allowed: ["all", "checked-in", "pre-arrival", "checked-out"],
+  });
   const [roomAssignmentOpen, setRoomAssignmentOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<ConfirmedBooking | null>(null);
 
   const { data: guests = [], isLoading: guestsLoading } = useGuests();
   const { data: bookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useBookings();
   const { data: posTransactions = [], isLoading: posLoading } = usePOSTransactions();
+  const { data: notificationSettings } = useNotificationSettings();
   const updateBooking = useUpdateBooking();
   const updatePOSTransaction = useUpdatePOSTransaction();
   const queryClient = useQueryClient();
@@ -76,6 +88,21 @@ const Guests = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: processedRefunds = [], isLoading: refundsLoading } = useQuery({
+    queryKey: ["refund_requests_processed"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("refund_requests")
+        .select("booking_id, refund_amount, status")
+        .eq("status", "processed");
+      if (error) {
+        console.warn("Refund lookup failed:", error.message);
+        return [];
+      }
+      return data || [];
     },
   });
 
@@ -122,7 +149,31 @@ const Guests = () => {
     };
   }).filter(g => g.booking);
 
+  const sendReviewRequest = async (guest: (typeof guestsWithBookings)[number]) => {
+    if (!notificationSettings?.review_requests) return;
+    if (!guest?.booking) return;
+
+    const { data, error } = await supabase.functions.invoke("send-review-request", {
+      body: { bookingId: guest.booking.id },
+    });
+
+    if (error) throw error;
+
+    if (data?.status === "sent") {
+      toast.success("Feedback request sent");
+    } else if (data?.status === "pending") {
+      toast.message("Feedback request queued");
+    }
+  };
+
   // Convert to Guest type for component
+  const refundedByBooking = new Map<string, number>();
+  processedRefunds.forEach((refund) => {
+    if (!refund.booking_id) return;
+    const current = refundedByBooking.get(refund.booking_id) || 0;
+    refundedByBooking.set(refund.booking_id, current + Number(refund.refund_amount || 0));
+  });
+
   const guestData: Guest[] = guestsWithBookings.map(g => ({
     id: g.id,
     name: g.name,
@@ -139,6 +190,7 @@ const Guests = () => {
              g.booking?.status === 'checked-out' ? 'checked-out' : 'pre-arrival') as Guest['status'],
     totalAmount: g.booking?.total_amount || 0,
     paidAmount: g.booking?.paid_amount || 0,
+    refundedAmount: g.booking?.id ? refundedByBooking.get(g.booking.id) || 0 : 0,
     guests: g.booking?.guests_count || 1,
     specialRequests: g.booking?.special_requests || undefined,
     posTransactions: posTransactions
@@ -223,6 +275,13 @@ const Guests = () => {
         updates: { status: 'checked-out', check_out: new Date().toISOString() }
       });
       toast.success("Guest checked out successfully");
+      try {
+        await sendReviewRequest(guest);
+        queryClient.invalidateQueries({ queryKey: ["review_requests"] });
+      } catch (error: any) {
+        console.error("Review request error:", error);
+        toast.error("Failed to send feedback request");
+      }
     }
   };
 
@@ -295,7 +354,7 @@ const Guests = () => {
     queryClient.invalidateQueries({ queryKey: ["rooms"] });
   };
 
-  const isLoadingAll = guestsLoading || bookingsLoading || posLoading;
+  const isLoadingAll = guestsLoading || bookingsLoading || posLoading || refundsLoading;
 
   return (
     <MainLayout>
@@ -350,7 +409,7 @@ const Guests = () => {
           </div>
         ) : (
           /* Tabs */
-          <Tabs defaultValue="guests" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="guests">Guests</TabsTrigger>
               <TabsTrigger value="requests">Requests ({confirmedBookings.length})</TabsTrigger>
