@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import { usePropertySettings } from "@/hooks/useSettings";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,17 +13,21 @@ interface Message {
 
 export function HelpChatBot() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "👋 Hello! I'm your **STROS Assistant**. I can help with:\n\n- **Navigation** & feature guidance\n- **How-to** for bookings, POS, inventory\n- **Troubleshooting** issues\n- **Best practices** for management\n\nHow can I help?",
-    },
-  ]);
+  const { data: propertySettings } = usePropertySettings();
+  const propertyName = propertySettings?.name || "STROS";
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Update welcome message when property settings load
+  useEffect(() => {
+    setMessages([{
+      role: "assistant",
+      content: `👋 Hello! I'm your **${propertyName} Assistant**. I can help with:\n\n- **Navigation** & feature guidance\n- **How-to** for bookings, POS, inventory\n- **Troubleshooting** issues\n- **Best practices** for management\n\nHow can I help?`,
+    }]);
+  }, [propertyName]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,6 +57,7 @@ export function HelpChatBot() {
         },
         body: JSON.stringify({
           messages: allMessages.map((m) => ({ role: m.role, content: m.content })),
+          propertySettings: propertySettings || undefined,
         }),
       });
 
@@ -159,7 +165,7 @@ export function HelpChatBot() {
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5" />
           <div>
-            <p className="font-semibold text-sm">STROS Assistant</p>
+            <p className="font-semibold text-sm">{propertyName} Assistant</p>
             <p className="text-xs opacity-80">Help & Training</p>
           </div>
         </div>

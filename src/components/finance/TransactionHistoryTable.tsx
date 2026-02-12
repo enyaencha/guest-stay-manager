@@ -8,12 +8,23 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FinanceTransaction } from "@/types/finance";
 import { formatKsh } from "@/lib/formatters";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 interface TransactionHistoryTableProps {
-  transactions: FinanceTransaction[];
+  transactions: Array<{
+    id: string;
+    date: string;
+    type: string;
+    category: string;
+    description: string;
+    amount: number;
+    paymentStatus?: string;
+    paymentMethod?: string;
+    reference?: string;
+    roomNumber?: string;
+    vendor?: string;
+  }>;
 }
 
 const categoryLabels: Record<string, string> = {
