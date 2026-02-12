@@ -232,6 +232,7 @@ export type Database = {
           payment_method: string | null
           payment_status: string
           reference: string | null
+          refund_request_id: string | null
           room_number: string | null
           type: string
           updated_at: string
@@ -249,6 +250,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string
           reference?: string | null
+          refund_request_id?: string | null
           room_number?: string | null
           type: string
           updated_at?: string
@@ -266,6 +268,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string
           reference?: string | null
+          refund_request_id?: string | null
           room_number?: string | null
           type?: string
           updated_at?: string
@@ -284,6 +287,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_refund_request_id_fkey"
+            columns: ["refund_request_id"]
+            isOneToOne: false
+            referencedRelation: "refund_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -855,6 +865,7 @@ export type Database = {
           low_stock_alerts: boolean | null
           maintenance_alerts: boolean | null
           payment_alerts: boolean | null
+          review_requests: boolean | null
           sms_notifications: boolean | null
           updated_at: string
           user_id: string | null
@@ -869,6 +880,7 @@ export type Database = {
           low_stock_alerts?: boolean | null
           maintenance_alerts?: boolean | null
           payment_alerts?: boolean | null
+          review_requests?: boolean | null
           sms_notifications?: boolean | null
           updated_at?: string
           user_id?: string | null
@@ -883,6 +895,7 @@ export type Database = {
           low_stock_alerts?: boolean | null
           maintenance_alerts?: boolean | null
           payment_alerts?: boolean | null
+          review_requests?: boolean | null
           sms_notifications?: boolean | null
           updated_at?: string
           user_id?: string | null
@@ -1054,11 +1067,14 @@ export type Database = {
           currency: string | null
           email: string | null
           id: string
+          invoice_footer: string | null
           logo_url: string | null
           name: string
           phone: string | null
+          tax_pin: string | null
           timezone: string | null
           updated_at: string
+          vat_rate: number | null
           website: string | null
         }
         Insert: {
@@ -1072,11 +1088,14 @@ export type Database = {
           currency?: string | null
           email?: string | null
           id?: string
+          invoice_footer?: string | null
           logo_url?: string | null
           name: string
           phone?: string | null
+          tax_pin?: string | null
           timezone?: string | null
           updated_at?: string
+          vat_rate?: number | null
           website?: string | null
         }
         Update: {
@@ -1090,11 +1109,14 @@ export type Database = {
           currency?: string | null
           email?: string | null
           id?: string
+          invoice_footer?: string | null
           logo_url?: string | null
           name?: string
           phone?: string | null
+          tax_pin?: string | null
           timezone?: string | null
           updated_at?: string
+          vat_rate?: number | null
           website?: string | null
         }
         Relationships: []
@@ -1220,42 +1242,129 @@ export type Database = {
         }
         Relationships: []
       }
+      review_requests: {
+        Row: {
+          booking_id: string | null
+          channel: string
+          created_at: string
+          guest_email: string | null
+          guest_id: string | null
+          guest_name: string
+          guest_phone: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          channel?: string
+          created_at?: string
+          guest_email?: string | null
+          guest_id?: string | null
+          guest_name: string
+          guest_phone?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          channel?: string
+          created_at?: string
+          guest_email?: string | null
+          guest_id?: string | null
+          guest_name?: string
+          guest_phone?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           booking_id: string | null
+          cleanliness_rating: number | null
+          comfort_rating: number | null
           comment: string | null
           created_at: string
           guest_id: string | null
           guest_name: string
           guest_phone: string
+          housekeeping_task_id: string | null
           id: string
+          internal_notes: string | null
           is_approved: boolean | null
+          maintenance_issue_id: string | null
           rating: number
+          responded_at: string | null
+          response: string | null
+          room_number: string | null
+          staff_rating: number | null
           updated_at: string
+          value_rating: number | null
         }
         Insert: {
           booking_id?: string | null
+          cleanliness_rating?: number | null
+          comfort_rating?: number | null
           comment?: string | null
           created_at?: string
           guest_id?: string | null
           guest_name: string
           guest_phone: string
+          housekeeping_task_id?: string | null
           id?: string
+          internal_notes?: string | null
           is_approved?: boolean | null
+          maintenance_issue_id?: string | null
           rating: number
+          responded_at?: string | null
+          response?: string | null
+          room_number?: string | null
+          staff_rating?: number | null
           updated_at?: string
+          value_rating?: number | null
         }
         Update: {
           booking_id?: string | null
+          cleanliness_rating?: number | null
+          comfort_rating?: number | null
           comment?: string | null
           created_at?: string
           guest_id?: string | null
           guest_name?: string
           guest_phone?: string
+          housekeeping_task_id?: string | null
           id?: string
+          internal_notes?: string | null
           is_approved?: boolean | null
+          maintenance_issue_id?: string | null
           rating?: number
+          responded_at?: string | null
+          response?: string | null
+          room_number?: string | null
+          staff_rating?: number | null
           updated_at?: string
+          value_rating?: number | null
         }
         Relationships: [
           {
@@ -1270,6 +1379,20 @@ export type Database = {
             columns: ["guest_id"]
             isOneToOne: false
             referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_housekeeping_task_id_fkey"
+            columns: ["housekeeping_task_id"]
+            isOneToOne: false
+            referencedRelation: "housekeeping_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_maintenance_issue_id_fkey"
+            columns: ["maintenance_issue_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_issues"
             referencedColumns: ["id"]
           },
         ]
