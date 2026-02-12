@@ -33,7 +33,7 @@ import {
   useFinanceTransactions, 
   calculateFinanceSummary, 
   calculateCategoryBreakdown,
-  type FinanceTransaction
+  type FinanceTransaction,
 } from "@/hooks/useFinance";
 import { usePOSTransactions } from "@/hooks/usePOS";
 import { formatKsh } from "@/lib/formatters";
@@ -432,7 +432,7 @@ export default function Finance() {
     category: "pos-sale",
     description: posItemsSummary(t),
     amount: t.total,
-    paymentStatus: t.status === "completed" ? "paid" : "pending",
+    paymentStatus: (t.status === "completed" ? "paid" : "pending") as 'paid' | 'pending' | 'overdue',
     paymentMethod: t.payment_method || undefined,
     reference: `POS-${t.id.slice(0, 8)}`,
     roomNumber: t.room_number || undefined,
@@ -465,7 +465,7 @@ export default function Finance() {
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="flex w-full flex-col gap-2 sm:w-auto">
-              <Select value={dateRange} onValueChange={setDateRange}>
+              <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
                 <SelectTrigger className="w-full sm:w-[190px]">
                   <Calendar className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Select period" />

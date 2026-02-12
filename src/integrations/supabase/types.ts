@@ -1303,8 +1303,8 @@ export type Database = {
         Row: {
           booking_id: string | null
           cleanliness_rating: number | null
-          comment: string | null
           comfort_rating: number | null
+          comment: string | null
           created_at: string
           guest_id: string | null
           guest_name: string
@@ -1325,8 +1325,8 @@ export type Database = {
         Insert: {
           booking_id?: string | null
           cleanliness_rating?: number | null
-          comment?: string | null
           comfort_rating?: number | null
+          comment?: string | null
           created_at?: string
           guest_id?: string | null
           guest_name: string
@@ -1347,8 +1347,8 @@ export type Database = {
         Update: {
           booking_id?: string | null
           cleanliness_rating?: number | null
-          comment?: string | null
           comfort_rating?: number | null
+          comment?: string | null
           created_at?: string
           guest_id?: string | null
           guest_name?: string
@@ -1393,63 +1393,6 @@ export type Database = {
             columns: ["maintenance_issue_id"]
             isOneToOne: false
             referencedRelation: "maintenance_issues"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      review_requests: {
-        Row: {
-          booking_id: string | null
-          channel: string
-          created_at: string
-          guest_email: string | null
-          guest_id: string | null
-          guest_name: string
-          guest_phone: string | null
-          id: string
-          sent_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          booking_id?: string | null
-          channel?: string
-          created_at?: string
-          guest_email?: string | null
-          guest_id?: string | null
-          guest_name: string
-          guest_phone?: string | null
-          id?: string
-          sent_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          booking_id?: string | null
-          channel?: string
-          created_at?: string
-          guest_email?: string | null
-          guest_id?: string | null
-          guest_name?: string
-          guest_phone?: string | null
-          id?: string
-          sent_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "review_requests_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "review_requests_guest_id_fkey"
-            columns: ["guest_id"]
-            isOneToOne: false
-            referencedRelation: "guests"
             referencedColumns: ["id"]
           },
         ]

@@ -9,11 +9,30 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages } = await req.json();
+    const { messages, propertySettings } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `You are the STROS Property Manager AI Assistant — a helpful, friendly hotel management system guide. Your role is to:
+    // Build dynamic property context from settings
+    const ps = propertySettings || {};
+    const propertyName = ps.name || "STROS Property Manager";
+    const propertyContext = [
+      ps.name ? `Property Name: ${ps.name}` : null,
+      ps.address ? `Address: ${ps.address}${ps.city ? `, ${ps.city}` : ""}${ps.country ? `, ${ps.country}` : ""}` : null,
+      ps.phone ? `Phone: ${ps.phone}` : null,
+      ps.email ? `Email: ${ps.email}` : null,
+      ps.website ? `Website: ${ps.website}` : null,
+      ps.check_in_time ? `Check-in Time: ${ps.check_in_time}` : null,
+      ps.check_out_time ? `Check-out Time: ${ps.check_out_time}` : null,
+      ps.currency ? `Currency: ${ps.currency}` : null,
+      ps.timezone ? `Timezone: ${ps.timezone}` : null,
+      ps.vat_rate != null ? `VAT Rate: ${ps.vat_rate}%` : null,
+      ps.tax_pin ? `Tax PIN: ${ps.tax_pin}` : null,
+    ].filter(Boolean).join("\n");
+
+    const systemPrompt = `You are the ${propertyName} AI Assistant — a helpful, friendly hotel management system guide.${propertyContext ? `\n\n**Property Information:**\n${propertyContext}` : ""}
+
+Your role is to:
 
 1. **Guide users** through the system's features: Dashboard, Rooms, Reservations, Guests, POS, Housekeeping, Maintenance, Inventory, Reports, Finance, Settings, Refunds, and Reviews.
 
@@ -38,7 +57,7 @@ serve(async (req) => {
 
 6. **Guest Assessments & Reviews workflow**: When the user asks about guest assessments, reviews, feedback, or post-checkout workflows, respond with the following steps **verbatim**:
 
-After a guest checks out, gathering feedback is vital for improving your service and maintaining high standards. Here is how you manage Guest Assessments and Reviews in STROS:
+After a guest checks out, gathering feedback is vital for improving your service and maintaining high standards. Here is how you manage Guest Assessments and Reviews in ${propertyName}:
 
 1. The Assessment Workflow
 Once a guest is checked out, the system triggers the assessment phase:
@@ -64,7 +83,7 @@ Refunds: If a guest had a poor experience, you can initiate a Refund (full or pa
 
 7. **Refund workflow**: If the user asks how to process refunds, respond with the following steps **verbatim**:
 
-Processing a Refund in STROS is handled with strict tracking to ensure your accounts in KSH remain accurate.
+Processing a Refund in ${propertyName} is handled with strict tracking to ensure your accounts${ps.currency ? ` in ${ps.currency}` : ""} remain accurate.
 
 How to Process a Refund
 Navigate to the Finance Module:
@@ -91,7 +110,7 @@ Audit Trail: Every refund shows who initiated it and who approved it, preventing
 Pro-Tip:
 Wallet Credit: Instead of a cash refund, you can offer the guest a Credit Note for their next stay. This keeps the revenue within the business while still satisfying the guest.
 
-Keep responses concise, practical, and formatted with markdown for readability. Use bullet points and bold text for key information. The currency used is Kenyan Shillings (KSH).`;
+Keep responses concise, practical, and formatted with markdown for readability. Use bullet points and bold text for key information.${ps.currency ? ` The currency used is ${ps.currency}.` : " The currency used is Kenyan Shillings (KSH)."}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

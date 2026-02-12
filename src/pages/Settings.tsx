@@ -223,7 +223,7 @@ const Settings = () => {
                 return (
                   <button
                     key={tab.value}
-                    onClick={() => setActiveTab(tab.value)}
+                    onClick={() => setActiveTab(tab.value as typeof activeTab)}
                     className={cn(
                       "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200",
                       isActive
