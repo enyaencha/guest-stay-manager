@@ -2090,6 +2090,86 @@ export type Database = {
         | "pos.create"
         | "refunds.create"
         | "finance.create"
+        | "dashboard.view"
+        | "dashboard.stats"
+        | "dashboard.system_status"
+        | "dashboard.quick_actions"
+        | "rooms.add"
+        | "rooms.edit"
+        | "rooms.delete"
+        | "rooms.manage_status"
+        | "rooms.view_calendar"
+        | "guests.add"
+        | "guests.edit"
+        | "guests.delete"
+        | "guests.view_history"
+        | "guests.view_id"
+        | "guests.manage_issues"
+        | "bookings.edit"
+        | "bookings.checkin"
+        | "bookings.checkout"
+        | "bookings.cancel"
+        | "bookings.assign_room"
+        | "bookings.view_requests"
+        | "bookings.approve_requests"
+        | "housekeeping.edit"
+        | "housekeeping.assign"
+        | "housekeeping.complete"
+        | "housekeeping.delete"
+        | "housekeeping.manage_staff"
+        | "maintenance.edit"
+        | "maintenance.assign"
+        | "maintenance.resolve"
+        | "maintenance.delete"
+        | "maintenance.manage_staff"
+        | "inventory.add"
+        | "inventory.edit"
+        | "inventory.delete"
+        | "inventory.adjust_stock"
+        | "inventory.view_transactions"
+        | "inventory.manage_suppliers"
+        | "pos.create_sale"
+        | "pos.void_transaction"
+        | "pos.add_items"
+        | "pos.edit_items"
+        | "pos.delete_items"
+        | "pos.view_reports"
+        | "pos.bill_to_room"
+        | "finance.view_transactions"
+        | "finance.add_expense"
+        | "finance.edit_expense"
+        | "finance.delete_expense"
+        | "finance.view_salary"
+        | "finance.manage_salary"
+        | "finance.view_pos_sales"
+        | "finance.view_room_costs"
+        | "reports.view_revenue"
+        | "reports.view_occupancy"
+        | "reports.view_forecast"
+        | "reports.view_satisfaction"
+        | "reports.view_department"
+        | "reports.ai_insights"
+        | "refunds.edit"
+        | "reviews.view"
+        | "reviews.respond"
+        | "reviews.approve"
+        | "reviews.delete"
+        | "reviews.send_request"
+        | "staff.add"
+        | "staff.edit"
+        | "staff.delete"
+        | "staff.manage_roles"
+        | "staff.manage_leave"
+        | "staff.view_timesheets"
+        | "staff.manage_timesheets"
+        | "staff.bulk_import"
+        | "settings.property"
+        | "settings.room_types"
+        | "settings.notifications"
+        | "settings.roles_permissions"
+        | "settings.audit_log"
+        | "settings.system"
+        | "settings.backup"
       app_role:
         | "administrator"
         | "manager"
@@ -2257,6 +2337,86 @@ export const Constants = {
         "pos.create",
         "refunds.create",
         "finance.create",
+        "dashboard.view",
+        "dashboard.stats",
+        "dashboard.system_status",
+        "dashboard.quick_actions",
+        "rooms.add",
+        "rooms.edit",
+        "rooms.delete",
+        "rooms.manage_status",
+        "rooms.view_calendar",
+        "guests.add",
+        "guests.edit",
+        "guests.delete",
+        "guests.view_history",
+        "guests.view_id",
+        "guests.manage_issues",
+        "bookings.edit",
+        "bookings.checkin",
+        "bookings.checkout",
+        "bookings.cancel",
+        "bookings.assign_room",
+        "bookings.view_requests",
+        "bookings.approve_requests",
+        "housekeeping.edit",
+        "housekeeping.assign",
+        "housekeeping.complete",
+        "housekeeping.delete",
+        "housekeeping.manage_staff",
+        "maintenance.edit",
+        "maintenance.assign",
+        "maintenance.resolve",
+        "maintenance.delete",
+        "maintenance.manage_staff",
+        "inventory.add",
+        "inventory.edit",
+        "inventory.delete",
+        "inventory.adjust_stock",
+        "inventory.view_transactions",
+        "inventory.manage_suppliers",
+        "pos.create_sale",
+        "pos.void_transaction",
+        "pos.add_items",
+        "pos.edit_items",
+        "pos.delete_items",
+        "pos.view_reports",
+        "pos.bill_to_room",
+        "finance.view_transactions",
+        "finance.add_expense",
+        "finance.edit_expense",
+        "finance.delete_expense",
+        "finance.view_salary",
+        "finance.manage_salary",
+        "finance.view_pos_sales",
+        "finance.view_room_costs",
+        "reports.view_revenue",
+        "reports.view_occupancy",
+        "reports.view_forecast",
+        "reports.view_satisfaction",
+        "reports.view_department",
+        "reports.ai_insights",
+        "refunds.edit",
+        "reviews.view",
+        "reviews.respond",
+        "reviews.approve",
+        "reviews.delete",
+        "reviews.send_request",
+        "staff.add",
+        "staff.edit",
+        "staff.delete",
+        "staff.manage_roles",
+        "staff.manage_leave",
+        "staff.view_timesheets",
+        "staff.manage_timesheets",
+        "staff.bulk_import",
+        "settings.property",
+        "settings.room_types",
+        "settings.notifications",
+        "settings.roles_permissions",
+        "settings.audit_log",
+        "settings.system",
+        "settings.backup",
       ],
       app_role: [
         "administrator",
