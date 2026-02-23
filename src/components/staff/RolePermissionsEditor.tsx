@@ -3,13 +3,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useRoles } from "@/hooks/useStaff";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Edit, Plus, Save, Info } from "lucide-react";
+import { Shield, Edit, Plus, Save, Info, Trash2, Copy, CheckSquare, Square } from "lucide-react";
 import { ALL_PERMISSIONS, PERMISSION_GROUPS } from "@/lib/permissions";
 import { PermissionGroupCard } from "./PermissionGroupCard";
 
@@ -30,6 +32,28 @@ export const RolePermissionsEditor = () => {
   const [newRoleDesc, setNewRoleDesc] = useState("");
   const [newRolePerms, setNewRolePerms] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
+
+  const openDuplicate = (role: any) => {
+    setNewRoleName(`${role.name} (Copy)`);
+    setNewRoleDesc(role.description || "");
+    setNewRolePerms([...(role.permissions || [])]);
+    setIsCreateOpen(true);
+  };
+
+  const handleDeleteRole = async () => {
+    if (!deletingRoleId) return;
+    try {
+      const { error } = await (supabase as any).from("roles").delete().eq("id", deletingRoleId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      toast.success("Role deleted");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete role");
+    } finally {
+      setDeletingRoleId(null);
+    }
+  };
 
   const openEdit = (role: any) => {
     setEditingRole({
@@ -164,13 +188,27 @@ export const RolePermissionsEditor = () => {
                       <p className="text-xs text-muted-foreground">{role.description || "No description"}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
                       {permCount}/{totalPerms} permissions
                     </Badge>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(role)}>
+                    <Button variant="ghost" size="sm" title="Duplicate role" onClick={() => openDuplicate(role)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" title="Edit role" onClick={() => openEdit(role)}>
                       <Edit className="h-4 w-4" />
                     </Button>
+                    {!role.is_system_role && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Delete role"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeletingRoleId(role.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {/* Grouped summary */}
@@ -214,15 +252,37 @@ export const RolePermissionsEditor = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
-                  <Input
+                  <Textarea
+                    rows={2}
                     value={editingRole.description}
                     onChange={(e) => setEditingRole({ ...editingRole, description: e.target.value })}
+                    placeholder="Describe what this role is for..."
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
-                <Label className="text-base font-semibold">Permissions</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Permissions ({editingRole.permissions.length}/{ALL_PERMISSIONS.length})</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingRole({ ...editingRole, permissions: ALL_PERMISSIONS.map(p => p.key) })}
+                    >
+                      <CheckSquare className="h-3 w-3 mr-1" />
+                      All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingRole({ ...editingRole, permissions: [] })}
+                    >
+                      <Square className="h-3 w-3 mr-1" />
+                      None
+                    </Button>
+                  </div>
+                </div>
                 {PERMISSION_GROUPS.map((group) => {
                   const groupPerms = ALL_PERMISSIONS.filter((p) => p.group === group);
                   return (
@@ -254,7 +314,7 @@ export const RolePermissionsEditor = () => {
       </Dialog>
 
       {/* Create Role Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) { setNewRoleName(""); setNewRoleDesc(""); setNewRolePerms([]); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Role</DialogTitle>
@@ -267,12 +327,22 @@ export const RolePermissionsEditor = () => {
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Input value={newRoleDesc} onChange={(e) => setNewRoleDesc(e.target.value)} placeholder="Short description" />
+                <Textarea rows={2} value={newRoleDesc} onChange={(e) => setNewRoleDesc(e.target.value)} placeholder="Describe what this role is for..." />
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-base font-semibold">Permissions</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Permissions ({newRolePerms.length}/{ALL_PERMISSIONS.length})</Label>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setNewRolePerms(ALL_PERMISSIONS.map(p => p.key))}>
+                    <CheckSquare className="h-3 w-3 mr-1" />All
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setNewRolePerms([])}>
+                    <Square className="h-3 w-3 mr-1" />None
+                  </Button>
+                </div>
+              </div>
               {PERMISSION_GROUPS.map((group) => {
                 const groupPerms = ALL_PERMISSIONS.filter((p) => p.group === group);
                 return (
@@ -296,6 +366,27 @@ export const RolePermissionsEditor = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingRoleId} onOpenChange={(open) => !open && setDeletingRoleId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the role and remove it from all assigned users. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteRole}
+            >
+              Delete Role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
