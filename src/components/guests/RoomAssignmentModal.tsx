@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { formatKsh } from "@/lib/formatters";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid, differenceInCalendarDays } from "date-fns";
+import { lookupGuestByPhone } from "@/lib/guestLookup";
+import { GuestPhoneLookupResult, maskEmail, maskIdNumber, normalizePhoneDigits } from "@/lib/guestPrivacy";
 import { 
   BedDouble, 
   Users, 
@@ -20,13 +23,17 @@ import { toast } from "sonner";
 
 interface ConfirmedBooking {
   id: string;
+  booking_ids?: string[];
   guest_id: string | null;
+  bill_to_guest_id?: string | null;
   guest_name: string;
+  guest_phone?: string;
   room_type: string;
   room_number: string;
   check_in: string;
   check_out: string;
   guests_count: number;
+  pending_rooms?: number;
   total_amount: number;
   special_requests?: string | null;
 }
@@ -61,15 +68,119 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [selectedAlternativeType, setSelectedAlternativeType] = useState<string>("");
   const [cancelNote, setCancelNote] = useState("");
+  const [arrivingGuestName, setArrivingGuestName] = useState("");
+  const [arrivingGuestPhone, setArrivingGuestPhone] = useState("");
+  const [arrivingGuestEmail, setArrivingGuestEmail] = useState("");
+  const [arrivingGuestIdNumber, setArrivingGuestIdNumber] = useState("");
+  const [arrivingGuestIdCopyFile, setArrivingGuestIdCopyFile] = useState<File | null>(null);
+  const [phoneLookup, setPhoneLookup] = useState<GuestPhoneLookupResult | null>(null);
+  const [isLookingUpPhone, setIsLookingUpPhone] = useState(false);
+  const [acceptedPhoneKey, setAcceptedPhoneKey] = useState<string | null>(null);
+  const [declinedPhoneKey, setDeclinedPhoneKey] = useState<string | null>(null);
+  const [phoneLookupMessage, setPhoneLookupMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [mode, setMode] = useState<'assign' | 'change-type' | 'unavailable'>('assign');
 
   useEffect(() => {
     if (open && booking) {
+      setArrivingGuestName("");
+      setArrivingGuestPhone("");
+      setArrivingGuestEmail("");
+      setArrivingGuestIdNumber("");
+      setArrivingGuestIdCopyFile(null);
+      setPhoneLookup(null);
+      setPhoneLookupMessage(null);
+      setIsLookingUpPhone(false);
+      setAcceptedPhoneKey(null);
+      setDeclinedPhoneKey(null);
       fetchAvailableRooms();
     }
   }, [open, booking]);
+
+  const handleArrivingGuestPhoneChange = (value: string) => {
+    const nextPhoneKey = normalizePhoneDigits(value);
+    setArrivingGuestPhone(value);
+    setPhoneLookup(null);
+    setPhoneLookupMessage(null);
+
+    if (acceptedPhoneKey && acceptedPhoneKey !== nextPhoneKey) {
+      setAcceptedPhoneKey(null);
+    }
+    if (declinedPhoneKey && declinedPhoneKey !== nextPhoneKey) {
+      setDeclinedPhoneKey(null);
+    }
+  };
+
+  const handleUseMatchedDetails = () => {
+    if (!phoneLookup) return;
+    const phoneKey = normalizePhoneDigits(arrivingGuestPhone);
+
+    setArrivingGuestName(phoneLookup.name || "");
+    setArrivingGuestEmail(phoneLookup.email || "");
+    setArrivingGuestIdNumber(phoneLookup.id_number || "");
+    setAcceptedPhoneKey(phoneKey || null);
+    setDeclinedPhoneKey(null);
+    setPhoneLookup(null);
+    setPhoneLookupMessage(null);
+  };
+
+  const handleDeclineMatchedDetails = () => {
+    const phoneKey = normalizePhoneDigits(arrivingGuestPhone);
+    setDeclinedPhoneKey(phoneKey || null);
+    setAcceptedPhoneKey(null);
+    setPhoneLookup(null);
+    setPhoneLookupMessage("Use new details for this guest.");
+  };
+
+  useEffect(() => {
+    const phoneInput = arrivingGuestPhone.trim();
+    const phoneKey = normalizePhoneDigits(phoneInput);
+
+    if (phoneKey.length < 7) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      setPhoneLookupMessage(null);
+      return;
+    }
+
+    if (phoneKey === acceptedPhoneKey || phoneKey === declinedPhoneKey) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsLookingUpPhone(true);
+      try {
+        const match = await lookupGuestByPhone(phoneInput);
+        if (cancelled) return;
+
+        if (match) {
+          setPhoneLookup(match);
+          setPhoneLookupMessage(null);
+        } else {
+          setPhoneLookup(null);
+          setPhoneLookupMessage("No previous guest found for this phone.");
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Arriving guest phone lookup failed:", error);
+        setPhoneLookup(null);
+        setPhoneLookupMessage(null);
+      } finally {
+        if (!cancelled) {
+          setIsLookingUpPhone(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [arrivingGuestPhone, acceptedPhoneKey, declinedPhoneKey]);
 
   const fetchAvailableRooms = async () => {
     if (!booking) return;
@@ -141,11 +252,145 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
       const selectedRoomData = availableRooms.find(r => r.id === selectedRoom);
       if (!selectedRoomData) throw new Error("Room not found");
 
+      const trimmedName = arrivingGuestName.trim();
+      const trimmedPhone = arrivingGuestPhone.trim();
+      const trimmedEmail = arrivingGuestEmail.trim();
+      const trimmedIdNumber = arrivingGuestIdNumber.trim();
+      const hasArrivingGuestInput = trimmedName || trimmedPhone || trimmedEmail;
+      const hasRequiredArrivingGuest = trimmedName.length > 0 && trimmedPhone.length > 0;
+
+      if (!trimmedIdNumber) {
+        toast.error("ID/Passport number is required before check-in.");
+        setAssigning(false);
+        return;
+      }
+
+      if (hasArrivingGuestInput && !hasRequiredArrivingGuest) {
+        toast.error("Provide both arriving guest name and phone, or leave both empty.");
+        setAssigning(false);
+        return;
+      }
+
+      let assignedGuestId = booking.guest_id;
+
+      if (hasRequiredArrivingGuest) {
+        const { data: idMatches, error: idLookupError } = await supabase
+          .from("guests")
+          .select("id")
+          .eq("id_number", trimmedIdNumber)
+          .limit(1);
+
+        if (idLookupError) throw idLookupError;
+
+        if (idMatches && idMatches.length > 0) {
+          assignedGuestId = idMatches[0].id;
+        } else {
+          const { data: phoneMatches, error: phoneLookupError } = await supabase
+            .from("guests")
+            .select("id, id_number")
+            .eq("phone", trimmedPhone)
+            .limit(1);
+
+          if (phoneLookupError) throw phoneLookupError;
+
+          const phoneMatch = phoneMatches?.[0];
+          if (phoneMatch && (!phoneMatch.id_number || phoneMatch.id_number === trimmedIdNumber)) {
+            assignedGuestId = phoneMatch.id;
+          } else {
+            const { data: insertedGuest, error: insertGuestError } = await supabase
+              .from("guests")
+              .insert({
+                name: trimmedName,
+                phone: trimmedPhone,
+                email: trimmedEmail || null,
+                id_number: trimmedIdNumber,
+              })
+              .select("id")
+              .single();
+
+            if (insertGuestError) throw insertGuestError;
+            assignedGuestId = insertedGuest.id;
+          }
+        }
+
+        const { error: updateGuestError } = await supabase
+          .from("guests")
+          .update({
+            name: trimmedName,
+            phone: trimmedPhone,
+            email: trimmedEmail || null,
+            id_number: trimmedIdNumber,
+          })
+          .eq("id", assignedGuestId);
+
+        if (updateGuestError) throw updateGuestError;
+      }
+
+      if (!assignedGuestId) {
+        toast.error("Missing lead guest profile. Enter arriving guest name and phone.");
+        setAssigning(false);
+        return;
+      }
+
+      if (!hasRequiredArrivingGuest) {
+        const { error: updateLeadIdError } = await supabase
+          .from("guests")
+          .update({ id_number: trimmedIdNumber })
+          .eq("id", assignedGuestId);
+
+        if (updateLeadIdError) throw updateLeadIdError;
+      }
+
+      if (arrivingGuestIdCopyFile) {
+        const safeName = arrivingGuestIdCopyFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const filePath = `guest-${assignedGuestId}/${Date.now()}-${safeName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("guest-docs")
+          .upload(filePath, arrivingGuestIdCopyFile, { upsert: false });
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage.from("guest-docs").getPublicUrl(filePath);
+
+        const { error: updatePhotoError } = await supabase
+          .from("guests")
+          .update({ id_photo_url: publicUrlData.publicUrl })
+          .eq("id", assignedGuestId);
+        if (updatePhotoError) throw updatePhotoError;
+
+        const fileExt = arrivingGuestIdCopyFile.name.split(".").pop() || "file";
+        const { error: uploadLogError } = await supabase
+          .from("guest_uploads" as any)
+          .insert({
+            guest_id: assignedGuestId,
+            file_url: publicUrlData.publicUrl,
+            file_name: arrivingGuestIdCopyFile.name,
+            file_type: arrivingGuestIdCopyFile.type || fileExt,
+          });
+        if (uploadLogError) {
+          console.warn("Failed to save guest upload log:", uploadLogError.message);
+        }
+      }
+
+      const checkInDate = parseISO(booking.check_in);
+      const checkOutDate = parseISO(booking.check_out);
+      const nights =
+        isValid(checkInDate) && isValid(checkOutDate)
+          ? Math.max(1, differenceInCalendarDays(checkOutDate, checkInDate))
+          : 1;
+      const recalculatedTotal = Number(selectedRoomData.base_price || 0) * nights;
+      const billingGuestId =
+        booking.bill_to_guest_id ||
+        booking.guest_id ||
+        assignedGuestId;
+
       // Update booking with assigned room
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({ 
           room_number: selectedRoomData.number,
+          guest_id: assignedGuestId,
+          bill_to_guest_id: billingGuestId,
+          total_amount: recalculatedTotal,
           status: 'checked-in'
         })
         .eq("id", booking.id);
@@ -157,7 +402,7 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
         .from("rooms")
         .update({ 
           occupancy_status: 'occupied',
-          current_guest_id: booking.guest_id,
+          current_guest_id: assignedGuestId,
           current_booking_id: booking.id
         })
         .eq("id", selectedRoom);
@@ -172,7 +417,7 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
           .eq("number", booking.room_number);
       }
 
-      toast.success(`Guest checked in to Room ${selectedRoomData.number}`);
+      toast.success(`Guest checked in to Room ${selectedRoomData.number}. Bill set to ${formatKsh(recalculatedTotal)}.`);
       onAssigned();
       onOpenChange(false);
     } catch (error) {
@@ -262,7 +507,12 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
             {mode === 'unavailable' && 'No Rooms Available'}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'assign' && `Select a room for ${booking.guest_name}`}
+            {mode === 'assign' &&
+              `Select a room for ${booking.guest_name}${
+                booking.pending_rooms && booking.pending_rooms > 1
+                  ? ` (${booking.pending_rooms} room requests pending)`
+                  : ""
+              }`}
             {mode === 'change-type' && `No ${booking.room_type} rooms available. Choose an alternative.`}
             {mode === 'unavailable' && 'Unfortunately, no rooms are available at this time.'}
           </DialogDescription>
@@ -282,6 +532,9 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>Requested: <span className="capitalize font-medium">{booking.room_type}</span></p>
+                {booking.pending_rooms && booking.pending_rooms > 1 && (
+                  <p>Pending rooms: <span className="font-medium">{booking.pending_rooms}</span></p>
+                )}
                 <p>
                   {(() => {
                     const checkIn = parseISO(booking.check_in);
@@ -296,6 +549,77 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
 
             {mode === 'assign' && (
               <>
+                <div className="space-y-3 p-3 border rounded-lg">
+                  <div>
+                    <Label className="text-sm font-medium">Guest For This Room</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      You can use lead guest ({booking.guest_name}) or enter arriving guest details. ID is mandatory.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      placeholder="Arriving guest phone"
+                      value={arrivingGuestPhone}
+                      onChange={(e) => handleArrivingGuestPhoneChange(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Arriving guest name"
+                      value={arrivingGuestName}
+                      onChange={(e) => setArrivingGuestName(e.target.value)}
+                    />
+                  </div>
+                  {isLookingUpPhone && (
+                    <p className="text-xs text-muted-foreground">Checking previous guest details...</p>
+                  )}
+                  {phoneLookup && (
+                    <div className="rounded-md border bg-muted/40 p-3 space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">We found previous guest details for this phone number.</p>
+                        <p className="text-xs text-muted-foreground">
+                          Confirm first to prefill. Sensitive fields are masked until you approve.
+                        </p>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>Name: {phoneLookup.name}</p>
+                        <p>Email: {maskEmail(phoneLookup.email)}</p>
+                        <p>ID/Passport: {maskIdNumber(phoneLookup.id_number)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" onClick={handleUseMatchedDetails}>
+                          Use My Details
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={handleDeclineMatchedDetails}>
+                          Not Me
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {!isLookingUpPhone && phoneLookupMessage && (
+                    <p className="text-xs text-muted-foreground">{phoneLookupMessage}</p>
+                  )}
+                  <Input
+                    placeholder="Arriving guest email (optional)"
+                    value={arrivingGuestEmail}
+                    onChange={(e) => setArrivingGuestEmail(e.target.value)}
+                  />
+                  <Input
+                    placeholder="ID/Passport number *"
+                    value={arrivingGuestIdNumber}
+                    onChange={(e) => setArrivingGuestIdNumber(e.target.value)}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor={`id-copy-${booking.id}`} className="text-xs text-muted-foreground">
+                      ID copy upload (optional)
+                    </Label>
+                    <Input
+                      id={`id-copy-${booking.id}`}
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setArrivingGuestIdCopyFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                </div>
+
                 <RadioGroup value={selectedRoom} onValueChange={setSelectedRoom}>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {availableRooms.map((room) => (

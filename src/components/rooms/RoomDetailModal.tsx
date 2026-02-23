@@ -399,6 +399,11 @@ export function RoomDetailModal({ room, open, onOpenChange, onUpdateStatus }: Ro
                 Process Checkout
               </Button>
             )}
+            {room.occupancyStatus === 'checkout' && latestBooking && latestBooking.guest_id && (
+              <Button variant="outline" className="flex-1" onClick={() => setAssessmentOpen(true)}>
+                Run Assessment
+              </Button>
+            )}
             {latestBooking && latestBooking.guest_id && (
               <Button variant="outline" className="flex-1" onClick={() => setRefundOpen(true)}>
                 Request Refund

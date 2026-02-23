@@ -16,6 +16,7 @@ export interface Guest {
 export interface Booking {
   id: string;
   guest_id: string | null;
+  bill_to_guest_id: string | null;
   room_number: string;
   room_type: string;
   check_in: string;

@@ -103,6 +103,7 @@ export type Database = {
       }
       bookings: {
         Row: {
+          bill_to_guest_id: string | null
           check_in: string
           check_out: string
           created_at: string
@@ -119,6 +120,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bill_to_guest_id?: string | null
           check_in: string
           check_out: string
           created_at?: string
@@ -135,6 +137,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bill_to_guest_id?: string | null
           check_in?: string
           check_out?: string
           created_at?: string
@@ -151,6 +154,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_bill_to_guest_id_fkey"
+            columns: ["bill_to_guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_guest_id_fkey"
             columns: ["guest_id"]

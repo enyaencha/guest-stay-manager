@@ -5,6 +5,8 @@ export interface Guest {
   name: string;
   email: string;
   phone: string;
+  billingOwnerId?: string | null;
+  billingOwnerName?: string | null;
   idNumber?: string | null;
   idPhotoUrl?: string | null;
   bookingId?: string;
@@ -43,6 +45,19 @@ export interface Guest {
   paidAmount?: number;
   refundedAmount?: number;
   totalSpend?: number;
+  billingAccount?: {
+    bookingCount: number;
+    roomTotal: number;
+    roomPaid: number;
+    posPending: number;
+    posPaid: number;
+    assessmentTotal: number;
+    refundedTotal: number;
+    totalDue: number;
+    totalPaid: number;
+    balance: number;
+    overpayment: number;
+  };
   createdAt?: string;
 }
 

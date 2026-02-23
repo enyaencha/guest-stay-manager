@@ -56,6 +56,213 @@ interface RoleAssignmentData {
   valid_until: Date | null;
 }
 
+interface StaffFormProps {
+  formData: StaffFormData;
+  departments: string[];
+  isEdit?: boolean;
+  applyTime: (date: Date, time: string) => Date;
+  onInputChange: (field: keyof StaffFormData, value: any) => void;
+}
+
+const StaffForm = ({ formData, departments, isEdit = false, applyTime, onInputChange }: StaffFormProps) => (
+  <div className="grid gap-4 py-4">
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Full Name *</Label>
+        <Input
+          id="name"
+          value={formData.name}
+          onChange={(e) => onInputChange("name", e.target.value)}
+          placeholder="Enter full name"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          value={formData.email}
+          onChange={(e) => onInputChange("email", e.target.value)}
+          placeholder="email@example.com"
+        />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="phone">Phone</Label>
+        <Input
+          id="phone"
+          value={formData.phone}
+          onChange={(e) => onInputChange("phone", e.target.value)}
+          placeholder="+254..."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="department">Department *</Label>
+        <Select value={formData.department} onValueChange={(value) => onInputChange("department", value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select department" />
+          </SelectTrigger>
+          <SelectContent>
+            {departments.map((dept) => (
+              <SelectItem key={dept} value={dept}>
+                {dept}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>Employment Type *</Label>
+        <Select
+          value={formData.employment_type}
+          onValueChange={(value: "permanent" | "temporary") => onInputChange("employment_type", value)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="permanent">Permanent</SelectItem>
+            <SelectItem value="temporary">Temporary</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {formData.employment_type === "temporary" && (
+        <div className="space-y-2">
+          <Label>Contract End Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !formData.contract_end_date && "text-muted-foreground",
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {formData.contract_end_date ? format(formData.contract_end_date, "PPP") : "Select date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={formData.contract_end_date || undefined}
+                onSelect={(date) =>
+                  onInputChange("contract_end_date", date ? applyTime(date, formData.contract_end_time) : null)
+                }
+                disabled={(date) => date < new Date()}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {formData.contract_end_date && (
+            <div className="mt-2">
+              <Label className="text-xs">Contract End Time</Label>
+              <input
+                type="time"
+                className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={formData.contract_end_time}
+                onChange={(e) => {
+                  onInputChange("contract_end_time", e.target.value);
+                  onInputChange("contract_end_date", applyTime(formData.contract_end_date as Date, e.target.value));
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>Salary (Monthly)</Label>
+        <Input
+          type="number"
+          value={formData.salary}
+          onChange={(e) => onInputChange("salary", e.target.value)}
+          placeholder="e.g. 25000"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Agreed Weekly Hours</Label>
+        <Input
+          type="number"
+          value={formData.agreed_hours}
+          onChange={(e) => onInputChange("agreed_hours", e.target.value)}
+          placeholder="40"
+        />
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <Label>Annual Leave Days</Label>
+      <Input
+        type="number"
+        value={formData.annual_leave_days}
+        onChange={(e) => onInputChange("annual_leave_days", e.target.value)}
+        placeholder="21"
+      />
+    </div>
+
+    <div className="space-y-2">
+      <Label>Address</Label>
+      <Input
+        value={formData.address}
+        onChange={(e) => onInputChange("address", e.target.value)}
+        placeholder="Home address"
+      />
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>Emergency Contact Name</Label>
+        <Input
+          value={formData.emergency_contact_name}
+          onChange={(e) => onInputChange("emergency_contact_name", e.target.value)}
+          placeholder="Contact name"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Emergency Contact Phone</Label>
+        <Input
+          value={formData.emergency_contact_phone}
+          onChange={(e) => onInputChange("emergency_contact_phone", e.target.value)}
+          placeholder="+254..."
+        />
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <Label>Notes</Label>
+      <Input
+        value={formData.notes}
+        onChange={(e) => onInputChange("notes", e.target.value)}
+        placeholder="Additional notes"
+      />
+    </div>
+
+    {isEdit && (
+      <div className="space-y-2">
+        <Label>Status</Label>
+        <Select value={formData.status} onValueChange={(value) => onInputChange("status", value)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    )}
+  </div>
+);
+
 export const StaffManagement = () => {
   const { user } = useAuth();
   const { data: staff = [], isLoading: staffLoading, refetch: refetchStaff } = useStaff();
@@ -508,210 +715,6 @@ export const StaffManagement = () => {
     return isBefore(parseISO(contractEndDate), startOfDay(new Date()));
   };
 
-  const StaffForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Full Name *</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder="Enter full name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleInputChange("email", e.target.value)}
-            placeholder="email@example.com"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            onChange={(e) => handleInputChange("phone", e.target.value)}
-            placeholder="+254..."
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="department">Department *</Label>
-          <Select value={formData.department} onValueChange={(value) => handleInputChange("department", value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              {departments.map(dept => (
-                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Employment Type *</Label>
-          <Select 
-            value={formData.employment_type} 
-            onValueChange={(value: 'permanent' | 'temporary') => handleInputChange("employment_type", value)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="permanent">Permanent</SelectItem>
-              <SelectItem value="temporary">Temporary</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {formData.employment_type === 'temporary' && (
-          <div className="space-y-2">
-            <Label>Contract End Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.contract_end_date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.contract_end_date ? format(formData.contract_end_date, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.contract_end_date || undefined}
-                  onSelect={(date) =>
-                    handleInputChange("contract_end_date", date ? applyTime(date, formData.contract_end_time) : null)
-                  }
-                  disabled={(date) => date < new Date()}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            {formData.contract_end_date && (
-              <div className="mt-2">
-                <Label className="text-xs">Contract End Time</Label>
-                <input
-                  type="time"
-                  className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  value={formData.contract_end_time}
-                  onChange={(e) => {
-                    handleInputChange("contract_end_time", e.target.value);
-                    handleInputChange(
-                      "contract_end_date",
-                      applyTime(formData.contract_end_date as Date, e.target.value)
-                    );
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Salary & Hours */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Salary (Monthly)</Label>
-          <Input
-            type="number"
-            value={formData.salary}
-            onChange={(e) => handleInputChange("salary", e.target.value)}
-            placeholder="e.g. 25000"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Agreed Weekly Hours</Label>
-          <Input
-            type="number"
-            value={formData.agreed_hours}
-            onChange={(e) => handleInputChange("agreed_hours", e.target.value)}
-            placeholder="40"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Annual Leave Days</Label>
-        <Input
-          type="number"
-          value={formData.annual_leave_days}
-          onChange={(e) => handleInputChange("annual_leave_days", e.target.value)}
-          placeholder="21"
-        />
-      </div>
-
-      {/* Address */}
-      <div className="space-y-2">
-        <Label>Address</Label>
-        <Input
-          value={formData.address}
-          onChange={(e) => handleInputChange("address", e.target.value)}
-          placeholder="Home address"
-        />
-      </div>
-
-      {/* Emergency Contact */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Emergency Contact Name</Label>
-          <Input
-            value={formData.emergency_contact_name}
-            onChange={(e) => handleInputChange("emergency_contact_name", e.target.value)}
-            placeholder="Contact name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Emergency Contact Phone</Label>
-          <Input
-            value={formData.emergency_contact_phone}
-            onChange={(e) => handleInputChange("emergency_contact_phone", e.target.value)}
-            placeholder="+254..."
-          />
-        </div>
-      </div>
-
-      {/* Notes */}
-      <div className="space-y-2">
-        <Label>Notes</Label>
-        <Input
-          value={formData.notes}
-          onChange={(e) => handleInputChange("notes", e.target.value)}
-          placeholder="Additional notes"
-        />
-      </div>
-
-      {isEdit && (
-        <div className="space-y-2">
-          <Label>Status</Label>
-          <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-    </div>
-  );
-
   if (staffLoading) {
     return (
       <Card>
@@ -747,7 +750,12 @@ export const StaffManagement = () => {
                   <DialogTitle>Add New Staff Member</DialogTitle>
                   <DialogDescription>Enter the details for the new staff member</DialogDescription>
                 </DialogHeader>
-                <StaffForm />
+                <StaffForm
+                  formData={formData}
+                  departments={departments}
+                  applyTime={applyTime}
+                  onInputChange={handleInputChange}
+                />
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
                   <Button onClick={handleAddStaff} disabled={createStaff.isPending}>
@@ -829,7 +837,13 @@ export const StaffManagement = () => {
               <DialogTitle>Edit Staff Member</DialogTitle>
               <DialogDescription>Update staff member details</DialogDescription>
             </DialogHeader>
-            <StaffForm isEdit />
+            <StaffForm
+              isEdit
+              formData={formData}
+              departments={departments}
+              applyTime={applyTime}
+              onInputChange={handleInputChange}
+            />
             <DialogFooter>
               <Button variant="outline" onClick={resetForm}>Cancel</Button>
               <Button onClick={handleEditStaff} disabled={updateStaff.isPending}>

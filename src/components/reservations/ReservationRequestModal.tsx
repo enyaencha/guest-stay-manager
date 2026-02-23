@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { lookupGuestByPhone } from "@/lib/guestLookup";
+import { GuestPhoneLookupResult, maskEmail, maskIdNumber, normalizePhoneDigits } from "@/lib/guestPrivacy";
 import { toast } from "sonner";
 
 interface RoomTypeOption {
@@ -49,18 +51,27 @@ export function ReservationRequestModal({
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   const [source, setSource] = useState("Walk-in");
   const [specialRequests, setSpecialRequests] = useState("");
   const [items, setItems] = useState<ReservationRequestItem[]>([{ ...blankItem }]);
   const [isSaving, setIsSaving] = useState(false);
+  const [phoneLookup, setPhoneLookup] = useState<GuestPhoneLookupResult | null>(null);
+  const [isLookingUpPhone, setIsLookingUpPhone] = useState(false);
+  const [acceptedPhoneKey, setAcceptedPhoneKey] = useState<string | null>(null);
+  const [declinedPhoneKey, setDeclinedPhoneKey] = useState<string | null>(null);
 
   const resetForm = () => {
     setGuestName("");
     setGuestPhone("");
     setGuestEmail("");
+    setIdNumber("");
     setSource("Walk-in");
     setSpecialRequests("");
     setItems([{ ...blankItem }]);
+    setPhoneLookup(null);
+    setAcceptedPhoneKey(null);
+    setDeclinedPhoneKey(null);
   };
 
   const handleAddItem = () => {
@@ -74,6 +85,84 @@ export function ReservationRequestModal({
   const handleItemChange = (index: number, updates: Partial<ReservationRequestItem>) => {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...updates } : item)));
   };
+
+  const handlePhoneChange = (value: string) => {
+    const nextPhoneKey = normalizePhoneDigits(value);
+    setGuestPhone(value);
+
+    if (acceptedPhoneKey && acceptedPhoneKey !== nextPhoneKey) {
+      setAcceptedPhoneKey(null);
+    }
+    if (declinedPhoneKey && declinedPhoneKey !== nextPhoneKey) {
+      setDeclinedPhoneKey(null);
+    }
+  };
+
+  const handleUseMatchedDetails = () => {
+    if (!phoneLookup) return;
+    const phoneKey = normalizePhoneDigits(guestPhone);
+
+    setGuestName(phoneLookup.name || "");
+    setGuestEmail(phoneLookup.email || "");
+    setIdNumber(phoneLookup.id_number || "");
+    setAcceptedPhoneKey(phoneKey || null);
+    setDeclinedPhoneKey(null);
+    setPhoneLookup(null);
+  };
+
+  const handleDeclineMatchedDetails = () => {
+    const phoneKey = normalizePhoneDigits(guestPhone);
+    setDeclinedPhoneKey(phoneKey || null);
+    setAcceptedPhoneKey(null);
+    setPhoneLookup(null);
+  };
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetForm();
+    }
+    onOpenChange(nextOpen);
+  };
+
+  useEffect(() => {
+    const phoneInput = guestPhone.trim();
+    const phoneKey = normalizePhoneDigits(phoneInput);
+
+    if (phoneKey.length < 7) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    if (phoneKey === acceptedPhoneKey || phoneKey === declinedPhoneKey) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      setIsLookingUpPhone(true);
+      try {
+        const match = await lookupGuestByPhone(phoneInput);
+        if (isCancelled) return;
+        setPhoneLookup(match);
+      } catch (error) {
+        if (isCancelled) return;
+        console.error("Guest phone lookup failed:", error);
+        setPhoneLookup(null);
+      } finally {
+        if (!isCancelled) {
+          setIsLookingUpPhone(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [guestPhone, acceptedPhoneKey, declinedPhoneKey]);
 
   const handleSubmit = async () => {
     if (!guestName.trim() || !guestPhone.trim()) {
@@ -90,6 +179,16 @@ export function ReservationRequestModal({
 
     setIsSaving(true);
     try {
+      // Match landing flow by ensuring the guest record exists before request confirmation.
+      const { error: guestError } = await supabase.rpc("get_or_create_guest" as any, {
+        name_input: guestName.trim(),
+        phone_input: guestPhone.trim(),
+        email_input: guestEmail.trim() || null,
+        id_number_input: idNumber.trim() || null,
+      });
+
+      if (guestError) throw guestError;
+
       const payload = {
         guest_name: guestName.trim(),
         guest_phone: guestPhone.trim(),
@@ -135,7 +234,7 @@ export function ReservationRequestModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Reservation Request</DialogTitle>
@@ -143,16 +242,27 @@ export function ReservationRequestModal({
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
+              <Label>Phone *</Label>
+              <Input value={guestPhone} onChange={(e) => handlePhoneChange(e.target.value)} />
+              {isLookingUpPhone && (
+                <p className="text-xs text-muted-foreground">Checking previous guest details...</p>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label>Guest Name *</Label>
               <Input value={guestName} onChange={(e) => setGuestName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Phone *</Label>
-              <Input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
-            </div>
-            <div className="space-y-2">
               <Label>Email (optional)</Label>
               <Input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>ID/Passport (optional)</Label>
+              <Input
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value)}
+                placeholder="12345678"
+              />
             </div>
             <div className="space-y-2">
               <Label>Source</Label>
@@ -171,6 +281,30 @@ export function ReservationRequestModal({
               </Select>
             </div>
           </div>
+
+          {phoneLookup && (
+            <div className="rounded-md border bg-muted/40 p-3 space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">We found previous guest details for this phone number.</p>
+                <p className="text-xs text-muted-foreground">
+                  Confirm before prefill. Sensitive fields stay masked until you accept.
+                </p>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Name: {phoneLookup.name}</p>
+                <p>Email: {maskEmail(phoneLookup.email)}</p>
+                <p>ID/Passport: {maskIdNumber(phoneLookup.id_number)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" onClick={handleUseMatchedDetails}>
+                  Use My Details
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={handleDeclineMatchedDetails}>
+                  Not Me
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <Label>Reservation Lines</Label>
@@ -279,7 +413,7 @@ export function ReservationRequestModal({
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button variant="ghost" onClick={() => handleDialogOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={isSaving}>

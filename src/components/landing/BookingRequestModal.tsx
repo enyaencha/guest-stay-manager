@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { lookupGuestByPhone } from "@/lib/guestLookup";
+import { GuestPhoneLookupResult, maskEmail, maskIdNumber, normalizePhoneDigits } from "@/lib/guestPrivacy";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, Calendar, Users, BedDouble } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInCalendarDays, isValid, parseISO } from "date-fns";
 
 interface RoomType {
   id: string;
@@ -36,6 +38,10 @@ export const BookingRequestModal = ({
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingReference, setBookingReference] = useState<string | null>(null);
+  const [phoneLookup, setPhoneLookup] = useState<GuestPhoneLookupResult | null>(null);
+  const [isLookingUpPhone, setIsLookingUpPhone] = useState(false);
+  const [acceptedPhoneKey, setAcceptedPhoneKey] = useState<string | null>(null);
+  const [declinedPhoneKey, setDeclinedPhoneKey] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -52,10 +58,88 @@ export const BookingRequestModal = ({
   });
 
   const selectedRoomType = roomTypes.find(rt => rt.code === formData.roomType);
-  const nights = formData.checkIn && formData.checkOut 
-    ? differenceInDays(new Date(formData.checkOut), new Date(formData.checkIn))
-    : 0;
+  const nights = (() => {
+    if (!formData.checkIn || !formData.checkOut) return 0;
+    const checkInDate = parseISO(formData.checkIn);
+    const checkOutDate = parseISO(formData.checkOut);
+    if (!isValid(checkInDate) || !isValid(checkOutDate)) return 0;
+    return Math.max(0, differenceInCalendarDays(checkOutDate, checkInDate));
+  })();
   const totalAmount = selectedRoomType ? selectedRoomType.base_price * Math.max(nights, 0) : 0;
+
+  const handlePhoneChange = (value: string) => {
+    const phoneKey = normalizePhoneDigits(value);
+    setFormData((prev) => ({ ...prev, phone: value }));
+
+    if (acceptedPhoneKey && acceptedPhoneKey !== phoneKey) {
+      setAcceptedPhoneKey(null);
+    }
+    if (declinedPhoneKey && declinedPhoneKey !== phoneKey) {
+      setDeclinedPhoneKey(null);
+    }
+  };
+
+  const handleUseMatchedDetails = () => {
+    if (!phoneLookup) return;
+    const phoneKey = normalizePhoneDigits(formData.phone);
+
+    setFormData((prev) => ({
+      ...prev,
+      name: phoneLookup.name || "",
+      email: phoneLookup.email || "",
+      idNumber: phoneLookup.id_number || "",
+    }));
+    setAcceptedPhoneKey(phoneKey || null);
+    setDeclinedPhoneKey(null);
+    setPhoneLookup(null);
+  };
+
+  const handleDeclineMatchedDetails = () => {
+    const phoneKey = normalizePhoneDigits(formData.phone);
+    setDeclinedPhoneKey(phoneKey || null);
+    setAcceptedPhoneKey(null);
+    setPhoneLookup(null);
+  };
+
+  useEffect(() => {
+    const phoneInput = formData.phone.trim();
+    const phoneKey = normalizePhoneDigits(phoneInput);
+
+    if (phoneKey.length < 7) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    if (phoneKey === acceptedPhoneKey || phoneKey === declinedPhoneKey) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      setIsLookingUpPhone(true);
+      try {
+        const match = await lookupGuestByPhone(phoneInput);
+        if (isCancelled) return;
+        setPhoneLookup(match);
+      } catch (error) {
+        if (isCancelled) return;
+        console.error("Guest phone lookup failed:", error);
+        setPhoneLookup(null);
+      } finally {
+        if (!isCancelled) {
+          setIsLookingUpPhone(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.phone, acceptedPhoneKey, declinedPhoneKey]);
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.phone || !formData.checkIn || !formData.checkOut || !formData.roomType) {
@@ -160,6 +244,9 @@ export const BookingRequestModal = ({
       specialRequests: "",
     });
     setBookingReference(null);
+    setPhoneLookup(null);
+    setAcceptedPhoneKey(null);
+    setDeclinedPhoneKey(null);
     onOpenChange(false);
   };
 
@@ -280,24 +367,51 @@ export const BookingRequestModal = ({
         {step === 2 && (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Phone Number *</Label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                placeholder="0712 345 678"
+              />
+              <p className="text-xs text-muted-foreground">
+                You'll use this number to check your booking status
+              </p>
+              {isLookingUpPhone && (
+                <p className="text-xs text-muted-foreground">Checking previous guest details...</p>
+              )}
+            </div>
+
+            {phoneLookup && (
+              <div className="rounded-md border bg-muted/40 p-3 space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">We found details from a previous reservation.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Confirm first to prefill. Sensitive fields are masked until you approve.
+                  </p>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Name: {phoneLookup.name}</p>
+                  <p>Email: {maskEmail(phoneLookup.email)}</p>
+                  <p>ID/Passport: {maskIdNumber(phoneLookup.id_number)}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" onClick={handleUseMatchedDetails}>
+                    Use My Details
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={handleDeclineMatchedDetails}>
+                    Not Me
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
               <Label>Full Name *</Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="John Doe"
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Phone Number *</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="0712 345 678"
-              />
-              <p className="text-xs text-muted-foreground">
-                You'll use this number to check your booking status
-              </p>
             </div>
 
             <div className="space-y-2">

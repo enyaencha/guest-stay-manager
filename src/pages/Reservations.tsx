@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ReservationCard } from "@/components/reservations/ReservationCard";
 import { ReservationRequestModal } from "@/components/reservations/ReservationRequestModal";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRoomTypes } from "@/hooks/useRooms";
@@ -37,6 +37,21 @@ interface ReservationRequest {
   status: string;
   created_at: string;
 }
+
+const normalizeDateTime = (value: string | null | undefined) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString();
+};
+
+const buildBookingKey = (
+  roomType: string | null | undefined,
+  checkIn: string | null | undefined,
+  checkOut: string | null | undefined
+) => {
+  return `${String(roomType || "").trim().toLowerCase()}|${normalizeDateTime(checkIn)}|${normalizeDateTime(checkOut)}`;
+};
 
 const Reservations = () => {
   const [reservations, setReservations] = useState<ReservationRequest[]>([]);
@@ -85,6 +100,117 @@ const Reservations = () => {
     }
   };
 
+  const ensureDirectBookingsForReservation = async (reservation: ReservationRequest) => {
+    const source = reservation.source?.trim().toLowerCase() || "";
+    if (source === "website") return;
+
+    const { data: guestRows, error: guestError } = await supabase.rpc("get_or_create_guest" as any, {
+      name_input: reservation.guest_name,
+      phone_input: reservation.guest_phone,
+      email_input: reservation.guest_email || null,
+      id_number_input: null,
+    });
+
+    if (guestError) throw guestError;
+
+    const guestId = (guestRows as Array<{ id: string }> | null)?.[0]?.id;
+    if (!guestId) {
+      throw new Error("Unable to create or find guest for this reservation");
+    }
+
+    const normalizedItems = reservation.request_items
+      .map((item) => {
+        const roomType = String(item.room_type || "").trim();
+        const checkIn = normalizeDateTime(item.check_in);
+        const checkOut = normalizeDateTime(item.check_out);
+
+        return {
+          room_type: roomType,
+          check_in: checkIn,
+          check_out: checkOut,
+          guests_count: Math.max(1, Number(item.guests_count) || 1),
+          rooms_count: Math.max(1, Number(item.rooms_count) || 1),
+        };
+      })
+      .filter((item) => item.room_type && item.check_in && item.check_out);
+
+    if (normalizedItems.length === 0) {
+      throw new Error("Reservation has no valid stay details");
+    }
+
+    const expectedBookings = normalizedItems.flatMap((item) =>
+      Array.from({ length: item.rooms_count }, () => ({
+        room_type: item.room_type,
+        check_in: item.check_in,
+        check_out: item.check_out,
+        guests_count: item.guests_count,
+      }))
+    );
+
+    const bookingOwnerFilter = `bill_to_guest_id.eq.${guestId},and(bill_to_guest_id.is.null,guest_id.eq.${guestId})`;
+
+    const { data: existingBookings, error: existingError } = await supabase
+      .from("bookings")
+      .select("room_type, check_in, check_out, status")
+      .or(bookingOwnerFilter)
+      .in("status", ["confirmed", "reserved", "pre-arrival", "checked-in"]);
+
+    if (existingError) throw existingError;
+
+    const existingCounts = new Map<string, number>();
+    (existingBookings || []).forEach((booking) => {
+      const key = buildBookingKey(booking.room_type, booking.check_in, booking.check_out);
+      existingCounts.set(key, (existingCounts.get(key) || 0) + 1);
+    });
+
+    const sourceNote = reservation.source ? `Source: ${reservation.source}` : "";
+    const combinedRequests = [sourceNote, reservation.special_requests].filter(Boolean).join(" | ") || null;
+
+    const missingBookings = expectedBookings.reduce<Array<{
+      guest_id: string;
+      bill_to_guest_id: string;
+      room_number: string;
+      room_type: string;
+      check_in: string;
+      check_out: string;
+      guests_count: number;
+      total_amount: number;
+      paid_amount: number;
+      payment_method: null;
+      status: "confirmed";
+      special_requests: string | null;
+    }>>((acc, item) => {
+      const key = buildBookingKey(item.room_type, item.check_in, item.check_out);
+      const availableCount = existingCounts.get(key) || 0;
+
+      if (availableCount > 0) {
+        existingCounts.set(key, availableCount - 1);
+        return acc;
+      }
+
+      acc.push({
+        guest_id: guestId,
+        bill_to_guest_id: guestId,
+        room_number: "TBA",
+        room_type: item.room_type,
+        check_in: item.check_in,
+        check_out: item.check_out,
+        guests_count: item.guests_count,
+        total_amount: 0,
+        paid_amount: 0,
+        payment_method: null,
+        status: "confirmed",
+        special_requests: combinedRequests,
+      });
+      return acc;
+    }, []);
+
+    if (missingBookings.length === 0) return;
+
+    const { error: insertError } = await supabase.from("bookings").insert(missingBookings);
+    if (insertError) throw insertError;
+  };
+
   const handleStatusChange = async (id: string, newStatus: string, note?: string) => {
     try {
       const reservation = reservations.find(r => r.id === id);
@@ -96,6 +222,10 @@ const Reservations = () => {
         .eq("id", id);
 
       if (updateError) throw updateError;
+
+      if (newStatus === "confirmed") {
+        await ensureDirectBookingsForReservation(reservation);
+      }
 
       // Create booking notification
       await supabase.from("booking_notifications").insert({

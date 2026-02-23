@@ -546,11 +546,17 @@ const POS = () => {
   const roomOptions = bookings
     .filter((booking) => booking.status === "checked-in")
     .map((booking) => {
-      const guest = guests.find((g) => g.id === booking.guest_id);
+      const billingGuestId = booking.bill_to_guest_id || booking.guest_id || undefined;
+      const billingGuest = billingGuestId
+        ? guests.find((g) => g.id === billingGuestId)
+        : undefined;
+      const stayGuest = booking.guest_id
+        ? guests.find((g) => g.id === booking.guest_id)
+        : undefined;
       return {
         roomNumber: booking.room_number,
-        guestName: guest?.name || "Guest",
-        guestId: booking.guest_id || undefined,
+        guestName: billingGuest?.name || stayGuest?.name || "Guest",
+        guestId: billingGuestId,
         bookingId: booking.id,
         isCheckedIn: true,
       };

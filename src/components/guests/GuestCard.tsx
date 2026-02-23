@@ -121,6 +121,32 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
       : paymentStatusCombined === "Overpaid"
         ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
         : "bg-status-checkout/20 text-status-checkout";
+  const accountBilling = guest.billingAccount;
+  const accountBillingOwnerName = guest.billingOwnerName || guest.name;
+  const accountPaymentStatus =
+    !accountBilling
+      ? "Unpaid"
+      : accountBilling.overpayment > 0
+        ? "Overpaid"
+        : accountBilling.totalPaid >= accountBilling.totalDue
+          ? "Paid"
+          : accountBilling.totalPaid > 0
+            ? "Partial"
+            : "Unpaid";
+  const accountPaymentColor =
+    accountPaymentStatus === "Paid"
+      ? "bg-status-available/20 text-status-available"
+      : accountPaymentStatus === "Overpaid"
+        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+        : "bg-status-checkout/20 text-status-checkout";
+  const showAccountBillingSummary =
+    !!accountBilling &&
+    (
+      accountBilling.bookingCount > 1 ||
+      guest.billingOwnerId !== guest.id ||
+      Math.abs((accountBilling.totalDue || 0) - totalDue) > 0.009 ||
+      Math.abs((accountBilling.totalPaid || 0) - paidTotal) > 0.009
+    );
 
   const handlePrint = (mode: "invoice" | "receipt") => {
     const win = window.open("", "_blank", "width=900,height=700");
@@ -576,103 +602,146 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
 
       {/* View Billing Dialog */}
       <Dialog open={showBilling} onOpenChange={setShowBilling}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[92vh] overflow-hidden p-0">
+          <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b">
             <DialogTitle>Billing Details</DialogTitle>
             <DialogDescription>Payment information for {guest.name}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-muted-foreground">Room {guest.roomNumber}</span>
-                <Badge className={status.className}>{status.label}</Badge>
+          <div className="overflow-y-auto px-4 sm:px-6 pb-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">Room</p>
+                <p className="font-semibold">Room {guest.roomNumber}</p>
+                <p className="text-xs text-muted-foreground capitalize">{guest.roomType}</p>
               </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">Payment Status</p>
+                <div className="mt-1">
+                  <Badge className={paymentColorCombined}>{paymentStatusCombined}</Badge>
+                </div>
+                <div className="mt-1">
+                  <Badge className={status.className}>{status.label}</Badge>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">Stay</p>
+                <p className="text-sm">{formatDateTime(guest.checkIn)}</p>
+                <p className="text-sm">{formatDateTime(guest.checkOut)}</p>
+              </div>
+            </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Room Type</span>
-                <span className="capitalize">{guest.roomType}</span>
+            <div className="rounded-lg border bg-muted/30 p-3 sm:p-4 space-y-2">
+              <div className="flex items-start justify-between gap-3 py-2 border-b">
+                <span className="text-muted-foreground text-sm">Room Total</span>
+                <span className="font-medium text-right">{formatKsh(totalAmount)}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Stay Period</span>
-                <span>{formatDateTime(guest.checkIn)} - {formatDateTime(guest.checkOut)}</span>
+              <div className="flex items-start justify-between gap-3 py-2 border-b">
+                <span className="text-muted-foreground text-sm">POS Pending</span>
+                <span className="font-medium text-right">{formatKsh(posPendingTotal)}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Room Total</span>
-                <span className="font-medium">{formatKsh(totalAmount)}</span>
+              <div className="flex items-start justify-between gap-3 py-2 border-b">
+                <span className="text-muted-foreground text-sm">Damages / Missing</span>
+                <span className="font-medium text-right">{formatKsh(assessmentCost)}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">POS Pending</span>
-                <span className="font-medium">{formatKsh(posPendingTotal)}</span>
+              <div className="flex items-start justify-between gap-3 py-2 border-b">
+                <span className="text-muted-foreground text-sm">Total Due</span>
+                <span className="font-semibold text-right">{formatKsh(totalDue)}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Damages / Missing</span>
-                <span className="font-medium">{formatKsh(assessmentCost)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Total Due (Room + POS)</span>
-                <span className="font-medium">{formatKsh(totalDue)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Paid Amount (Net)</span>
-                <span className="font-medium text-status-available">{formatKsh(paidTotal)}</span>
+              <div className="flex items-start justify-between gap-3 py-2 border-b">
+                <span className="text-muted-foreground text-sm">Paid Amount (Net)</span>
+                <span className="font-semibold text-status-available text-right">{formatKsh(paidTotal)}</span>
               </div>
               {refundedAmount > 0 && (
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Refunded to Guest</span>
-                  <span className="font-medium text-destructive">-{formatKsh(refundedAmount)}</span>
+                <div className="flex items-start justify-between gap-3 py-2 border-b">
+                  <span className="text-muted-foreground text-sm">Refunded to Guest</span>
+                  <span className="font-medium text-destructive text-right">-{formatKsh(refundedAmount)}</span>
                 </div>
               )}
               {overpayment > 0 ? (
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Overpayment</span>
-                  <span className="font-semibold text-blue-600">{formatKsh(overpayment)}</span>
+                <div className="flex items-start justify-between gap-3 py-2">
+                  <span className="text-muted-foreground text-sm">Overpayment</span>
+                  <span className="font-semibold text-blue-600 text-right">{formatKsh(overpayment)}</span>
                 </div>
               ) : (
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Balance</span>
-                  <span className={`font-semibold ${balanceDue > 0 ? 'text-status-maintenance' : 'text-status-available'}`}>
+                <div className="flex items-start justify-between gap-3 py-2">
+                  <span className="text-muted-foreground text-sm">Balance</span>
+                  <span className={`font-semibold text-right ${balanceDue > 0 ? 'text-status-maintenance' : 'text-status-available'}`}>
                     {formatKsh(balanceDue)}
                   </span>
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-            <span className="font-medium">Payment Status</span>
-            <Badge className={paymentColorCombined}>{paymentStatusCombined}</Badge>
-          </div>
+            {showAccountBillingSummary && accountBilling && (
+              <div className="rounded-lg border bg-muted/30 p-3 sm:p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3 border-b pb-2">
+                  <div>
+                    <p className="font-medium">Cumulative Billing Account</p>
+                    <p className="text-xs text-muted-foreground">
+                      Owner: {accountBillingOwnerName} • {accountBilling.bookingCount} booking{accountBilling.bookingCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <Badge className={accountPaymentColor}>{accountPaymentStatus}</Badge>
+                </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => handlePrint("invoice")}>
-              Print Invoice
-            </Button>
-            <Button variant="outline" onClick={() => handlePrint("receipt")}>
-              Print Receipt
-            </Button>
-            {overpayment > 0 && guest.bookingId && (
-              <Button variant="outline" onClick={() => setShowOverpayRefund(true)}>
-                Request Overpayment Refund
-              </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="rounded-md border bg-background p-2.5">
+                    <p className="text-xs text-muted-foreground">Total Due</p>
+                    <p className="font-semibold">{formatKsh(accountBilling.totalDue)}</p>
+                  </div>
+                  <div className="rounded-md border bg-background p-2.5">
+                    <p className="text-xs text-muted-foreground">Paid (Net)</p>
+                    <p className="font-semibold text-status-available">{formatKsh(accountBilling.totalPaid)}</p>
+                  </div>
+                  <div className="rounded-md border bg-background p-2.5">
+                    <p className="text-xs text-muted-foreground">
+                      {accountBilling.overpayment > 0 ? "Overpayment" : "Balance"}
+                    </p>
+                    <p
+                      className={`font-semibold ${
+                        accountBilling.overpayment > 0
+                          ? "text-blue-600"
+                          : accountBilling.balance > 0
+                            ? "text-status-maintenance"
+                            : "text-status-available"
+                      }`}
+                    >
+                      {formatKsh(accountBilling.overpayment > 0 ? accountBilling.overpayment : accountBilling.balance)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1 border-t pt-2">
+                  <p>
+                    Breakdown: Room {formatKsh(accountBilling.roomTotal)} • POS Pending {formatKsh(accountBilling.posPending)} • Damages {formatKsh(accountBilling.assessmentTotal)}
+                  </p>
+                  {accountBilling.refundedTotal > 0 && (
+                    <p>Refunded: -{formatKsh(accountBilling.refundedTotal)}</p>
+                  )}
+                </div>
+              </div>
             )}
-          </div>
 
             {guest.posTransactions && guest.posTransactions.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-2 rounded-lg border p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">POS Purchases</span>
                   <span className="text-sm font-semibold">{formatKsh(posPendingTotal + posCompletedTotal)}</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
                   {guest.posTransactions.map((txn) => (
-                    <div key={txn.id} className="rounded-md border bg-muted/50 p-2 text-xs">
-                      <div className="flex items-center justify-between">
+                    <div key={txn.id} className="rounded-md border bg-muted/50 p-2.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="font-medium">{formatKsh(txn.total)}</span>
-                        <span className="capitalize">{txn.paymentMethod}</span>
+                        <Badge variant="outline" className="capitalize text-[10px]">
+                          {txn.paymentMethod}
+                        </Badge>
                       </div>
-                      <div className="text-muted-foreground">
-                        {new Date(txn.date).toLocaleString()} • {txn.itemsSummary || "Items"} • {txn.status}
+                      <div className="text-muted-foreground mt-1 leading-relaxed">
+                        {new Date(txn.date).toLocaleString()}
+                      </div>
+                      <div className="text-muted-foreground leading-relaxed">
+                        {txn.itemsSummary || "Items"} • {txn.status}
                       </div>
                     </div>
                   ))}
@@ -680,9 +749,9 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor={`payment-${guest.id}`}>Record Payment</Label>
-              <div className="flex gap-2">
+            <div className="space-y-3 rounded-lg border p-3 sm:p-4">
+              <Label htmlFor={`payment-${guest.id}`}>Record Payment (Current Stay)</Label>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   id={`payment-${guest.id}`}
                   type="number"
@@ -692,6 +761,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
                   onChange={(e) => setPaymentAmount(Number(e.target.value))}
                 />
                 <Button
+                  className="sm:w-auto w-full"
                   onClick={() => {
                     if (paymentAmount <= 0) return;
                     onRecordPayment?.(guest.id, paymentAmount, paymentMethod);
@@ -703,7 +773,7 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
               </div>
               <div className="space-y-2">
                 <Label>Payment Method</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { value: "mpesa", label: "M-Pesa" },
                     { value: "withdraw", label: "Withdraw" },
@@ -723,8 +793,22 @@ export const GuestCard = ({ guest, onCheckIn, onCheckOut, onRecordPayment }: Gue
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Add a payment received from the guest.
+                This payment is applied to this stay booking only.
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Button variant="outline" className="w-full" onClick={() => handlePrint("invoice")}>
+                Print Invoice
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => handlePrint("receipt")}>
+                Print Receipt
+              </Button>
+              {overpayment > 0 && guest.bookingId && (
+                <Button variant="outline" className="w-full" onClick={() => setShowOverpayRefund(true)}>
+                  Request Refund
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>

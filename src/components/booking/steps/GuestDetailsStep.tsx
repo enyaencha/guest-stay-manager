@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,8 @@ import { BookingFormData } from "@/types/booking";
 import { User, Mail, Phone, Globe, CreditCard, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGuests } from "@/hooks/useGuests";
+import { lookupGuestByPhone } from "@/lib/guestLookup";
+import { GuestPhoneLookupResult, maskEmail, maskIdNumber, normalizePhoneDigits } from "@/lib/guestPrivacy";
 
 interface GuestDetailsStepProps {
   formData: BookingFormData;
@@ -32,6 +34,10 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
   const { data: guests = [] } = useGuests();
   const [searchTerm, setSearchTerm] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [phoneLookup, setPhoneLookup] = useState<GuestPhoneLookupResult | null>(null);
+  const [isLookingUpPhone, setIsLookingUpPhone] = useState(false);
+  const [acceptedPhoneKey, setAcceptedPhoneKey] = useState<string | null>(null);
+  const [declinedPhoneKey, setDeclinedPhoneKey] = useState<string | null>(null);
 
   const filteredGuests = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -53,12 +59,92 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
     });
     setSearchTerm(`${guest.name} • ${guest.phone}`);
     setShowResults(false);
+    setAcceptedPhoneKey(normalizePhoneDigits(guest.phone));
+    setDeclinedPhoneKey(null);
+    setPhoneLookup(null);
   };
 
   const handleClearGuest = () => {
     updateFormData({ guestId: undefined });
     setSearchTerm("");
+    setAcceptedPhoneKey(null);
   };
+
+  const handlePhoneChange = (value: string) => {
+    const phoneKey = normalizePhoneDigits(value);
+    updateFormData({ guestPhone: value, guestId: undefined });
+
+    if (acceptedPhoneKey && acceptedPhoneKey !== phoneKey) {
+      setAcceptedPhoneKey(null);
+    }
+    if (declinedPhoneKey && declinedPhoneKey !== phoneKey) {
+      setDeclinedPhoneKey(null);
+    }
+  };
+
+  const handleUseMatchedDetails = () => {
+    if (!phoneLookup) return;
+    const phoneKey = normalizePhoneDigits(formData.guestPhone);
+
+    updateFormData({
+      guestId: phoneLookup.id || undefined,
+      guestName: phoneLookup.name || "",
+      guestEmail: phoneLookup.email || "",
+      guestPhone: phoneLookup.phone || formData.guestPhone,
+      idNumber: phoneLookup.id_number || "",
+    });
+    setSearchTerm(`${phoneLookup.name} • ${phoneLookup.phone}`);
+    setAcceptedPhoneKey(phoneKey || null);
+    setDeclinedPhoneKey(null);
+    setPhoneLookup(null);
+  };
+
+  const handleDeclineMatchedDetails = () => {
+    const phoneKey = normalizePhoneDigits(formData.guestPhone);
+    setDeclinedPhoneKey(phoneKey || null);
+    setAcceptedPhoneKey(null);
+    setPhoneLookup(null);
+  };
+
+  useEffect(() => {
+    const phoneInput = formData.guestPhone.trim();
+    const phoneKey = normalizePhoneDigits(phoneInput);
+
+    if (phoneKey.length < 7) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    if (phoneKey === acceptedPhoneKey || phoneKey === declinedPhoneKey) {
+      setPhoneLookup(null);
+      setIsLookingUpPhone(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      setIsLookingUpPhone(true);
+      try {
+        const match = await lookupGuestByPhone(phoneInput);
+        if (isCancelled) return;
+        setPhoneLookup(match);
+      } catch (error) {
+        if (isCancelled) return;
+        console.error("Guest phone lookup failed:", error);
+        setPhoneLookup(null);
+      } finally {
+        if (!isCancelled) {
+          setIsLookingUpPhone(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.guestPhone, acceptedPhoneKey, declinedPhoneKey]);
 
   return (
     <div className="space-y-6">
@@ -115,6 +201,23 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
+            <Label htmlFor="guestPhone">Phone Number *</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="guestPhone"
+                placeholder="+254 7XX XXX XXX"
+                className="pl-10"
+                value={formData.guestPhone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+              />
+            </div>
+            {isLookingUpPhone && (
+              <p className="text-xs text-muted-foreground">Checking previous guest details...</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="guestName">Full Name *</Label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -128,19 +231,29 @@ export function GuestDetailsStep({ formData, updateFormData }: GuestDetailsStepP
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="guestPhone">Phone Number *</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="guestPhone"
-                placeholder="+254 7XX XXX XXX"
-                className="pl-10"
-                value={formData.guestPhone}
-                onChange={(e) => updateFormData({ guestPhone: e.target.value })}
-              />
+          {phoneLookup && (
+            <div className="md:col-span-2 rounded-md border bg-muted/40 p-3 space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">We found previous guest details for this phone number.</p>
+                <p className="text-xs text-muted-foreground">
+                  Confirm first to prefill. Sensitive fields are masked until you approve.
+                </p>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Name: {phoneLookup.name}</p>
+                <p>Email: {maskEmail(phoneLookup.email)}</p>
+                <p>ID/Passport: {maskIdNumber(phoneLookup.id_number)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" onClick={handleUseMatchedDetails}>
+                  Use My Details
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={handleDeclineMatchedDetails}>
+                  Not Me
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="guestEmail">Email Address *</Label>

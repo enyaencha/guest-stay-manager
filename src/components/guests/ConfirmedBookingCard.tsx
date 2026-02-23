@@ -14,6 +14,7 @@ import {
 
 interface ConfirmedBooking {
   id: string;
+  booking_ids: string[];
   guest_id: string | null;
   guest_name: string;
   guest_phone: string;
@@ -22,6 +23,7 @@ interface ConfirmedBooking {
   check_in: string;
   check_out: string;
   guests_count: number;
+  pending_rooms: number;
   total_amount: number;
   special_requests: string | null;
 }
@@ -57,6 +59,11 @@ export function ConfirmedBookingCard({ booking, onAssignRoom }: ConfirmedBooking
           </div>
           <div className="flex flex-col items-end gap-1">
             <Badge className="status-reserved">Confirmed</Badge>
+            {booking.pending_rooms > 1 && (
+              <Badge variant="outline" className="text-xs">
+                {booking.pending_rooms} Rooms Pending
+              </Badge>
+            )}
             {isToday && (
               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                 Arriving Today
@@ -93,7 +100,7 @@ export function ConfirmedBookingCard({ booking, onAssignRoom }: ConfirmedBooking
           <span className="font-medium">{formatKsh(booking.total_amount)}</span>
           <Button size="sm" onClick={() => onAssignRoom(booking)}>
             <DoorOpen className="h-4 w-4 mr-1" />
-            Assign Room & Check In
+            {booking.pending_rooms > 1 ? "Assign Next Room" : "Assign Room & Check In"}
           </Button>
         </div>
       </CardContent>

@@ -154,6 +154,7 @@ export function BookingWizard({ open, onOpenChange, onComplete, bookingStatus = 
 
       await createBooking.mutateAsync({
         guest_id: guest.id,
+        bill_to_guest_id: guest.id,
         room_number: formData.roomNumber,
         room_type: formData.roomType,
         check_in: format(formData.checkIn, "yyyy-MM-dd'T'HH:mm:ssxxx"),
