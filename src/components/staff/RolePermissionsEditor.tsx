@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Shield, Edit, Plus, Save, Info, Trash2, Copy, CheckSquare, Square } from "lucide-react";
 import { ALL_PERMISSIONS, PERMISSION_GROUPS } from "@/lib/permissions";
 import { PermissionGroupCard } from "./PermissionGroupCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface EditingRole {
   id: string;
@@ -24,6 +25,7 @@ interface EditingRole {
 }
 
 export const RolePermissionsEditor = () => {
+  const { hasPermission } = useAuth();
   const { data: roles = [], isLoading } = useRoles();
   const queryClient = useQueryClient();
   const [editingRole, setEditingRole] = useState<EditingRole | null>(null);
@@ -34,7 +36,28 @@ export const RolePermissionsEditor = () => {
   const [saving, setSaving] = useState(false);
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
 
+  const canManageRoles =
+    hasPermission("staff.manage") ||
+    hasPermission("staff.manage_roles") ||
+    hasPermission("settings.manage") ||
+    hasPermission("settings.roles_permissions");
+
+  const roleManageDeniedMessage =
+    "You don't have permission to manage roles. Ask an administrator to grant Roles & Permissions access.";
+
+  const getRoleErrorMessage = (error: any, fallback: string) => {
+    if (error?.code === "42501") return roleManageDeniedMessage;
+    return error?.message || fallback;
+  };
+
+  const ensureCanManageRoles = () => {
+    if (canManageRoles) return true;
+    toast.error(roleManageDeniedMessage);
+    return false;
+  };
+
   const openDuplicate = (role: any) => {
+    if (!ensureCanManageRoles()) return;
     setNewRoleName(`${role.name} (Copy)`);
     setNewRoleDesc(role.description || "");
     setNewRolePerms([...(role.permissions || [])]);
@@ -42,6 +65,7 @@ export const RolePermissionsEditor = () => {
   };
 
   const handleDeleteRole = async () => {
+    if (!ensureCanManageRoles()) return;
     if (!deletingRoleId) return;
     try {
       const { error } = await (supabase as any).from("roles").delete().eq("id", deletingRoleId);
@@ -49,13 +73,14 @@ export const RolePermissionsEditor = () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       toast.success("Role deleted");
     } catch (e: any) {
-      toast.error(e.message || "Failed to delete role");
+      toast.error(getRoleErrorMessage(e, "Failed to delete role"));
     } finally {
       setDeletingRoleId(null);
     }
   };
 
   const openEdit = (role: any) => {
+    if (!ensureCanManageRoles()) return;
     setEditingRole({
       id: role.id,
       name: role.name,
@@ -93,6 +118,7 @@ export const RolePermissionsEditor = () => {
   };
 
   const handleSaveRole = async () => {
+    if (!ensureCanManageRoles()) return;
     if (!editingRole) return;
     setSaving(true);
     try {
@@ -109,13 +135,14 @@ export const RolePermissionsEditor = () => {
       toast.success(`Role "${editingRole.name}" updated`);
       setEditingRole(null);
     } catch (e: any) {
-      toast.error(e.message || "Failed to update role");
+      toast.error(getRoleErrorMessage(e, "Failed to update role"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleCreateRole = async () => {
+    if (!ensureCanManageRoles()) return;
     if (!newRoleName.trim()) {
       toast.error("Role name is required");
       return;
@@ -136,7 +163,7 @@ export const RolePermissionsEditor = () => {
       setNewRoleDesc("");
       setNewRolePerms([]);
     } catch (e: any) {
-      toast.error(e.message || "Failed to create role");
+      toast.error(getRoleErrorMessage(e, "Failed to create role"));
     } finally {
       setSaving(false);
     }
@@ -153,7 +180,12 @@ export const RolePermissionsEditor = () => {
             Control exactly what each role can see, create, and manage.
           </p>
         </div>
-        <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => setIsCreateOpen(true)}
+          disabled={!canManageRoles}
+          title={!canManageRoles ? "Missing role-management permission" : undefined}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Create Role
         </Button>
@@ -192,19 +224,32 @@ export const RolePermissionsEditor = () => {
                     <Badge variant="outline" className="text-xs">
                       {permCount}/{totalPerms} permissions
                     </Badge>
-                    <Button variant="ghost" size="sm" title="Duplicate role" onClick={() => openDuplicate(role)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={canManageRoles ? "Duplicate role" : "Missing role-management permission"}
+                      onClick={() => openDuplicate(role)}
+                      disabled={!canManageRoles}
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" title="Edit role" onClick={() => openEdit(role)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={canManageRoles ? "Edit role" : "Missing role-management permission"}
+                      onClick={() => openEdit(role)}
+                      disabled={!canManageRoles}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                     {!role.is_system_role && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        title="Delete role"
+                        title={canManageRoles ? "Delete role" : "Missing role-management permission"}
                         className="text-destructive hover:text-destructive"
                         onClick={() => setDeletingRoleId(role.id)}
+                        disabled={!canManageRoles}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -305,7 +350,7 @@ export const RolePermissionsEditor = () => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingRole(null)}>Cancel</Button>
-            <Button onClick={handleSaveRole} disabled={saving}>
+            <Button onClick={handleSaveRole} disabled={saving || !canManageRoles}>
               <Save className="h-4 w-4 mr-2" />
               {saving ? "Saving..." : "Save Changes"}
             </Button>
@@ -360,7 +405,7 @@ export const RolePermissionsEditor = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateRole} disabled={saving}>
+            <Button onClick={handleCreateRole} disabled={saving || !canManageRoles}>
               {saving ? "Creating..." : "Create Role"}
             </Button>
           </DialogFooter>

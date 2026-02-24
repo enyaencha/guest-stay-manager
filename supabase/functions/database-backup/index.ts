@@ -96,7 +96,10 @@ Deno.serve(async (req) => {
       _user_id: user.id,
     });
     const hasManagePermissions = Array.isArray(permissions)
-      ? permissions.includes("settings.manage") || permissions.includes("staff.manage")
+      ? permissions.includes("settings.manage") ||
+        permissions.includes("staff.manage") ||
+        permissions.includes("staff.manage_roles") ||
+        permissions.includes("settings.roles_permissions")
       : false;
 
     if (!hasAdminRole && !hasManagePermissions) {
