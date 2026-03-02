@@ -189,12 +189,15 @@ const GuestProfile = () => {
         .from("guest-docs")
         .upload(filePath, selectedFile, { upsert: false });
       if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from("guest-docs").getPublicUrl(filePath);
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from("guest-docs")
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year for document storage reference
+      if (signedError) throw signedError;
       const { error: insertError } = await supabase
         .from("guest_uploads" as any)
         .insert({
           guest_id: guestId,
-          file_url: data.publicUrl,
+          file_url: signedData.signedUrl,
           file_name: selectedFile.name,
           file_type: selectedFile.type || fileExt,
         });
