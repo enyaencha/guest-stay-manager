@@ -349,11 +349,15 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
           .upload(filePath, arrivingGuestIdCopyFile, { upsert: false });
         if (uploadError) throw uploadError;
 
-        const { data: publicUrlData } = supabase.storage.from("guest-docs").getPublicUrl(filePath);
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from("guest-docs")
+          .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year for document storage reference
+        if (signedError) throw signedError;
+        const docUrl = signedData.signedUrl;
 
         const { error: updatePhotoError } = await supabase
           .from("guests")
-          .update({ id_photo_url: publicUrlData.publicUrl })
+          .update({ id_photo_url: docUrl })
           .eq("id", assignedGuestId);
         if (updatePhotoError) throw updatePhotoError;
 
@@ -362,7 +366,7 @@ export function RoomAssignmentModal({ open, onOpenChange, booking, onAssigned }:
           .from("guest_uploads" as any)
           .insert({
             guest_id: assignedGuestId,
-            file_url: publicUrlData.publicUrl,
+            file_url: docUrl,
             file_name: arrivingGuestIdCopyFile.name,
             file_type: arrivingGuestIdCopyFile.type || fileExt,
           });

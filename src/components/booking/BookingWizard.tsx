@@ -131,8 +131,11 @@ export function BookingWizard({ open, onOpenChange, onComplete, bookingStatus = 
           .from("guest-ids")
           .upload(filePath, formData.idPhotoFile, { upsert: false });
         if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from("guest-ids").getPublicUrl(filePath);
-        idPhotoUrl = data.publicUrl;
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from("guest-ids")
+          .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year for ID storage reference
+        if (signedError) throw signedError;
+        idPhotoUrl = signedData.signedUrl;
       }
 
       const guest = formData.guestId
