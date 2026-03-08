@@ -98,7 +98,7 @@ export const useSystemPreferences = () => {
   const { user } = useAuth();
   const { propertyId } = useTenant();
 
-  return useQuery({
+  return useQuery<SystemPreferences | null>({
     queryKey: ["system_preferences", propertyId],
     queryFn: async () => {
       let query = supabase.from("system_preferences").select("*");
