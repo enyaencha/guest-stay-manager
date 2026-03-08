@@ -1,4 +1,5 @@
 import { 
+  type LucideIcon,
   LayoutDashboard, 
   BedDouble, 
   Users, 
@@ -18,9 +19,17 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
 import { usePropertySettings } from "@/hooks/useSettings";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sidebar,
   SidebarContent,
@@ -38,7 +47,7 @@ import { toast } from "sonner";
 interface NavItem {
   title: string;
   url: string;
-  icon: any;
+  icon: LucideIcon;
   permission?: string;
 }
 
@@ -65,19 +74,35 @@ const settingsItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-  const { hasPermission, signOut, user } = useAuth();
+  const { hasPermission, signOut } = useAuth();
+  const {
+    propertyId: activePropertyId,
+    propertyName: activePropertyName,
+    organizationName,
+    properties,
+    switchProperty,
+    isLoading: tenantLoading,
+  } = useTenant();
   const { data: propertySettings } = usePropertySettings();
   const navigate = useNavigate();
   const location = useLocation();
 
   const applyPropertySettings = propertySettings?.apply_settings ?? true;
   const propertyName = applyPropertySettings
-    ? propertySettings?.name || "STROS"
-    : "STROS";
+    ? propertySettings?.name || activePropertyName || "STROS"
+    : activePropertyName || "STROS";
   const propertyTagline = applyPropertySettings
     ? [propertySettings?.city, propertySettings?.country].filter(Boolean).join(", ") || "Property Manager"
     : "Property Manager";
   const propertyLogoUrl = applyPropertySettings ? propertySettings?.logo_url || "" : "";
+
+  const handlePropertyChange = async (nextPropertyId: string) => {
+    if (!nextPropertyId || nextPropertyId === activePropertyId) return;
+    const { error } = await switchProperty(nextPropertyId);
+    if (!error) {
+      toast.success("Branch switched successfully");
+    }
+  };
 
   const showGuestProfileLink =
     location.pathname.startsWith("/guests/") && location.pathname !== "/guests";
@@ -126,9 +151,32 @@ export function AppSidebar() {
           </div>
           <div>
             <h1 className="font-semibold text-sidebar-foreground text-base">{propertyName}</h1>
-            <p className="text-xs text-sidebar-foreground/60">{propertyTagline}</p>
+            <p className="text-xs text-sidebar-foreground/60">{organizationName}</p>
+            <p className="text-[11px] text-sidebar-foreground/45">{propertyTagline}</p>
           </div>
         </button>
+        {properties.length > 0 && (
+          <div className="mt-3">
+            <Select
+              value={activePropertyId || undefined}
+              onValueChange={handlePropertyChange}
+              disabled={tenantLoading}
+            >
+              <SelectTrigger className="h-8 text-xs bg-sidebar-accent/30 border-sidebar-border">
+                <SelectValue
+                  placeholder={tenantLoading ? "Loading branches..." : "Select branch"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {properties.map((property) => (
+                  <SelectItem key={property.id} value={property.id}>
+                    {property.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-4">

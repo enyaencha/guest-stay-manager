@@ -453,6 +453,13 @@ export default function Auth() {
           
           <div className="mt-4 pt-4 border-t border-accent/20">
             <Button
+              variant="outline"
+              className="w-full mb-2"
+              onClick={() => navigate("/platform/auth")}
+            >
+              Platform Owner Login
+            </Button>
+            <Button
               variant="ghost"
               className="w-full"
               onClick={() => navigate("/")}

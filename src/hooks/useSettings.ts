@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 
 export interface PropertySettings {
@@ -53,13 +55,20 @@ export interface SystemPreferences {
 }
 
 export const usePropertySettings = () => {
+  const { user } = useAuth();
+  const { propertyId } = useTenant();
+
   return useQuery({
-    queryKey: ["property_settings"],
+    queryKey: ["property_settings", propertyId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("property_settings")
-        .select("*")
-        .maybeSingle();
+      let query = supabase.from("property_settings").select("*");
+      if (propertyId) {
+        query = query.eq("property_id", propertyId);
+      } else if (!user?.id) {
+        query = query.order("created_at", { ascending: true }).limit(1);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       return data as PropertySettings | null;
@@ -68,8 +77,10 @@ export const usePropertySettings = () => {
 };
 
 export const useNotificationSettings = () => {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ["notification_settings"],
+    queryKey: ["notification_settings", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notification_settings")
@@ -79,21 +90,28 @@ export const useNotificationSettings = () => {
       if (error) throw error;
       return data as NotificationSettings | null;
     },
+    enabled: !!user?.id,
   });
 };
 
 export const useSystemPreferences = () => {
+  const { user } = useAuth();
+  const { propertyId } = useTenant();
+
   return useQuery({
-    queryKey: ["system_preferences"],
+    queryKey: ["system_preferences", propertyId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("system_preferences")
-        .select("*")
-        .maybeSingle();
+      let query = supabase.from("system_preferences").select("*");
+      if (propertyId) {
+        query = query.eq("property_id", propertyId);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       return data as SystemPreferences | null;
     },
+    enabled: !!user?.id,
   });
 };
 

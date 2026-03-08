@@ -5,9 +5,14 @@ import { HelpChatBot } from "@/components/chat/HelpChatBot";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { TenantProvider } from "@/contexts/TenantContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PlatformProtectedRoute } from "@/components/platform/PlatformProtectedRoute";
+import { PlatformLayout } from "@/components/platform/PlatformLayout";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import PlatformAuth from "./pages/PlatformAuth";
+import PlatformConsole from "./pages/PlatformConsole";
 import ResetPassword from "./pages/ResetPassword";
 import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
@@ -32,99 +37,111 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <HelpChatBot />
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/install" element={<Install />} />
-            
-            {/* Protected routes - require authentication */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/rooms" element={
-              <ProtectedRoute requiredPermission="rooms.view">
-                <Rooms />
-              </ProtectedRoute>
-            } />
-            <Route path="/reservations" element={
-              <ProtectedRoute requiredPermission="bookings.view">
-                <Reservations />
-              </ProtectedRoute>
-            } />
-            <Route path="/guests" element={
-              <ProtectedRoute requiredPermission="guests.view">
-                <Guests />
-              </ProtectedRoute>
-            } />
-            <Route path="/guests/:guestId" element={
-              <ProtectedRoute requiredPermission="guests.view">
-                <GuestProfile />
-              </ProtectedRoute>
-            } />
-            <Route path="/pos" element={
-              <ProtectedRoute requiredPermission="pos.view">
-                <POS />
-              </ProtectedRoute>
-            } />
-            <Route path="/housekeeping" element={
-              <ProtectedRoute requiredPermission="housekeeping.view">
-                <Housekeeping />
-              </ProtectedRoute>
-            } />
-            <Route path="/maintenance" element={
-              <ProtectedRoute requiredPermission="maintenance.view">
-                <Maintenance />
-              </ProtectedRoute>
-            } />
-            <Route path="/inventory" element={
-              <ProtectedRoute requiredPermission="inventory.view">
-                <Inventory />
-              </ProtectedRoute>
-            } />
-            <Route path="/reports" element={
-              <ProtectedRoute requiredPermission="reports.view">
-                <Reports />
-              </ProtectedRoute>
-            } />
-            <Route path="/finance" element={
-              <ProtectedRoute requiredPermission="finance.view">
-                <Finance />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute requiredPermission="settings.view">
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/staff" element={<Navigate to="/settings" replace />} />
-            <Route path="/refunds" element={
-              <ProtectedRoute requiredPermission="refunds.view">
-                <Refunds />
-              </ProtectedRoute>
-            } />
-            <Route path="/reviews" element={
-              <ProtectedRoute>
-                <Reviews />
-              </ProtectedRoute>
-            } />
-            <Route path="/my-profile" element={
-              <ProtectedRoute>
-                <MyProfile />
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <TenantProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <HelpChatBot />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/platform/auth" element={<PlatformAuth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/install" element={<Install />} />
+
+              {/* Protected routes - require authentication */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/rooms" element={
+                <ProtectedRoute requiredPermission="rooms.view">
+                  <Rooms />
+                </ProtectedRoute>
+              } />
+              <Route path="/reservations" element={
+                <ProtectedRoute requiredPermission="bookings.view">
+                  <Reservations />
+                </ProtectedRoute>
+              } />
+              <Route path="/guests" element={
+                <ProtectedRoute requiredPermission="guests.view">
+                  <Guests />
+                </ProtectedRoute>
+              } />
+              <Route path="/guests/:guestId" element={
+                <ProtectedRoute requiredPermission="guests.view">
+                  <GuestProfile />
+                </ProtectedRoute>
+              } />
+              <Route path="/pos" element={
+                <ProtectedRoute requiredPermission="pos.view">
+                  <POS />
+                </ProtectedRoute>
+              } />
+              <Route path="/housekeeping" element={
+                <ProtectedRoute requiredPermission="housekeeping.view">
+                  <Housekeeping />
+                </ProtectedRoute>
+              } />
+              <Route path="/maintenance" element={
+                <ProtectedRoute requiredPermission="maintenance.view">
+                  <Maintenance />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventory" element={
+                <ProtectedRoute requiredPermission="inventory.view">
+                  <Inventory />
+                </ProtectedRoute>
+              } />
+              <Route path="/reports" element={
+                <ProtectedRoute requiredPermission="reports.view">
+                  <Reports />
+                </ProtectedRoute>
+              } />
+              <Route path="/finance" element={
+                <ProtectedRoute requiredPermission="finance.view">
+                  <Finance />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute requiredPermission="settings.view">
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="/staff" element={<Navigate to="/settings" replace />} />
+              <Route path="/refunds" element={
+                <ProtectedRoute requiredPermission="refunds.view">
+                  <Refunds />
+                </ProtectedRoute>
+              } />
+              <Route path="/reviews" element={
+                <ProtectedRoute>
+                  <Reviews />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-profile" element={
+                <ProtectedRoute>
+                  <MyProfile />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/platform" element={<Navigate to="/platform/console" replace />} />
+              <Route path="/platform/console" element={
+                <PlatformProtectedRoute>
+                  <PlatformLayout>
+                    <PlatformConsole />
+                  </PlatformLayout>
+                </PlatformProtectedRoute>
+              } />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </TenantProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

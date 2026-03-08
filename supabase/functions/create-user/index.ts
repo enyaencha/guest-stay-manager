@@ -96,12 +96,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!roleId) {
-      return new Response(JSON.stringify({ error: "Role is required for new users" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
       email,

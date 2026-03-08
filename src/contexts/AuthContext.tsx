@@ -33,48 +33,118 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
 
-  const fetchUserRoles = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select(`
+  const normalizePermissionList = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+
+    const normalized = value
+      .map((permission) => (typeof permission === "string" ? permission.trim() : ""))
+      .filter((permission) => permission.length > 0);
+
+    return Array.from(new Set(normalized));
+  };
+
+  const fetchLegacyUserRoles = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select(`
+        id,
+        role_id,
+        roles:role_id (
           id,
-          role_id,
-          roles:role_id (
-            id,
-            name,
-            permissions
-          )
-        `)
-        .eq("user_id", userId)
-        .eq("is_active", true);
+          name,
+          permissions
+        )
+      `)
+      .eq("user_id", userId)
+      .eq("is_active", true);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const userRoles: UserRole[] = [];
-      const allPermissions: string[] = [];
+    const userRoles: UserRole[] = [];
+    const allPermissions: string[] = [];
 
-      data?.forEach((ur: any) => {
-        if (ur.roles) {
-          userRoles.push({
-            id: ur.roles.id,
-            name: ur.roles.name,
-            permissions: ur.roles.permissions || [],
-          });
-          (ur.roles.permissions || []).forEach((p: string) => {
-            if (!allPermissions.includes(p)) {
-              allPermissions.push(p);
-            }
-          });
-        }
+    data?.forEach((userRole: any) => {
+      if (!userRole?.roles) return;
+
+      const rolePermissions = normalizePermissionList(userRole.roles.permissions);
+
+      userRoles.push({
+        id: userRole.roles.id,
+        name: userRole.roles.name,
+        permissions: rolePermissions,
       });
 
+      rolePermissions.forEach((permission) => {
+        if (!allPermissions.includes(permission)) {
+          allPermissions.push(permission);
+        }
+      });
+    });
+
+    return { userRoles, allPermissions };
+  };
+
+  const fetchUserRoles = async (userId: string) => {
+    try {
+      const [permissionResult, permissionStateResult] = await Promise.all([
+        (supabase as any).rpc("get_user_permissions", { _user_id: userId }),
+        (supabase as any).rpc("get_my_organization_permission_state"),
+      ]);
+
+      const permissionError = permissionResult?.error;
+      const permissionStateError = permissionStateResult?.error;
+
+      if (!permissionError || !permissionStateError) {
+        const rpcPermissions = permissionError
+          ? []
+          : normalizePermissionList(permissionResult?.data);
+
+        const roleStateRows = Array.isArray(permissionStateResult?.data)
+          ? permissionStateResult.data
+          : [];
+        const roleState = !permissionStateError && roleStateRows.length > 0
+          ? roleStateRows[0]
+          : null;
+
+        const roleStatePermissions = normalizePermissionList(roleState?.permissions);
+        const resolvedPermissions =
+          rpcPermissions.length > 0 ? rpcPermissions : roleStatePermissions;
+
+        const resolvedRoles: UserRole[] = roleState
+          ? [
+              {
+                id: String(
+                  roleState.role_definition_id ??
+                    `base:${roleState.base_role ?? "membership"}`
+                ),
+                name: String(roleState.role_name ?? roleState.base_role ?? "Staff"),
+                permissions:
+                  roleStatePermissions.length > 0
+                    ? roleStatePermissions
+                    : resolvedPermissions,
+              },
+            ]
+          : [];
+
+        setRoles(resolvedRoles);
+        setPermissions(resolvedPermissions);
+        return;
+      }
+
+      const { userRoles, allPermissions } = await fetchLegacyUserRoles(userId);
       setRoles(userRoles);
       setPermissions(allPermissions);
     } catch (error) {
       console.error("Error fetching user roles:", error);
-      setRoles([]);
-      setPermissions([]);
+      try {
+        const { userRoles, allPermissions } = await fetchLegacyUserRoles(userId);
+        setRoles(userRoles);
+        setPermissions(allPermissions);
+      } catch (legacyError) {
+        console.error("Error fetching legacy user roles:", legacyError);
+        setRoles([]);
+        setPermissions([]);
+      }
     }
   };
 
@@ -177,7 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (user?.id) {
-      await fetchProfile(user.id);
+      await Promise.all([fetchProfile(user.id), fetchUserRoles(user.id)]);
     }
   };
 

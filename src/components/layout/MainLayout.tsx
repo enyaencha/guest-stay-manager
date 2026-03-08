@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const { user, roles, signOut, isLoading } = useAuth();
+  const { organizationName, propertyName } = useTenant();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -64,6 +66,12 @@ export function MainLayout({ children }: MainLayoutProps) {
           <header className="relative z-10 h-16 border-b bg-card/90 backdrop-blur flex items-center justify-between px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+              <div className="hidden lg:flex flex-col leading-tight">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {organizationName}
+                </span>
+                <span className="text-sm font-medium">{propertyName}</span>
+              </div>
               <div className="hidden md:flex relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
