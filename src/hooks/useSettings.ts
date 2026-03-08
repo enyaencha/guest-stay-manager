@@ -58,7 +58,7 @@ export const usePropertySettings = () => {
   const { user } = useAuth();
   const { propertyId } = useTenant();
 
-  return useQuery({
+  return useQuery<PropertySettings | null>({
     queryKey: ["property_settings", propertyId],
     queryFn: async () => {
       let query = supabase.from("property_settings").select("*");
